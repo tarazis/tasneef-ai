@@ -73,6 +73,8 @@ FONTS:       https://tarazis97.github.io/tasneef-data/fonts.json
 
 3. You must compile the code and pass ALL tests before committing.
 
+4. **After every commit that passes tests, run `clasp push`** to deploy the code to the Apps Script project.
+
 ## Version Control Guidelines
 **ALWAYS** use the following branch naming pattern:
 ```

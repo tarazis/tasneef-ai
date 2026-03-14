@@ -65,13 +65,14 @@ FONTS:       https://tarazis97.github.io/tasneef-data/fonts.json
 6. **Font fallback is Amiri.** If selected font fails, use Amiri and show a toast.
 7. **Apps Script constraints:** No npm. No import/require. No ES modules. All .gs files share global scope. HTML files served via HtmlService. Max project size ~2MB (code only, data is external).
 
-
 ## IMPORTANT:
 1. Before you make any change, create and checkout a feature branch according to the naming patterns specified below, then make the changes and commit your changes to the branch you created. 
 
 2. You must write unit and integration tests for all code.
 
 3. You must compile the code and pass ALL tests before committing.
+
+4. **After every commit that passes tests, run `clasp push`** to deploy the code to the Apps Script project.
 
 ## Version Control Guidelines
 **ALWAYS** use the following branch naming pattern:
