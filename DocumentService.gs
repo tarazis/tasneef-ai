@@ -68,7 +68,8 @@ function insertAyah(ayahData, formatState, settings) {
   if (showTranslation && translationText) {
     paragraphsToInsert.push({
       text: '\uFD3F ' + arabicText + ' \uFD3E',
-      align: DocumentApp.HorizontalAlignment.CENTER
+      align: DocumentApp.HorizontalAlignment.CENTER,
+      rtl: true
     });
     paragraphsToInsert.push({
       text: translationText,
@@ -81,7 +82,8 @@ function insertAyah(ayahData, formatState, settings) {
   } else {
     paragraphsToInsert.push({
       text: '\uFD3F ' + arabicText + ' \uFD3E [' + surahNameAr + ': ' + ayahNumAr + ']',
-      align: DocumentApp.HorizontalAlignment.CENTER
+      align: DocumentApp.HorizontalAlignment.CENTER,
+      rtl: true
     });
   }
 
@@ -89,16 +91,19 @@ function insertAyah(ayahData, formatState, settings) {
     tagParagraph.clear();
     tagParagraph.appendText(paragraphsToInsert[0].text);
     tagParagraph.setAlignment(paragraphsToInsert[0].align);
+    if (paragraphsToInsert[0].rtl) tagParagraph.setLeftToRight(false);
     applyFormat(tagParagraph.editAsText(), formatState);
     for (var j = 1; j < paragraphsToInsert.length; j++) {
       var p = body.insertParagraph(insertIndex + j, paragraphsToInsert[j].text);
       p.setAlignment(paragraphsToInsert[j].align);
+      if (paragraphsToInsert[j].rtl) p.setLeftToRight(false);
       applyFormat(p.editAsText(), formatState);
     }
   } else {
     for (var i = 0; i < paragraphsToInsert.length; i++) {
       var p = body.insertParagraph(insertIndex + i, paragraphsToInsert[i].text);
       p.setAlignment(paragraphsToInsert[i].align);
+      if (paragraphsToInsert[i].rtl) p.setLeftToRight(false);
       applyFormat(p.editAsText(), formatState);
     }
   }
