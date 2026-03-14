@@ -1,12 +1,12 @@
 /**
  * FontService.gs
- * Fetches Arabic-capable fonts from Google Fonts API.
- * Caches result for 24 hours in ScriptCache.
+ * Fetches Arabic-capable fonts from tasneef-data (GitHub Pages).
+ * No API key required. Caches result for 24 hours in ScriptCache.
  */
 
 var FALLBACK_FONT = 'Amiri';
 
-var FONTS_API_URL = 'https://www.googleapis.com/webfonts/v1/webfonts';
+var FONTS_JSON_URL = 'https://tarazis97.github.io/tasneef-data/fonts.json';
 var CACHE_KEY_FONTS = 'arabic_fonts';
 var CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 hours
 
@@ -20,8 +20,7 @@ var BAD_FONTS = [
 ];
 
 /**
- * Curated list of Arabic-capable fonts when Google Fonts API key is not set.
- * Excludes BAD_FONTS. Used so the add-on works out of the box.
+ * Curated list used when fetch fails. Excludes BAD_FONTS.
  */
 var FALLBACK_FONT_LIST = (function () {
   var list = [
@@ -32,9 +31,9 @@ var FALLBACK_FONT_LIST = (function () {
 })();
 
 /**
- * Fetches Arabic fonts from Google Fonts API, filters out BAD_FONTS,
- * returns family names sorted alphabetically. Cached for 24 hours.
- * Uses getGoogleFontsApiKey() from SettingsService — if not set, returns FALLBACK_FONT_LIST.
+ * Fetches Arabic fonts from tasneef-data URL. No API key required.
+ * Filters out BAD_FONTS, returns family names sorted alphabetically.
+ * Cached for 24 hours. Falls back to FALLBACK_FONT_LIST on error.
  * @return {Array<string>} Sorted list of font family names.
  */
 function getArabicFonts() {
@@ -44,18 +43,21 @@ function getArabicFonts() {
     return JSON.parse(cached);
   }
 
-  var apiKey = (typeof getGoogleFontsApiKey === 'function') ? getGoogleFontsApiKey() : null;
-  if (!apiKey) {
-    return FALLBACK_FONT_LIST.slice();
-  }
-
-  var url = FONTS_API_URL + '?key=' + encodeURIComponent(apiKey) + '&subset=arabic&sort=alpha';
   var fonts = [];
 
   try {
-    var response = UrlFetchApp.fetch(url);
+    var response = UrlFetchApp.fetch(FONTS_JSON_URL);
     var json = JSON.parse(response.getContentText());
-    var items = (json && json.items) ? json.items : [];
+
+    // Support both array of strings and { items: [{ family: "..." }] }
+    var items = [];
+    if (Array.isArray(json)) {
+      items = json.map(function (f) { return typeof f === 'string' ? { family: f } : f; });
+    } else if (json && json.items && Array.isArray(json.items)) {
+      items = json.items;
+    } else if (json && json.fonts && Array.isArray(json.fonts)) {
+      items = json.fonts.map(function (f) { return typeof f === 'string' ? { family: f } : f; });
+    }
 
     var badSet = {};
     for (var b = 0; b < BAD_FONTS.length; b++) {
@@ -63,7 +65,7 @@ function getArabicFonts() {
     }
 
     for (var i = 0; i < items.length; i++) {
-      var family = items[i].family;
+      var family = items[i].family || (typeof items[i] === 'string' ? items[i] : null);
       if (family && !badSet[family]) {
         fonts.push(family);
       }
@@ -72,12 +74,12 @@ function getArabicFonts() {
     fonts.sort(function (a, b) { return a.localeCompare(b, 'en'); });
 
     if (fonts.length === 0) {
-      fonts = [FALLBACK_FONT];
+      fonts = FALLBACK_FONT_LIST.slice();
     }
 
     cache.put(CACHE_KEY_FONTS, JSON.stringify(fonts), CACHE_TTL_SECONDS);
   } catch (e) {
-    fonts = [FALLBACK_FONT];
+    fonts = FALLBACK_FONT_LIST.slice();
   }
 
   return fonts;

@@ -4,7 +4,7 @@
  * Run from Apps Script editor: select runFontServiceTests, click Run.
  * View results in View → Logs.
  *
- * Without Google Fonts API key set: returns [Amiri]. With key: fetches and filters.
+ * Fetches from tasneef-data/fonts.json (no API key). Falls back to curated list on error.
  * No require/Node APIs.
  */
 

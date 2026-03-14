@@ -39,6 +39,7 @@ tasneef-ai/
 UTHMANI:     https://tarazis97.github.io/tasneef-data/quran/uthmani.json
 SIMPLE:      https://tarazis97.github.io/tasneef-data/quran/imlaei-simple.json
 SURAH META:  https://tarazis97.github.io/tasneef-data/quran/quran-metadata-surah-name.json
+FONTS:       https://tarazis97.github.io/tasneef-data/fonts.json
 ```
 - Fetched once on sidebar open via UrlFetchApp.fetch()
 - Used by: Browse tab, Search tab (in-memory exact text search), AI Search validation
