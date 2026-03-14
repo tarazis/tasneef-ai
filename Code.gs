@@ -31,36 +31,20 @@ function include(filename) {
 }
 
 /**
- * Returns surah list for Browse tab. Loads Quran data and extracts surah metadata.
+ * Returns surah list for Browse tab. Uses quranapi.pages.dev.
  * @return {Array<{number, nameArabic, nameEnglish, ayahCount}>}
  */
 function getSurahListForBrowse() {
-  var data = loadQuranData();
-  return getSurahList(data);
+  return getSurahListFromQuranApi();
 }
 
 /**
- * Returns a single ayah for Browse tab. Includes both uthmani and simple text for insert.
+ * Returns a single ayah for Browse tab. Uses quranapi (Arabic + translation in one call).
  * @param {number} surahNum - Surah number (1–114)
  * @param {number} ayahNum - Ayah number
  * @param {string} style - "uthmani" or "simple" (for preview display)
- * @return {Object|null} { surah, ayah, surahNameArabic, surahNameEnglish, arabicText, textUthmani, textSimple } or null
+ * @return {Object|null} { surah, ayah, surahNameArabic, surahNameEnglish, arabicText, textUthmani, textSimple, translationText } or null
  */
 function getAyahForBrowse(surahNum, ayahNum, style) {
-  var data = loadQuranData();
-  var s = style || 'uthmani';
-  var uthmani = getAyah(data, surahNum, ayahNum, 'uthmani');
-  var simple = getAyah(data, surahNum, ayahNum, 'simple');
-  if (!uthmani && !simple) return null;
-  var base = uthmani || simple;
-  var arabicText = (s === 'uthmani' && uthmani) ? uthmani.arabicText : (simple ? simple.arabicText : '');
-  return {
-    surah: base.surah,
-    ayah: base.ayah,
-    surahNameArabic: base.surahNameArabic,
-    surahNameEnglish: base.surahNameEnglish,
-    arabicText: arabicText,
-    textUthmani: uthmani ? uthmani.arabicText : '',
-    textSimple: simple ? simple.arabicText : ''
-  };
+  return getAyahFromQuranApi(surahNum, ayahNum, style || 'uthmani');
 }

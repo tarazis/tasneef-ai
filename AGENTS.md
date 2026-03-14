@@ -13,8 +13,9 @@ A Google Docs sidebar add-on for Islamic scholars to search and insert Quranic a
 tasneef-ai/
 ├── appsscript.json
 ├── Code.gs                      # Menu, sidebar launcher, include() helper
-├── QuranData.gs                 # Load Quran JSON from GitHub Pages, lookup, in-memory search
-├── TranslationAPI.gs            # Fetch English translations from quranapi.pages.dev
+├── QuranData.gs                 # GitHub Pages: in-memory exact search only
+├── QuranAPI.gs                  # quranapi.pages.dev: surah list, ayah (Arabic + translation in one call)
+├── TranslationAPI.gs            # Batch translations (Search/AI multi-result inserts)
 ├── ClaudeAPI.gs                 # Claude API wrapper (semantic search)
 ├── DocumentService.gs           # Insert logic (cursor, new line, insert tag)
 ├── FormatService.gs             # Formatting + Arabic-Indic numeral conversion
@@ -34,33 +35,37 @@ tasneef-ai/
 
 ## Data Architecture (Critical)
 
-### Arabic text — GitHub Pages (loaded once into client memory per session)
+### quranapi.pages.dev — Browse, AI Search (Arabic + translation in one call)
+- Docs: https://quranapi.pages.dev/introduction
+- Surah list: GET /api/surah.json
+- Single ayah: GET /api/{surah}/{ayah}.json → returns arabic1, arabic2, english, surah metadata
+- Used by: Browse tab, AI Search (validation + fetch)
+- This API has NO text search endpoint — do not attempt to search with it
+
+### GitHub Pages — Exact Search only (in-memory)
 ```
 UTHMANI:     https://tarazis97.github.io/tasneef-data/quran/uthmani.json
 SIMPLE:      https://tarazis97.github.io/tasneef-data/quran/imlaei-simple.json
 SURAH META:  https://tarazis97.github.io/tasneef-data/quran/quran-metadata-surah-name.json
 FONTS:       https://tarazis97.github.io/tasneef-data/fonts.json
 ```
-- Fetched once on sidebar open via UrlFetchApp.fetch()
-- Used by: Browse tab, Search tab (in-memory exact text search), AI Search validation
+- Loaded when Search tab needs in-memory exact text search
 - INSPECT the actual JSON structure before writing code against it
 
-### English translations — quranapi.pages.dev (fetched on demand per ayah)
-- Docs: https://quranapi.pages.dev/introduction
-- Used by: Browse preview, Search insert, AI Search results
-- This API has NO text search endpoint — do not attempt to search with it
+### TranslationAPI.gs — Batch translations
+- For Search/AI when inserting multiple results; fetches from quranapi per ayah
 
 ### Claude API — semantic search only
 - Model: claude-sonnet-4-20250514, temperature: 0
 - Claude returns surah/ayah references as JSON — NEVER Quranic text
-- Every reference from Claude MUST be validated against local data before display
+- Validate references by fetching from quranapi (200 = valid)
 - API key stored in User Properties
 
 ## Hard Rules
-1. **All Quranic Arabic text comes from GitHub Pages JSON. Never from Claude. Never generated.**
-2. **All English translations come from quranapi.pages.dev. Never from Claude.**
+1. **Browse & AI: Arabic + translation from quranapi.pages.dev. Never from Claude. Never generated.**
+2. **Exact Search: Arabic from GitHub Pages JSON only.** quranapi has no search.
 3. **Claude is a reference finder only.** It returns {surah, ayah} pairs. We look up the real text ourselves.
-4. **Exact search is in-memory.** Arabic text is already loaded. Filter/match against it directly.
+4. **Exact search is in-memory.** Arabic text from GitHub. Filter/match against it directly.
 5. **Arabic search must normalize.** Strip tashkeel/diacritics for comparison. Normalize alef variants.
 6. **Font fallback is Amiri.** If selected font fails, use Amiri and show a toast.
 7. **Apps Script constraints:** No npm. No import/require. No ES modules. All .gs files share global scope. HTML files served via HtmlService. Max project size ~2MB (code only, data is external).
@@ -73,7 +78,9 @@ FONTS:       https://tarazis97.github.io/tasneef-data/fonts.json
 
 3. You must compile the code and pass ALL tests before committing.
 
-4. **After every commit that passes tests, run `clasp push`** to deploy the code to the Apps Script project.
+4. Once tests pass, commit your change.
+
+5. **After every commit, run `clasp push`** to deploy the code to the Apps Script project.
 
 ## Version Control Guidelines
 **ALWAYS** use the following branch naming pattern:

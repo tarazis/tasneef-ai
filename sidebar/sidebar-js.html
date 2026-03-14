@@ -309,32 +309,10 @@
           var font = (window.getFormatState && window.getFormatState().fontName) || 'Amiri';
           var html = '<div class="arabic" style="font-family:' + font + ',serif">' + escapeHtml(ayah.arabicText) + '</div>';
           if (showTrans) {
-            html += '<div class="translation-loading" style="font-size:12px;color:#666;margin-top:8px">Loading translation...</div>';
-          } else {
-            if (btnInsert) btnInsert.style.display = 'block';
+            html += '<div class="translation" style="font-size:12px;color:#666;margin-top:8px">' + escapeHtml(ayah.translationText || '(No translation available)') + '</div>';
           }
           preview.innerHTML = html;
-
-          if (showTrans) {
-            google.script.run
-              .withSuccessHandler(function(trans) {
-                var transEl = preview.querySelector('.translation-loading');
-                if (transEl) {
-                  transEl.className = 'translation';
-                  transEl.textContent = trans || '(No translation available)';
-                }
-                if (btnInsert) btnInsert.style.display = 'block';
-              })
-              .withFailureHandler(function() {
-                var transEl = preview.querySelector('.translation-loading');
-                if (transEl) {
-                  transEl.className = 'translation';
-                  transEl.textContent = '(Translation unavailable)';
-                }
-                if (btnInsert) btnInsert.style.display = 'block';
-              })
-              .getTranslation(surahNum, ayahNum, settings.translationEdition || 'sahih');
-          }
+          if (btnInsert) btnInsert.style.display = 'block';
         })
         .withFailureHandler(function() {
           preview.innerHTML = '<span class="empty-state">Failed to load ayah.</span>';
@@ -364,19 +342,7 @@
             if (btnInsert) btnInsert.disabled = false;
             return;
           }
-          var showTrans = settings.showTranslation !== false;
-          var trans = '';
-          if (showTrans) {
-            google.script.run
-              .withSuccessHandler(function(t) {
-                ayah.translationText = t || '';
-                runInsert(ayah);
-              })
-              .withFailureHandler(function() { runInsert(ayah); })
-              .getTranslation(surahNum, ayahNum, settings.translationEdition || 'sahih');
-          } else {
-            runInsert(ayah);
-          }
+          runInsert(ayah);
         })
         .withFailureHandler(function() {
           if (btnInsert) btnInsert.disabled = false;
