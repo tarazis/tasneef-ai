@@ -48,3 +48,40 @@ function getSurahListForBrowse() {
 function getAyahForBrowse(surahNum, ayahNum, style) {
   return getAyahFromQuranApi(surahNum, ayahNum, style || 'uthmani');
 }
+
+/**
+ * Runs exact text search against QuranData (GitHub Pages).
+ * @param {string} query - Search string (Arabic or Latin)
+ * @param {string} style - "uthmani" or "simple"
+ * @return {Array<{surah, ayah, surahNameArabic, surahNameEnglish, arabicText, matchIndex, matchStart, matchEnd}>}
+ */
+function runSearchExact(query, style) {
+  if (!query || typeof query !== 'string') return [];
+  var data = loadQuranData();
+  return searchQuran(data, query.trim(), style || 'uthmani');
+}
+
+/**
+ * Fetches ayah data for Search tab insert. Uses QuranData (Arabic) + TranslationAPI (translation).
+ * @param {number} surahNum - Surah number (1–114)
+ * @param {number} ayahNum - Ayah number
+ * @param {string} edition - Translation edition (e.g. "sahih")
+ * @return {Object|null} { surah, ayah, surahNameArabic, surahNameEnglish, textUthmani, textSimple, translationText } or null
+ */
+function getAyahForSearchInsert(surahNum, ayahNum, edition) {
+  if (!surahNum || !ayahNum) return null;
+  var data = loadQuranData();
+  var uthmani = getAyah(data, surahNum, ayahNum, 'uthmani');
+  var simple = getAyah(data, surahNum, ayahNum, 'simple');
+  if (!uthmani || !simple) return null;
+  var translationText = getTranslation(surahNum, ayahNum, edition || 'sahih');
+  return {
+    surah: uthmani.surah,
+    ayah: uthmani.ayah,
+    surahNameArabic: uthmani.surahNameArabic,
+    surahNameEnglish: uthmani.surahNameEnglish,
+    textUthmani: uthmani.arabicText,
+    textSimple: simple.arabicText,
+    translationText: translationText
+  };
+}

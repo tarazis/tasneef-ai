@@ -62,6 +62,13 @@
   .result-card .ref { font-weight: 600; margin-bottom: 4px; }
   .result-card .arabic { font-size: 18px; direction: rtl; text-align: right; font-family: Amiri, serif; margin: 8px 0; }
   .result-card mark { background: #fff59d; padding: 0 2px; }
+  .result-card .btn-insert-result { margin-top: 8px; padding: 6px 12px; font-size: 12px; }
+  .search-loading { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 13px; color: #666; }
+  .search-loading .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #e0e0e0; border-top-color: #2e7d32; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .search-show-more { margin-top: 12px; text-align: center; }
+  .btn-secondary { padding: 8px 16px; background: #f5f5f5; color: #333; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; cursor: pointer; }
+  .btn-secondary:hover { background: #e8e8e8; }
   .empty-state { color: #666; font-size: 13px; padding: 24px 0; text-align: center; }
   .hidden { display: none !important; }
   .browse-preview { margin-top: 16px; padding: 12px; border: 1px solid #e0e0e0; border-radius: 4px; min-height: 60px; }

@@ -127,6 +127,21 @@ function runQuranDataTests() {
     if (!found) throw new Error('Expected 2:255 in results, got ' + hits.length + ' hits');
   });
 
+  it('searchQuran results include matchStart and matchEnd for highlighting', function () {
+    var data = loadQuranData();
+    var hits = searchQuran(data, 'الكرسي', 'uthmani');
+    var hit = null;
+    for (var i = 0; i < hits.length; i++) {
+      if (hits[i].surah === 2 && hits[i].ayah === 255) { hit = hits[i]; break; }
+    }
+    if (!hit) throw new Error('2:255 not in results');
+    if (hit.matchStart == null || hit.matchEnd == null) {
+      throw new Error('Expected matchStart and matchEnd on result');
+    }
+    var snippet = hit.arabicText.substring(hit.matchStart, hit.matchEnd);
+    if (snippet.length < 3) throw new Error('Match span too short');
+  });
+
   it('searchQuran("mercy", simple) returns no results (Arabic only)', function () {
     var data = loadQuranData();
     var hits = searchQuran(data, 'mercy', 'simple');

@@ -103,7 +103,7 @@ function getAyah(data, surahNum, ayahNum, style) {
  * @param {Object} data - Result of loadQuranData()
  * @param {string} query - Search string
  * @param {string} style - "uthmani" or "simple"
- * @return {Array<{surah, ayah, surahNameArabic, surahNameEnglish, arabicText, matchIndex}>}
+ * @return {Array<{surah, ayah, surahNameArabic, surahNameEnglish, arabicText, matchIndex, matchStart, matchEnd}>}
  */
 function searchQuran(data, query, style) {
   if (!data || !query || typeof query !== 'string') return [];
@@ -124,30 +124,67 @@ function searchQuran(data, query, style) {
     var normText = normalizeArabic(text);
 
     var matchIndex = -1;
+    var matchLen = 0;
     if (isArabic) {
       var idx = normText.indexOf(normalizedQuery);
-      if (idx >= 0) matchIndex = idx;
+      if (idx >= 0) {
+        matchIndex = idx;
+        matchLen = normalizedQuery.length;
+      }
     } else {
       var lowerQuery = query.toLowerCase();
       var lowerText = text.toLowerCase();
       var idx = lowerText.indexOf(lowerQuery);
-      if (idx >= 0) matchIndex = idx;
+      if (idx >= 0) {
+        matchIndex = idx;
+        matchLen = lowerQuery.length;
+      }
     }
 
     if (matchIndex >= 0) {
       var surahMeta = (data.surahs && data.surahs[String(verse.surah)]) ? data.surahs[String(verse.surah)] : null;
+      var mapped = isArabic ? _mapNormalizedToOriginal(text, matchIndex, matchLen) : { start: matchIndex, end: matchIndex + matchLen };
       results.push({
         surah: verse.surah,
         ayah: verse.ayah,
         surahNameArabic: surahMeta ? (surahMeta.name_arabic || '') : '',
         surahNameEnglish: surahMeta ? (surahMeta.name_simple || surahMeta.name || '') : '',
         arabicText: text,
-        matchIndex: matchIndex
+        matchIndex: matchIndex,
+        matchStart: mapped.start,
+        matchEnd: mapped.end
       });
     }
   }
 
   return results;
+}
+
+/**
+ * Maps normalized text indices to original text indices.
+ * Used for highlighting matches when normalized text has fewer chars (tashkeel stripped).
+ * @param {string} original - Original Arabic text
+ * @param {number} normStart - Start index in normalized text
+ * @param {number} normLen - Length of match in normalized text
+ * @return {{start: number, end: number}} Indices in original text
+ */
+function _mapNormalizedToOriginal(original, normStart, normLen) {
+  if (!original || normStart < 0 || normLen <= 0) return { start: 0, end: 0 };
+  var normIdx = 0;
+  var origStart = -1;
+  var origEnd = -1;
+  for (var i = 0; i < original.length; i++) {
+    if (_isInTashkeelRange(original.charCodeAt(i))) continue;
+    if (normIdx === normStart) origStart = i;
+    normIdx++;
+    if (normIdx === normStart + normLen) {
+      origEnd = i + 1;
+      break;
+    }
+  }
+  if (origStart < 0) origStart = 0;
+  if (origEnd < 0) origEnd = original.length;
+  return { start: origStart, end: origEnd };
 }
 
 /**

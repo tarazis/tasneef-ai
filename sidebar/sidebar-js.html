@@ -370,6 +370,140 @@
     if (btnInsert) btnInsert.addEventListener('click', doInsert);
   }
 
+  var SEARCH_PAGE_SIZE = 20;
+  var _searchAllResults = [];
+  var _searchVisibleCount = 0;
+
+  function initSearchTab() {
+    var searchInput = document.getElementById('search-input');
+    var btnSearch = document.getElementById('btn-search');
+    var resultsEl = document.getElementById('search-results');
+    var emptyEl = document.getElementById('search-empty');
+    var loadingEl = document.getElementById('search-loading');
+    var showMoreWrap = document.getElementById('search-show-more-wrap');
+    var btnShowMore = document.getElementById('btn-search-show-more');
+
+    function doSearch() {
+      var query = searchInput ? searchInput.value.trim() : '';
+      if (!query) return;
+
+      loadingEl.classList.remove('hidden');
+      resultsEl.innerHTML = '';
+      emptyEl.classList.add('hidden');
+      if (showMoreWrap && showMoreWrap.classList) showMoreWrap.classList.add('hidden');
+
+      var settings = window._browseSettings || {};
+      var style = settings.arabicStyle || 'uthmani';
+
+      google.script.run
+        .withSuccessHandler(function(results) {
+          loadingEl.classList.add('hidden');
+          _searchAllResults = results || [];
+          _searchVisibleCount = Math.min(SEARCH_PAGE_SIZE, _searchAllResults.length);
+          renderSearchResults();
+        })
+        .withFailureHandler(function() {
+          loadingEl.classList.add('hidden');
+          emptyEl.textContent = 'Search failed. Please try again.';
+          emptyEl.classList.remove('hidden');
+        })
+        .runSearchExact(query, style);
+    }
+
+    function renderSearchResults() {
+      resultsEl.innerHTML = '';
+      if (_searchAllResults.length === 0) {
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      emptyEl.classList.add('hidden');
+
+      var font = (window.getFormatState && window.getFormatState().fontName) || 'Amiri';
+      var visible = _searchAllResults.slice(0, _searchVisibleCount);
+
+      visible.forEach(function(r, idx) {
+        var card = document.createElement('div');
+        card.className = 'result-card';
+        var refLabel = (r.surahNameEnglish || 'Surah') + ' ' + r.surah + ':' + r.ayah;
+        var arabicHtml = escapeHtml(r.arabicText);
+        if (r.matchStart != null && r.matchEnd != null && r.matchEnd > r.matchStart) {
+          var before = escapeHtml(r.arabicText.substring(0, r.matchStart));
+          var match = escapeHtml(r.arabicText.substring(r.matchStart, r.matchEnd));
+          var after = escapeHtml(r.arabicText.substring(r.matchEnd));
+          arabicHtml = before + '<mark>' + match + '</mark>' + after;
+        }
+        card.innerHTML =
+          '<div class="ref">' + escapeHtml(refLabel) + '</div>' +
+          '<div class="arabic" style="font-family:' + font + ',serif">' + arabicHtml + '</div>' +
+          '<button type="button" class="btn-primary btn-insert-result" data-surah="' + r.surah + '" data-ayah="' + r.ayah + '">Insert</button>';
+        resultsEl.appendChild(card);
+      });
+
+      if (showMoreWrap) {
+        if (_searchVisibleCount < _searchAllResults.length) {
+          showMoreWrap.classList.remove('hidden');
+        } else {
+          showMoreWrap.classList.add('hidden');
+        }
+      }
+    }
+
+    function escapeHtml(s) {
+      if (!s) return '';
+      var d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function onInsertClick(e) {
+      var btn = e.target;
+      if (btn.tagName !== 'BUTTON' || !btn.classList.contains('btn-insert-result')) return;
+      var surah = parseInt(btn.getAttribute('data-surah'), 10);
+      var ayah = parseInt(btn.getAttribute('data-ayah'), 10);
+      if (!surah || !ayah) return;
+
+      btn.disabled = true;
+      var settings = window._browseSettings || {};
+      var edition = settings.translationEdition || 'sahih';
+
+      google.script.run
+        .withSuccessHandler(function(ayahData) {
+          if (!ayahData) {
+            btn.disabled = false;
+            return;
+          }
+          var formatState = window.getFormatState ? window.getFormatState() : {};
+          google.script.run
+            .withSuccessHandler(function() {
+              btn.disabled = false;
+            })
+            .withFailureHandler(function(err) {
+              btn.disabled = false;
+              console.error('Insert failed:', err);
+            })
+            .insertAyah(ayahData, formatState, settings);
+        })
+        .withFailureHandler(function() {
+          btn.disabled = false;
+        })
+        .getAyahForSearchInsert(surah, ayah, edition);
+    }
+
+    if (searchInput) {
+      searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') doSearch();
+      });
+    }
+    if (btnSearch) btnSearch.addEventListener('click', doSearch);
+    if (resultsEl) resultsEl.addEventListener('click', onInsertClick);
+    if (btnShowMore) {
+      btnShowMore.addEventListener('click', function() {
+        _searchVisibleCount = Math.min(_searchVisibleCount + SEARCH_PAGE_SIZE, _searchAllResults.length);
+        renderSearchResults();
+      });
+    }
+  }
+
   function init() {
     google.script.run
       .withSuccessHandler(function(s) {
@@ -394,6 +528,7 @@
     initSettings();
     initSettingsPanelHandlers();
     initBrowseTab();
+    initSearchTab();
   }
 
   if (document.readyState === 'loading') {
