@@ -20,6 +20,7 @@ var SETTINGS_DEFAULTS = {
 var PROPERTY_KEYS = {
   SETTINGS_PREFIX: 'setting_',
   CLAUDE_API_KEY: 'claude_api_key',
+  GOOGLE_FONTS_API_KEY: 'google_fonts_api_key',
   AI_SEARCH_COUNT: 'ai_search_count'
 };
 
@@ -85,6 +86,24 @@ function getClaudeApiKey() {
 function setClaudeApiKey(key) {
   PropertiesService.getUserProperties()
     .setProperty(PROPERTY_KEYS.CLAUDE_API_KEY, key);
+}
+
+/**
+ * Returns the stored Google Fonts API key, or null if not set.
+ * @return {string|null}
+ */
+function getGoogleFontsApiKey() {
+  return PropertiesService.getUserProperties()
+    .getProperty(PROPERTY_KEYS.GOOGLE_FONTS_API_KEY) || null;
+}
+
+/**
+ * Persists the Google Fonts API key to User Properties.
+ * @param {string} key - The API key to store.
+ */
+function setGoogleFontsApiKey(key) {
+  PropertiesService.getUserProperties()
+    .setProperty(PROPERTY_KEYS.GOOGLE_FONTS_API_KEY, key);
 }
 
 /**
