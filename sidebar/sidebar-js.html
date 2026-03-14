@@ -121,11 +121,25 @@
     if (btnBack && overlay) {
       btnBack.addEventListener('click', function() {
         overlay.classList.add('hidden');
+        refreshBrowseSettings();
       });
     }
 
+    function refreshBrowseSettings() {
+      google.script.run.withSuccessHandler(function(s) {
+        window._browseSettings = {
+          insertMode: s.insertMode,
+          showTranslation: s.showTranslation,
+          arabicStyle: s.arabicStyle,
+          translationEdition: s.translationEdition
+        };
+      }).getSettings();
+    }
     overlay.addEventListener('click', function(e) {
-      if (e.target === overlay) overlay.classList.add('hidden');
+      if (e.target === overlay) {
+        overlay.classList.add('hidden');
+        refreshBrowseSettings();
+      }
     });
   }
 
@@ -234,9 +248,173 @@
     }
   }
 
+  function initBrowseTab() {
+    var surahSelect = document.getElementById('surah-select');
+    var ayahSelect = document.getElementById('ayah-select');
+    var preview = document.getElementById('browse-preview');
+    var btnInsert = document.getElementById('btn-insert-browse');
+
+    google.script.run
+      .withSuccessHandler(function(list) {
+        if (!surahSelect || !list || !list.length) return;
+        surahSelect.innerHTML = '<option value="">Select surah...</option>';
+        list.forEach(function(s) {
+          var opt = document.createElement('option');
+          opt.value = s.number;
+          opt.textContent = s.number + '. ' + s.nameArabic + ' \u2014 ' + s.nameEnglish;
+          opt.setAttribute('data-ayah-count', s.ayahCount);
+          surahSelect.appendChild(opt);
+        });
+      })
+      .withFailureHandler(function() {})
+      .getSurahListForBrowse();
+
+    function onSurahChange() {
+      var num = surahSelect.value;
+      ayahSelect.disabled = !num;
+      ayahSelect.innerHTML = '<option value="">Select ayah...</option>';
+      preview.innerHTML = '';
+      if (btnInsert) btnInsert.style.display = 'none';
+      if (!num) return;
+      var count = parseInt(surahSelect.options[surahSelect.selectedIndex].getAttribute('data-ayah-count') || '0', 10);
+      for (var i = 1; i <= count; i++) {
+        var opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = String(i);
+        ayahSelect.appendChild(opt);
+      }
+    }
+
+    function loadPreview() {
+      var surahNum = parseInt(surahSelect.value, 10);
+      var ayahNum = parseInt(ayahSelect.value, 10);
+      if (!surahNum || !ayahNum) {
+        preview.innerHTML = '';
+        if (btnInsert) btnInsert.style.display = 'none';
+        return;
+      }
+      var settings = window._browseSettings || {};
+      var style = settings.arabicStyle || 'uthmani';
+      var showTrans = settings.showTranslation !== false;
+
+      preview.innerHTML = '<span class="browse-loading">Loading...</span>';
+      if (btnInsert) btnInsert.style.display = 'none';
+
+      google.script.run
+        .withSuccessHandler(function(ayah) {
+          if (!ayah) {
+            preview.innerHTML = '<span class="empty-state">Ayah not found.</span>';
+            return;
+          }
+          var font = (window.getFormatState && window.getFormatState().fontName) || 'Amiri';
+          var html = '<div class="arabic" style="font-family:' + font + ',serif">' + escapeHtml(ayah.arabicText) + '</div>';
+          if (showTrans) {
+            html += '<div class="translation-loading" style="font-size:12px;color:#666;margin-top:8px">Loading translation...</div>';
+          } else {
+            if (btnInsert) btnInsert.style.display = 'block';
+          }
+          preview.innerHTML = html;
+
+          if (showTrans) {
+            google.script.run
+              .withSuccessHandler(function(trans) {
+                var transEl = preview.querySelector('.translation-loading');
+                if (transEl) {
+                  transEl.className = 'translation';
+                  transEl.textContent = trans || '(No translation available)';
+                }
+                if (btnInsert) btnInsert.style.display = 'block';
+              })
+              .withFailureHandler(function() {
+                var transEl = preview.querySelector('.translation-loading');
+                if (transEl) {
+                  transEl.className = 'translation';
+                  transEl.textContent = '(Translation unavailable)';
+                }
+                if (btnInsert) btnInsert.style.display = 'block';
+              })
+              .getTranslation(surahNum, ayahNum, settings.translationEdition || 'sahih');
+          }
+        })
+        .withFailureHandler(function() {
+          preview.innerHTML = '<span class="empty-state">Failed to load ayah.</span>';
+        })
+        .getAyahForBrowse(surahNum, ayahNum, style);
+    }
+
+    function escapeHtml(s) {
+      if (!s) return '';
+      var d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function doInsert() {
+      var surahNum = parseInt(surahSelect.value, 10);
+      var ayahNum = parseInt(ayahSelect.value, 10);
+      if (!surahNum || !ayahNum) return;
+      var settings = window._browseSettings || {};
+      var style = settings.arabicStyle || 'uthmani';
+
+      if (btnInsert) btnInsert.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(ayah) {
+          if (!ayah) {
+            if (btnInsert) btnInsert.disabled = false;
+            return;
+          }
+          var showTrans = settings.showTranslation !== false;
+          var trans = '';
+          if (showTrans) {
+            google.script.run
+              .withSuccessHandler(function(t) {
+                ayah.translationText = t || '';
+                runInsert(ayah);
+              })
+              .withFailureHandler(function() { runInsert(ayah); })
+              .getTranslation(surahNum, ayahNum, settings.translationEdition || 'sahih');
+          } else {
+            runInsert(ayah);
+          }
+        })
+        .withFailureHandler(function() {
+          if (btnInsert) btnInsert.disabled = false;
+        })
+        .getAyahForBrowse(surahNum, ayahNum, style);
+    }
+
+    function runInsert(ayah) {
+      var formatState = window.getFormatState ? window.getFormatState() : {};
+      var settings = window._browseSettings || {};
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (btnInsert) btnInsert.disabled = false;
+        })
+        .withFailureHandler(function(err) {
+          if (btnInsert) btnInsert.disabled = false;
+          console.error('Insert failed:', err);
+        })
+        .insertAyah(ayah, formatState, settings);
+    }
+
+    if (surahSelect) surahSelect.addEventListener('change', onSurahChange);
+    if (ayahSelect) ayahSelect.addEventListener('change', loadPreview);
+
+    if (btnInsert) btnInsert.addEventListener('click', doInsert);
+  }
+
   function init() {
     google.script.run
-      .withSuccessHandler(onSettingsLoaded)
+      .withSuccessHandler(function(s) {
+        onSettingsLoaded(s);
+        window._browseSettings = {
+          insertMode: s.insertMode,
+          showTranslation: s.showTranslation,
+          arabicStyle: s.arabicStyle,
+          translationEdition: s.translationEdition
+        };
+      })
       .withFailureHandler(function() { applyFormatStateToUI(); })
       .getSettings();
 
@@ -249,6 +427,7 @@
     initTabs();
     initSettings();
     initSettingsPanelHandlers();
+    initBrowseTab();
   }
 
   if (document.readyState === 'loading') {
