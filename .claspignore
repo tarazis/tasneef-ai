@@ -1,0 +1,7 @@
+CLAUDE.md
+task-*.md
+tasneef-*.md
+node_modules/**
+.git/**
+README.md
+.clasp.json
