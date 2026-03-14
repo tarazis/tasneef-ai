@@ -32,18 +32,27 @@
     var sizeSelect = document.getElementById('size-select');
     var boldBtn = document.getElementById('btn-bold');
     var colorPicker = document.getElementById('color-picker');
+    var colorTrigger = document.getElementById('color-trigger');
     if (fontSelect) fontSelect.value = formatState.fontName;
-    if (sizeSelect) sizeSelect.value = String(formatState.fontSize);
+    if (sizeSelect) {
+      var sizeVal = String(formatState.fontSize);
+      if (sizeSelect.querySelector('option[value="' + sizeVal + '"]')) {
+        sizeSelect.value = sizeVal;
+      } else {
+        sizeSelect.value = '18';
+      }
+    }
     if (boldBtn) boldBtn.classList.toggle('active', formatState.bold);
     if (colorPicker) colorPicker.value = formatState.textColor;
+    if (colorTrigger) colorTrigger.style.backgroundColor = formatState.textColor;
   }
 
   function initFormatBar() {
     var fontSelect = document.getElementById('font-select');
     var sizeSelect = document.getElementById('size-select');
     var boldBtn = document.getElementById('btn-bold');
+    var colorTrigger = document.getElementById('color-trigger');
     var colorPicker = document.getElementById('color-picker');
-    var swatches = document.querySelectorAll('.color-swatch');
 
     if (fontSelect) {
       fontSelect.addEventListener('change', function() {
@@ -57,13 +66,6 @@
         formatState.fontSize = parseInt(sizeSelect.value, 10) || 18;
         debouncedSave();
       });
-      sizeSelect.addEventListener('input', function() {
-        var v = parseInt(sizeSelect.value, 10);
-        if (!isNaN(v) && v >= 8 && v <= 72) {
-          formatState.fontSize = v;
-          debouncedSave();
-        }
-      });
     }
 
     if (boldBtn) {
@@ -74,22 +76,17 @@
       });
     }
 
-    if (colorPicker) {
-      colorPicker.addEventListener('input', function() {
+    if (colorTrigger && colorPicker) {
+      colorTrigger.addEventListener('click', function() {
+        colorPicker.click();
+      });
+      function onColorChange() {
         formatState.textColor = colorPicker.value;
+        colorTrigger.style.backgroundColor = colorPicker.value;
         debouncedSave();
-      });
-    }
-
-    if (swatches.length) {
-      swatches.forEach(function(sw) {
-        sw.addEventListener('click', function() {
-          var c = sw.getAttribute('data-color');
-          formatState.textColor = c;
-          if (colorPicker) colorPicker.value = c;
-          debouncedSave();
-        });
-      });
+      }
+      colorPicker.addEventListener('input', onColorChange);
+      colorPicker.addEventListener('change', onColorChange);
     }
   }
 

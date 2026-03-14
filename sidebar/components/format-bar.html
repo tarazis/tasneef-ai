@@ -2,18 +2,19 @@
   <select class="font-select" id="font-select" title="Font">
     <option value="Amiri">Amiri</option>
   </select>
-  <input type="number" class="size-select" id="size-select" title="Font size" min="8" max="72" value="18" list="size-presets">
-  <datalist id="size-presets">
-    <option value="12"><option value="14"><option value="16"><option value="18"><option value="20"><option value="24"><option value="28"><option value="36">
-  </datalist>
+  <select class="size-select" id="size-select" title="Font size">
+    <option value="12">12</option>
+    <option value="14">14</option>
+    <option value="16">16</option>
+    <option value="18" selected>18</option>
+    <option value="20">20</option>
+    <option value="24">24</option>
+    <option value="28">28</option>
+    <option value="36">36</option>
+  </select>
   <button type="button" class="btn-format" id="btn-bold" title="Bold">B</button>
   <div class="color-wrap">
-    <input type="color" id="color-picker" value="#000000" title="Text color">
-    <div class="color-swatches">
-      <span class="color-swatch" data-color="#000000" style="background:#000000" title="Black"></span>
-      <span class="color-swatch" data-color="#006400" style="background:#006400" title="Dark green"></span>
-      <span class="color-swatch" data-color="#00008B" style="background:#00008B" title="Dark blue"></span>
-      <span class="color-swatch" data-color="#800000" style="background:#800000" title="Maroon"></span>
-    </div>
+    <button type="button" class="color-trigger" id="color-trigger" title="Text color" aria-label="Text color"></button>
+    <input type="color" id="color-picker" value="#000000" title="Text color" class="color-picker-hidden">
   </div>
 </div>

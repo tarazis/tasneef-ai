@@ -51,7 +51,7 @@ function runFontServiceTests() {
     if (!(fonts instanceof Array)) throw new Error('Expected array');
   });
 
-  it('returns at least one font (Amiri fallback when no API key)', function () {
+  it('returns at least one font (Amiri in list)', function () {
     var fonts = getArabicFonts();
     expect(fonts.length).toBeGreaterThan(0);
     expect(fonts).toContain('Amiri');

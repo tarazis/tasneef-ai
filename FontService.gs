@@ -20,9 +20,21 @@ var BAD_FONTS = [
 ];
 
 /**
+ * Curated list of Arabic-capable fonts when Google Fonts API key is not set.
+ * Excludes BAD_FONTS. Used so the add-on works out of the box.
+ */
+var FALLBACK_FONT_LIST = (function () {
+  var list = [
+    'Amiri', 'IBM Plex Sans Arabic', 'Lateef', 'Noto Kufi Arabic',
+    'Noto Naskh Arabic', 'Noto Sans Arabic', 'Scheherazade New', 'Tajawal'
+  ];
+  return list.filter(function (f) { return BAD_FONTS.indexOf(f) < 0; });
+})();
+
+/**
  * Fetches Arabic fonts from Google Fonts API, filters out BAD_FONTS,
  * returns family names sorted alphabetically. Cached for 24 hours.
- * Uses getGoogleFontsApiKey() from SettingsService — if not set, returns [FALLBACK_FONT].
+ * Uses getGoogleFontsApiKey() from SettingsService — if not set, returns FALLBACK_FONT_LIST.
  * @return {Array<string>} Sorted list of font family names.
  */
 function getArabicFonts() {
@@ -34,7 +46,7 @@ function getArabicFonts() {
 
   var apiKey = (typeof getGoogleFontsApiKey === 'function') ? getGoogleFontsApiKey() : null;
   if (!apiKey) {
-    return [FALLBACK_FONT];
+    return FALLBACK_FONT_LIST.slice();
   }
 
   var url = FONTS_API_URL + '?key=' + encodeURIComponent(apiKey) + '&subset=arabic&sort=alpha';
