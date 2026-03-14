@@ -50,8 +50,8 @@ function runCodeTests() {
 
   results.push('\nrunSearchExact()');
 
-  it('runSearchExact("الكرسي", uthmani) returns results including 2:255', function () {
-    var hits = runSearchExact('الكرسي', 'uthmani');
+  it('runSearchExact("الكرسي", simple) returns results including 2:255', function () {
+    var hits = runSearchExact('الكرسي', 'simple');
     var found = false;
     for (var i = 0; i < hits.length; i++) {
       if (hits[i].surah === 2 && hits[i].ayah === 255) {
@@ -63,7 +63,7 @@ function runCodeTests() {
   });
 
   it('runSearchExact results have matchStart and matchEnd for highlighting', function () {
-    var hits = runSearchExact('الكرسي', 'uthmani');
+    var hits = runSearchExact('الكرسي', 'simple');
     var hit255 = null;
     for (var i = 0; i < hits.length; i++) {
       if (hits[i].surah === 2 && hits[i].ayah === 255) {
@@ -81,8 +81,20 @@ function runCodeTests() {
   });
 
   it('runSearchExact returns empty array for empty query', function () {
-    var hits = runSearchExact('', 'uthmani');
+    var hits = runSearchExact('', 'simple');
     expect(hits.length).toBe(0);
+  });
+
+  it('runSearchExact("الحمد لله رب العالمين", simple) returns Al-Fatihah 1:1', function () {
+    var hits = runSearchExact('الحمد لله رب العالمين', 'simple');
+    var found = false;
+    for (var i = 0; i < hits.length; i++) {
+      if (hits[i].surah === 1 && hits[i].ayah === 1) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) throw new Error('Expected 1:1 in results, got ' + hits.length + ' hits');
   });
 
   // ── getAyahForSearchInsert ──────────────────────────────────────────────────

@@ -392,8 +392,8 @@
       emptyEl.classList.add('hidden');
       if (showMoreWrap && showMoreWrap.classList) showMoreWrap.classList.add('hidden');
 
-      var settings = window._browseSettings || {};
-      var style = settings.arabicStyle || 'uthmani';
+      // Search always uses imlaei (simple) corpus - user-typed Arabic matches imlaei form
+      var style = 'simple';
 
       google.script.run
         .withSuccessHandler(function(results) {

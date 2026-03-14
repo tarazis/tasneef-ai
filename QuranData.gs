@@ -199,7 +199,7 @@ function normalizeArabic(text) {
     var code = text.charCodeAt(i);
     if (_isInTashkeelRange(code)) continue;
     var ch = text.charAt(i);
-    if (ch === '\u0622' || ch === '\u0623' || ch === '\u0625') ch = '\u0627'; // آ أ إ → ا
+    if (ch === '\u0622' || ch === '\u0623' || ch === '\u0625' || ch === '\u0671') ch = '\u0627'; // آ أ إ ٱ → ا
     result += ch;
   }
   return result;

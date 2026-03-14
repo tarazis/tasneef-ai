@@ -58,6 +58,7 @@ function runQuranDataTests() {
     expect(normalizeArabic('أ')).toBe('ا');
     expect(normalizeArabic('إ')).toBe('ا');
     expect(normalizeArabic('آ')).toBe('ا');
+    expect(normalizeArabic('\u0671')).toBe('ا'); // Uthmanic Alif ٱ
   });
 
   it('returns empty string for empty input', function () {
@@ -117,9 +118,9 @@ function runQuranDataTests() {
 
   results.push('\nsearchQuran()');
 
-  it('searchQuran("الكرسي", uthmani) returns results including 2:255', function () {
+  it('searchQuran("الكرسي", simple) returns results including 2:255', function () {
     var data = loadQuranData();
-    var hits = searchQuran(data, 'الكرسي', 'uthmani');
+    var hits = searchQuran(data, 'الكرسي', 'simple');
     var found = false;
     for (var i = 0; i < hits.length; i++) {
       if (hits[i].surah === 2 && hits[i].ayah === 255) { found = true; break; }
@@ -129,7 +130,7 @@ function runQuranDataTests() {
 
   it('searchQuran results include matchStart and matchEnd for highlighting', function () {
     var data = loadQuranData();
-    var hits = searchQuran(data, 'الكرسي', 'uthmani');
+    var hits = searchQuran(data, 'الكرسي', 'simple');
     var hit = null;
     for (var i = 0; i < hits.length; i++) {
       if (hits[i].surah === 2 && hits[i].ayah === 255) { hit = hits[i]; break; }
@@ -140,6 +141,16 @@ function runQuranDataTests() {
     }
     var snippet = hit.arabicText.substring(hit.matchStart, hit.matchEnd);
     if (snippet.length < 3) throw new Error('Match span too short');
+  });
+
+  it('searchQuran("الحمد لله رب العالمين", simple) returns Al-Fatihah 1:1', function () {
+    var data = loadQuranData();
+    var hits = searchQuran(data, 'الحمد لله رب العالمين', 'simple');
+    var found = false;
+    for (var i = 0; i < hits.length; i++) {
+      if (hits[i].surah === 1 && hits[i].ayah === 1) { found = true; break; }
+    }
+    if (!found) throw new Error('Expected 1:1 in results, got ' + hits.length + ' hits');
   });
 
   it('searchQuran("mercy", simple) returns no results (Arabic only)', function () {
