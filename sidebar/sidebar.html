@@ -2,11 +2,41 @@
 <html>
 <head>
   <base target="_top">
+  <meta charset="UTF-8">
   <?!= include('sidebar/sidebar-css') ?>
 </head>
 <body>
-  <h1>Tasneef AI</h1>
-  <p>Loading...</p>
+  <div class="sidebar">
+    <header class="header">
+      <div class="header-brand">
+        <span class="logo">T</span>
+        <span class="title">Tasneef Quran</span>
+      </div>
+    </header>
+
+    <?!= include('sidebar/components/format-bar') ?>
+
+    <nav class="tabs">
+      <button type="button" class="tab active" data-tab="browse">Browse</button>
+      <button type="button" class="tab" data-tab="search">Search</button>
+      <button type="button" class="tab" data-tab="ai">AI Search</button>
+    </nav>
+
+    <main class="tab-content">
+      <div id="tab-browse" class="tab-pane active"><?!= include('sidebar/components/tab-browse') ?></div>
+      <div id="tab-search" class="tab-pane"><?!= include('sidebar/components/tab-search') ?></div>
+      <div id="tab-ai" class="tab-pane"><?!= include('sidebar/components/tab-ai') ?></div>
+    </main>
+
+    <footer class="footer">
+      <button type="button" class="btn-icon" id="btn-settings" title="Settings" aria-label="Settings">&#9881;</button>
+    </footer>
+  </div>
+
+  <div id="settings-overlay" class="settings-overlay hidden">
+    <?!= include('sidebar/components/settings-panel') ?>
+  </div>
+
   <?!= include('sidebar/sidebar-js') ?>
 </body>
 </html>

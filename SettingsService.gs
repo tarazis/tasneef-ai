@@ -9,6 +9,8 @@ var AI_SEARCH_DAILY_LIMIT = 10;
 var SETTINGS_DEFAULTS = {
   insertMode: 'cursor',       // "cursor" | "newline" | "inserttag"
   showTranslation: true,
+  insertArabic: true,
+  showReference: true,
   translationEdition: 'sahih', // maps to quranapi edition key
   arabicStyle: 'uthmani',     // "uthmani" | "simple"
   fontName: 'Amiri',

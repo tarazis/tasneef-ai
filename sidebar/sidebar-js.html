@@ -1,2 +1,265 @@
 <script>
+(function() {
+  'use strict';
+
+  var formatState = {
+    fontName: 'Amiri',
+    fontSize: 18,
+    bold: false,
+    textColor: '#000000'
+  };
+
+  var saveDebounceTimer = null;
+  var SAVE_DEBOUNCE_MS = 500;
+
+  function debouncedSave() {
+    if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
+    saveDebounceTimer = setTimeout(function() {
+      google.script.run
+        .withFailureHandler(function(err) { console.error('Save settings failed:', err); })
+        .saveSettings({
+          fontName: formatState.fontName,
+          fontSize: formatState.fontSize,
+          bold: formatState.bold,
+          textColor: formatState.textColor
+        });
+      saveDebounceTimer = null;
+    }, SAVE_DEBOUNCE_MS);
+  }
+
+  function applyFormatStateToUI() {
+    var fontSelect = document.getElementById('font-select');
+    var sizeSelect = document.getElementById('size-select');
+    var boldBtn = document.getElementById('btn-bold');
+    var colorPicker = document.getElementById('color-picker');
+    if (fontSelect) fontSelect.value = formatState.fontName;
+    if (sizeSelect) sizeSelect.value = String(formatState.fontSize);
+    if (boldBtn) boldBtn.classList.toggle('active', formatState.bold);
+    if (colorPicker) colorPicker.value = formatState.textColor;
+  }
+
+  function initFormatBar() {
+    var fontSelect = document.getElementById('font-select');
+    var sizeSelect = document.getElementById('size-select');
+    var boldBtn = document.getElementById('btn-bold');
+    var colorPicker = document.getElementById('color-picker');
+    var swatches = document.querySelectorAll('.color-swatch');
+
+    if (fontSelect) {
+      fontSelect.addEventListener('change', function() {
+        formatState.fontName = fontSelect.value;
+        debouncedSave();
+      });
+    }
+
+    if (sizeSelect) {
+      sizeSelect.addEventListener('change', function() {
+        formatState.fontSize = parseInt(sizeSelect.value, 10) || 18;
+        debouncedSave();
+      });
+      sizeSelect.addEventListener('input', function() {
+        var v = parseInt(sizeSelect.value, 10);
+        if (!isNaN(v) && v >= 8 && v <= 72) {
+          formatState.fontSize = v;
+          debouncedSave();
+        }
+      });
+    }
+
+    if (boldBtn) {
+      boldBtn.addEventListener('click', function() {
+        formatState.bold = !formatState.bold;
+        boldBtn.classList.toggle('active', formatState.bold);
+        debouncedSave();
+      });
+    }
+
+    if (colorPicker) {
+      colorPicker.addEventListener('input', function() {
+        formatState.textColor = colorPicker.value;
+        debouncedSave();
+      });
+    }
+
+    if (swatches.length) {
+      swatches.forEach(function(sw) {
+        sw.addEventListener('click', function() {
+          var c = sw.getAttribute('data-color');
+          formatState.textColor = c;
+          if (colorPicker) colorPicker.value = c;
+          debouncedSave();
+        });
+      });
+    }
+  }
+
+  function initTabs() {
+    var tabs = document.querySelectorAll('.tab');
+    var panes = document.querySelectorAll('.tab-pane');
+    tabs.forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        var target = tab.getAttribute('data-tab');
+        tabs.forEach(function(t) { t.classList.remove('active'); });
+        panes.forEach(function(p) {
+          p.classList.remove('active');
+          if (p.id === 'tab-' + target) p.classList.add('active');
+        });
+        tab.classList.add('active');
+      });
+    });
+  }
+
+  function initSettings() {
+    var btnSettings = document.getElementById('btn-settings');
+    var overlay = document.getElementById('settings-overlay');
+    var btnBack = document.getElementById('btn-settings-back');
+
+    if (btnSettings && overlay) {
+      btnSettings.addEventListener('click', function() {
+        overlay.classList.remove('hidden');
+        loadSettingsIntoPanel();
+      });
+    }
+
+    if (btnBack && overlay) {
+      btnBack.addEventListener('click', function() {
+        overlay.classList.add('hidden');
+      });
+    }
+
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) overlay.classList.add('hidden');
+    });
+  }
+
+  function loadSettingsIntoPanel() {
+    google.script.run
+      .withSuccessHandler(function(s) {
+        var cursor = document.getElementById('insert-cursor');
+        var newline = document.getElementById('insert-newline');
+        var tag = document.getElementById('insert-tag');
+        var edition = document.getElementById('translation-edition');
+        var arabic = document.getElementById('insert-arabic');
+        var trans = document.getElementById('insert-translation');
+        var ref = document.getElementById('insert-reference');
+        var apiKey = document.getElementById('claude-api-key');
+        if (cursor) cursor.checked = (s.insertMode === 'cursor');
+        if (newline) newline.checked = (s.insertMode === 'newline');
+        if (tag) tag.checked = (s.insertMode === 'inserttag');
+        if (edition) edition.value = s.translationEdition || 'sahih';
+        if (arabic) arabic.checked = s.insertArabic !== false;
+        if (trans) trans.checked = s.showTranslation !== false;
+        if (ref) ref.checked = s.showReference !== false;
+        if (apiKey) {
+          google.script.run.withSuccessHandler(function(k) {
+            apiKey.value = k || '';
+            apiKey.placeholder = k ? '••••••••••' : 'sk-ant-...';
+          }).getClaudeApiKey();
+        }
+      })
+      .withFailureHandler(function() {})
+      .getSettings();
+  }
+
+  function initSettingsPanelHandlers() {
+    var insertRadios = document.querySelectorAll('input[name="insertMode"]');
+    var edition = document.getElementById('translation-edition');
+    var arabic = document.getElementById('insert-arabic');
+    var trans = document.getElementById('insert-translation');
+    var ref = document.getElementById('insert-reference');
+    var btnSave = document.getElementById('btn-save-api-key');
+    var apiKeyInput = document.getElementById('claude-api-key');
+
+    insertRadios.forEach(function(r) {
+      r.addEventListener('change', function() {
+        google.script.run.withFailureHandler(function(){}).saveSetting('insertMode', r.value);
+      });
+    });
+
+    if (edition) {
+      edition.addEventListener('change', function() {
+        google.script.run.withFailureHandler(function(){}).saveSetting('translationEdition', edition.value);
+      });
+    }
+
+    if (arabic) {
+      arabic.addEventListener('change', function() {
+        google.script.run.withFailureHandler(function(){}).saveSetting('insertArabic', arabic.checked);
+      });
+    }
+    if (trans) {
+      trans.addEventListener('change', function() {
+        google.script.run.withFailureHandler(function(){}).saveSetting('showTranslation', trans.checked);
+      });
+    }
+    if (ref) {
+      ref.addEventListener('change', function() {
+        google.script.run.withFailureHandler(function(){}).saveSetting('showReference', ref.checked);
+      });
+    }
+
+    if (btnSave && apiKeyInput) {
+      btnSave.addEventListener('click', function() {
+        var key = apiKeyInput.value.trim();
+        google.script.run
+          .withSuccessHandler(function() { apiKeyInput.placeholder = 'Saved'; })
+          .withFailureHandler(function() {})
+          .setClaudeApiKey(key);
+      });
+    }
+  }
+
+  function onSettingsLoaded(settings) {
+    formatState.fontName = settings.fontName || 'Amiri';
+    formatState.fontSize = settings.fontSize || 18;
+    formatState.bold = settings.bold || false;
+    formatState.textColor = settings.textColor || '#000000';
+    applyFormatStateToUI();
+  }
+
+  function onFontsLoaded(fonts) {
+    var fontSelect = document.getElementById('font-select');
+    if (!fontSelect || !fonts || !fonts.length) return;
+    fontSelect.innerHTML = '';
+    fonts.forEach(function(f) {
+      var opt = document.createElement('option');
+      opt.value = f;
+      opt.textContent = f;
+      if (f === formatState.fontName) opt.selected = true;
+      fontSelect.appendChild(opt);
+    });
+    if (formatState.fontName && !fonts.some(function(f){ return f === formatState.fontName; })) {
+      var fallback = document.createElement('option');
+      fallback.value = formatState.fontName;
+      fallback.textContent = formatState.fontName;
+      fallback.selected = true;
+      fontSelect.insertBefore(fallback, fontSelect.firstChild);
+    }
+  }
+
+  function init() {
+    google.script.run
+      .withSuccessHandler(onSettingsLoaded)
+      .withFailureHandler(function() { applyFormatStateToUI(); })
+      .getSettings();
+
+    google.script.run
+      .withSuccessHandler(onFontsLoaded)
+      .withFailureHandler(function() {})
+      .getArabicFonts();
+
+    initFormatBar();
+    initTabs();
+    initSettings();
+    initSettingsPanelHandlers();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  window.getFormatState = function() { return Object.assign({}, formatState); };
+})();
 </script>
