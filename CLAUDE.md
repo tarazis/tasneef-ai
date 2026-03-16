@@ -4,7 +4,7 @@
 A Google Docs sidebar add-on for Islamic scholars to search and insert Quranic ayat into documents. MVP is Quran-only (Hadith is post-MVP).
 
 ## Stack
-- Google Apps Script (server-side `.gs` files)
+- Google Apps Script (server-side `.js` files — clasp pushes them as `.gs`)
 - HTML/CSS/JS via HtmlService (client-side, no npm/bundler)
 - Client ↔ server communication via `google.script.run`
 
@@ -12,14 +12,14 @@ A Google Docs sidebar add-on for Islamic scholars to search and insert Quranic a
 ```
 tasneef-ai/
 ├── appsscript.json
-├── Code.gs                      # Menu, sidebar launcher, include() helper
-├── QuranData.gs                 # Load Quran JSON from GitHub Pages, lookup, in-memory search
-├── TranslationAPI.gs            # Fetch English translations from quranapi.pages.dev
-├── ClaudeAPI.gs                 # Claude API wrapper (semantic search)
-├── DocumentService.gs           # Insert logic (cursor, new line, insert tag)
-├── FormatService.gs             # Formatting + Arabic-Indic numeral conversion
-├── SettingsService.gs           # User Properties (settings, API key, usage counter)
-├── FontService.gs               # Google Fonts API + exclusion filter
+├── Code.js                      # Menu, sidebar launcher, include() helper
+├── QuranData.js                 # Load Quran JSON from GitHub Pages, lookup, in-memory search
+├── TranslationAPI.js            # Fetch English translations from quranapi.pages.dev
+├── ClaudeAPI.js                 # Claude API wrapper (semantic search)
+├── DocumentService.js           # Insert logic (cursor, new line, insert tag)
+├── FormatService.js             # Formatting + Arabic-Indic numeral conversion
+├── SettingsService.js           # User Properties (settings, API key, usage counter)
+├── FontService.js               # Google Fonts API + exclusion filter
 ├── sidebar/
 │   ├── sidebar.html             # Main shell (template includes via <?!= ?>)
 │   ├── sidebar-css.html         # Styles (wrapped in <style>)
@@ -63,7 +63,8 @@ FONTS:       https://tarazis97.github.io/tasneef-data/fonts.json
 4. **Exact search is in-memory.** Arabic text is already loaded. Filter/match against it directly.
 5. **Arabic search must normalize.** Strip tashkeel/diacritics for comparison. Normalize alef variants.
 6. **Font fallback is Amiri.** If selected font fails, use Amiri and show a toast.
-7. **Apps Script constraints:** No npm. No import/require. No ES modules. All .gs files share global scope. HTML files served via HtmlService. Max project size ~2MB (code only, data is external).
+7. **Apps Script constraints:** No npm. No import/require. No ES modules. All server-side files are `.js` (clasp pushes them as `.gs`); they share global scope. HTML files served via HtmlService. Max project size ~2MB (code only, data is external).
+8. **File extension:** Always use `.js` for server-side scripts. Never create `.gs` files. Clasp handles the conversion on push.
 
 ## IMPORTANT:
 1. Before you make any change, create and checkout a feature branch according to the naming patterns specified below, then make the changes and commit your changes to the branch you created. 
