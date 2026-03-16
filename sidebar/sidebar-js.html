@@ -504,6 +504,158 @@
     }
   }
 
+  var AI_INITIAL_COUNT = 5;
+  var AI_MAX_COUNT = 10;
+  var _aiAllResults = [];
+  var _aiVisibleCount = 0;
+
+  function initAiTab() {
+    var queryEl = document.getElementById('ai-query');
+    var btnSearch = document.getElementById('btn-ai-search');
+    var resultsEl = document.getElementById('ai-results');
+    var emptyEl = document.getElementById('ai-empty');
+    var loadingEl = document.getElementById('ai-loading');
+    var noKeyEl = document.getElementById('ai-no-key');
+    var showMoreWrap = document.getElementById('ai-show-more-wrap');
+    var btnShowMore = document.getElementById('btn-ai-show-more');
+
+    function escapeHtml(s) {
+      if (!s) return '';
+      var d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function setSearchEnabled(enabled) {
+      if (btnSearch) btnSearch.disabled = !enabled;
+      if (queryEl) queryEl.disabled = !enabled;
+    }
+
+    function doAiSearch() {
+      var query = queryEl ? queryEl.value.trim() : '';
+      if (!query) return;
+
+      loadingEl.classList.remove('hidden');
+      resultsEl.innerHTML = '';
+      emptyEl.classList.add('hidden');
+      if (noKeyEl) noKeyEl.classList.add('hidden');
+      if (showMoreWrap) showMoreWrap.classList.add('hidden');
+      setSearchEnabled(false);
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          loadingEl.classList.add('hidden');
+          setSearchEnabled(true);
+
+          if (!response || !response.success) {
+            var err = (response && response.error) || 'AI Search encountered an error. Please try again.';
+            if (err === 'NO_API_KEY') {
+              if (noKeyEl) noKeyEl.classList.remove('hidden');
+              return;
+            }
+            emptyEl.textContent = err;
+            emptyEl.classList.remove('hidden');
+            return;
+          }
+
+          _aiAllResults = response.results || [];
+          _aiVisibleCount = Math.min(AI_INITIAL_COUNT, _aiAllResults.length);
+          renderAiResults();
+        })
+        .withFailureHandler(function() {
+          loadingEl.classList.add('hidden');
+          setSearchEnabled(true);
+          emptyEl.textContent = 'AI Search encountered an error. Please try again.';
+          emptyEl.classList.remove('hidden');
+        })
+        .runAiSearch(query);
+    }
+
+    function renderAiResults() {
+      resultsEl.innerHTML = '';
+      if (_aiAllResults.length === 0) {
+        emptyEl.textContent = 'No verified results found. Try a different query.';
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      emptyEl.classList.add('hidden');
+
+      var font = (window.getFormatState && window.getFormatState().fontName) || 'Amiri';
+      var visible = _aiAllResults.slice(0, _aiVisibleCount);
+
+      visible.forEach(function(r) {
+        var card = document.createElement('div');
+        card.className = 'result-card';
+        var refLabel = (r.surahNameEnglish || 'Surah') + ' ' + r.surah + ':' + r.ayah;
+        card.innerHTML =
+          '<div class="ref">' + escapeHtml(refLabel) + '</div>' +
+          '<div class="arabic" style="font-family:' + escapeHtml(font) + ',serif">' + escapeHtml(r.arabicText) + '</div>' +
+          '<div class="translation">' + escapeHtml(r.translationText || '') + '</div>' +
+          '<button type="button" class="btn-primary btn-insert-result" ' +
+            'data-surah="' + r.surah + '" data-ayah="' + r.ayah + '">Insert</button>';
+        resultsEl.appendChild(card);
+      });
+
+      if (showMoreWrap) {
+        if (_aiVisibleCount < _aiAllResults.length && _aiVisibleCount < AI_MAX_COUNT) {
+          showMoreWrap.classList.remove('hidden');
+        } else {
+          showMoreWrap.classList.add('hidden');
+        }
+      }
+    }
+
+    function onInsertClick(e) {
+      var btn = e.target;
+      if (btn.tagName !== 'BUTTON' || !btn.classList.contains('btn-insert-result')) return;
+      var surah = parseInt(btn.getAttribute('data-surah'), 10);
+      var ayah = parseInt(btn.getAttribute('data-ayah'), 10);
+      if (!surah || !ayah) return;
+
+      btn.disabled = true;
+      var settings = window._browseSettings || {};
+
+      var match = null;
+      for (var i = 0; i < _aiAllResults.length; i++) {
+        if (_aiAllResults[i].surah === surah && _aiAllResults[i].ayah === ayah) {
+          match = _aiAllResults[i];
+          break;
+        }
+      }
+
+      if (!match) {
+        btn.disabled = false;
+        return;
+      }
+
+      var fs = window.getFormatState ? window.getFormatState() : {};
+      google.script.run
+        .withSuccessHandler(function() { btn.disabled = false; })
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          console.error('Insert failed:', err);
+        })
+        .insertAyah(match, fs, settings);
+    }
+
+    if (queryEl) {
+      queryEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          doAiSearch();
+        }
+      });
+    }
+    if (btnSearch) btnSearch.addEventListener('click', doAiSearch);
+    if (resultsEl) resultsEl.addEventListener('click', onInsertClick);
+    if (btnShowMore) {
+      btnShowMore.addEventListener('click', function() {
+        _aiVisibleCount = Math.min(_aiVisibleCount + AI_INITIAL_COUNT, _aiAllResults.length, AI_MAX_COUNT);
+        renderAiResults();
+      });
+    }
+  }
+
   function init() {
     google.script.run
       .withSuccessHandler(function(s) {
@@ -529,6 +681,7 @@
     initSettingsPanelHandlers();
     initBrowseTab();
     initSearchTab();
+    initAiTab();
   }
 
   if (document.readyState === 'loading') {
