@@ -6,4 +6,3 @@ node_modules/**
 .git/**
 README.md
 .clasp.json
-**/*.js
