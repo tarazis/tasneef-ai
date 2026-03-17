@@ -3,42 +3,56 @@
  * Unified query handler: classifies user intent via Claude, then routes to
  * the appropriate data source (quranapi, GitHub Pages, or semantic references).
  * Claude is a text classifier only — never returns Quranic text or translations.
+ *
+ * Three actions: fetch_ayah, search, clarify
+ * Accepts conversation context (last 3 messages) for clarification exchanges.
  */
 
 var CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
 var CLAUDE_MODEL = 'claude-sonnet-4-20250514';
 var CLAUDE_MAX_TOKENS = 1024;
 var AI_MAX_REFERENCES = 10;
+var CONVERSATION_CONTEXT_LIMIT = 3;
 
 var UNIFIED_SYSTEM_PROMPT =
   'You are a Quran search assistant for Islamic scholars. ' +
-  'Given a user request, determine the intent and return ONLY a raw JSON object (no markdown fences, no explanation). ' +
-  'Use one of these exact formats:\n\n' +
-  'If the user wants a specific ayah by reference number, surah name, or well-known verse name:\n' +
+  'Given a user request, determine the intent and return ONLY a raw JSON object. ' +
+  'No markdown fences, no explanation, no extra text — just the JSON.\n\n' +
+  'Actions:\n\n' +
+  '1. fetch_ayah — user wants a specific ayah by reference number, surah name, or well-known verse name:\n' +
   '{"action":"fetch_ayah","surah":2,"ayah":255}\n\n' +
-  'If the user provides Arabic text to search for in the Quran:\n' +
-  '{"action":"exact_search","query":"the arabic text here"}\n\n' +
-  'If the user describes a topic, theme, or meaning and wants to find matching verses:\n' +
-  '{"action":"semantic_search","references":[{"surah":2,"ayah":153},{"surah":3,"ayah":200}]}\n' +
-  'Return 5-10 of the most relevant references for semantic search, ordered by relevance.\n\n' +
-  'If the request is ambiguous or you need more information:\n' +
+  '2. search — user wants to find verses (by Arabic text, topic, theme, or meaning):\n' +
+  'For Arabic Quranic text to search in the corpus:\n' +
+  '{"action":"search","query":"بسم الله الرحمن","language":"arabic"}\n' +
+  'For English or non-Arabic description of what to find (include references you know):\n' +
+  '{"action":"search","query":"patience in hardship","language":"english","references":[{"surah":2,"ayah":153},{"surah":3,"ayah":200}]}\n' +
+  'Return 5-10 of the most relevant references for English search, ordered by relevance.\n\n' +
+  '3. clarify — the request is ambiguous or you need more information:\n' +
   '{"action":"clarify","message":"Your clarifying question here"}\n\n' +
   'Rules:\n' +
-  '- ONLY return the raw JSON object. No markdown, no explanation, no extra text.\n' +
-  '- For fetch_ayah: you must know the exact surah number (1-114) and ayah number.\n' +
-  '- For exact_search: extract the Arabic text the user wants to search for.\n' +
-  '- For semantic_search: return references you are confident about from your knowledge of the Quran.\n' +
-  '- If the user gives a surah name (e.g. "Al-Baqarah") without an ayah, use clarify to ask which ayah.\n' +
-  '- If the user gives ambiguous input, prefer clarify over guessing.';
+  '- Return ONLY the raw JSON object.\n' +
+  '- For fetch_ayah: you must know the exact surah (1-114) and ayah number.\n' +
+  '- For Arabic input: determine if it is Quranic text to search for (use search with language "arabic") ' +
+  'or a conversational question in Arabic (interpret the intent and respond accordingly). ' +
+  'If genuinely unsure, use clarify.\n' +
+  '- For search with language "english": include a "references" array of {surah, ayah} pairs from your Quran knowledge.\n' +
+  '- For search with language "arabic": include only "query" (the Arabic text). No references needed.\n' +
+  '- If the user gives a surah name without an ayah number, use clarify to ask which ayah.\n' +
+  '- Prefer clarify over guessing when the input is ambiguous.';
 
 /**
  * Processes a user query through the unified Claude-based interface.
- * Routes to fetch_ayah, exact_search, or semantic_search based on Claude's classification.
- * @param {string} userMessage - The user's natural language query
- * @return {Object} { type: string, results?: Array, message?: string, error?: string }
+ * Accepts conversation context for multi-turn clarification exchanges.
+ * @param {Array<{role: string, content: string}>} messages - Conversation messages (last 3)
+ * @return {Object} { type: string, results?: Array, message?: string, error?: string, rawResponse?: string }
  */
-function processUnifiedQuery(userMessage) {
-  if (!userMessage || typeof userMessage !== 'string' || !userMessage.trim()) {
+function processUnifiedQuery(messages) {
+  if (!messages || !Array.isArray(messages) || !messages.length) {
+    return { type: 'error', error: 'Please enter a query.' };
+  }
+
+  var lastMessage = messages[messages.length - 1];
+  if (!lastMessage || !lastMessage.content || !lastMessage.content.trim()) {
     return { type: 'error', error: 'Please enter a query.' };
   }
 
@@ -55,9 +69,14 @@ function processUnifiedQuery(userMessage) {
     };
   }
 
+  var trimmedMessages = _trimConversationContext(messages);
+
+  var rawResponse;
   var parsed;
   try {
-    parsed = _callClaudeForClassification(apiKey, userMessage.trim());
+    var result = _callClaudeForClassification(apiKey, trimmedMessages);
+    rawResponse = result.raw;
+    parsed = result.parsed;
   } catch (e) {
     return { type: 'error', error: 'Something went wrong. Please try again.' };
   }
@@ -69,35 +88,58 @@ function processUnifiedQuery(userMessage) {
   var settings = getSettings();
   var style = settings.arabicStyle || 'uthmani';
 
+  var response;
   switch (parsed.action) {
     case 'fetch_ayah':
-      return _handleFetchAyah(parsed, style);
-    case 'exact_search':
-      return _handleExactSearch(parsed, style);
-    case 'semantic_search':
-      return _handleSemanticSearch(parsed, style);
+      response = _handleFetchAyah(parsed, style);
+      break;
+    case 'search':
+      response = _handleSearch(parsed, style);
+      break;
     case 'clarify':
-      return { type: 'clarify', message: parsed.message || 'Could you be more specific?' };
+      response = { type: 'clarify', message: parsed.message || 'Could you be more specific?' };
+      break;
     default:
-      return { type: 'error', error: 'Could not understand request. Please try again.' };
+      response = { type: 'error', error: 'Could not understand request. Please try again.' };
+      break;
   }
+
+  response.rawResponse = rawResponse || '';
+  return response;
 }
 
 /**
- * Calls Claude API with the unified system prompt and returns the parsed JSON response.
- * @param {string} apiKey - Claude API key
- * @param {string} userMessage - User's query
- * @return {Object} Parsed JSON action object
+ * Trims conversation messages to the last N entries and validates format.
+ * @param {Array} messages - Raw messages from client
+ * @return {Array<{role: string, content: string}>} Validated, trimmed messages
  */
-function _callClaudeForClassification(apiKey, userMessage) {
+function _trimConversationContext(messages) {
+  var valid = [];
+  for (var i = 0; i < messages.length; i++) {
+    var m = messages[i];
+    if (m && m.role && m.content && typeof m.content === 'string') {
+      valid.push({ role: String(m.role), content: String(m.content) });
+    }
+  }
+  if (valid.length > CONVERSATION_CONTEXT_LIMIT) {
+    valid = valid.slice(valid.length - CONVERSATION_CONTEXT_LIMIT);
+  }
+  return valid;
+}
+
+/**
+ * Calls Claude API with the unified system prompt and conversation context.
+ * @param {string} apiKey - Claude API key
+ * @param {Array<{role: string, content: string}>} messages - Conversation messages
+ * @return {{raw: string, parsed: Object}} Raw text and parsed JSON action object
+ */
+function _callClaudeForClassification(apiKey, messages) {
   var payload = {
     model: CLAUDE_MODEL,
     max_tokens: CLAUDE_MAX_TOKENS,
     temperature: 0,
     system: UNIFIED_SYSTEM_PROMPT,
-    messages: [
-      { role: 'user', content: userMessage }
-    ]
+    messages: messages
   };
 
   var options = {
@@ -133,7 +175,7 @@ function _callClaudeForClassification(apiKey, userMessage) {
     }
   }
 
-  return _parseClassificationResponse(text);
+  return { raw: text, parsed: _parseClassificationResponse(text) };
 }
 
 /**
@@ -183,12 +225,28 @@ function _handleFetchAyah(parsed, style) {
 }
 
 /**
- * Handles exact_search action: runs in-memory Arabic text search via QuranData.
- * @param {Object} parsed - { action, query }
+ * Handles unified search action. Routes based on language:
+ * - "arabic": in-memory exact text search via QuranData (GitHub Pages)
+ * - "english" (or other): validates Claude's references against quranapi
+ * @param {Object} parsed - { action, query, language, references? }
  * @param {string} style - "uthmani" or "simple"
  * @return {Object} Unified result object
  */
-function _handleExactSearch(parsed, style) {
+function _handleSearch(parsed, style) {
+  var language = (parsed.language || '').toLowerCase();
+
+  if (language === 'arabic') {
+    return _handleArabicSearch(parsed);
+  }
+  return _handleEnglishSearch(parsed, style);
+}
+
+/**
+ * Handles Arabic text search: runs in-memory exact search via QuranData.
+ * @param {Object} parsed - { query }
+ * @return {Object} Unified result object
+ */
+function _handleArabicSearch(parsed) {
   var query = parsed.query;
   if (!query || typeof query !== 'string' || !query.trim()) {
     return { type: 'error', error: 'No search text provided.' };
@@ -205,12 +263,12 @@ function _handleExactSearch(parsed, style) {
 }
 
 /**
- * Handles semantic_search action: validates Claude's references against quranapi.
- * @param {Object} parsed - { action, references: [{surah, ayah}] }
+ * Handles English/semantic search: validates Claude's references against quranapi.
+ * @param {Object} parsed - { query, references: [{surah, ayah}] }
  * @param {string} style - "uthmani" or "simple"
  * @return {Object} Unified result object
  */
-function _handleSemanticSearch(parsed, style) {
+function _handleEnglishSearch(parsed, style) {
   var refs = parsed.references;
   if (!refs || !Array.isArray(refs) || !refs.length) {
     return { type: 'error', error: 'No results found. Try a different query.' };
@@ -234,7 +292,7 @@ function _handleSemanticSearch(parsed, style) {
     return { type: 'error', error: 'No verified results found. Try a different query.' };
   }
 
-  return { type: 'semantic', results: validated };
+  return { type: 'search', results: validated };
 }
 
 /**

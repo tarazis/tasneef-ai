@@ -232,11 +232,18 @@
 
   // ─── Unified Tab ────────────────────────────────────────────────────────────
 
+  var _conversationMessages = [];
+
   function escapeHtml(s) {
     if (!s) return '';
     var d = document.createElement('div');
     d.textContent = s;
     return d.innerHTML;
+  }
+
+  function getLastMessages(limit) {
+    if (_conversationMessages.length <= limit) return _conversationMessages.slice();
+    return _conversationMessages.slice(_conversationMessages.length - limit);
   }
 
   function initUnifiedTab() {
@@ -266,23 +273,36 @@
       var query = queryEl ? queryEl.value.trim() : '';
       if (!query) return;
 
+      queryEl.value = '';
+      queryEl.style.height = 'auto';
+
+      _conversationMessages.push({ role: 'user', content: query });
+
       clearResults();
       loadingEl.classList.remove('hidden');
       setEnabled(false);
+
+      var messagesToSend = getLastMessages(3);
 
       google.script.run
         .withSuccessHandler(function(response) {
           loadingEl.classList.add('hidden');
           setEnabled(true);
+
+          if (response && response.rawResponse) {
+            _conversationMessages.push({ role: 'assistant', content: response.rawResponse });
+          }
+
           handleResponse(response);
         })
         .withFailureHandler(function() {
           loadingEl.classList.add('hidden');
           setEnabled(true);
+          _conversationMessages.pop();
           emptyEl.textContent = 'Something went wrong. Please try again.';
           emptyEl.classList.remove('hidden');
         })
-        .processUnifiedQuery(query);
+        .processUnifiedQuery(messagesToSend);
     }
 
     function handleResponse(response) {
@@ -305,8 +325,12 @@
       if (response.type === 'clarify') {
         clarifyEl.textContent = response.message || 'Could you be more specific?';
         clarifyEl.classList.remove('hidden');
+        if (queryEl) queryEl.focus();
         return;
       }
+
+      // Non-clarify response breaks the conversation chain
+      _conversationMessages = [];
 
       var results = response.results || [];
 
@@ -391,7 +415,6 @@
         .getAyahForInsert(surah, ayah, style);
     }
 
-    // Auto-resize textarea
     if (queryEl) {
       queryEl.addEventListener('input', function() {
         queryEl.style.height = 'auto';
