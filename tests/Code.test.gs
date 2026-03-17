@@ -1,5 +1,5 @@
 /**
- * GAS-native tests for Code.gs (Search tab server functions)
+ * GAS-native tests for Code.gs (Unified sidebar bridge functions)
  *
  * Run from Apps Script editor: select runCodeTests, click Run.
  * View results in View → Logs.
@@ -37,84 +37,52 @@ function runCodeTests() {
         if (typeof actual !== 'number' || actual <= n) {
           throw new Error('Expected > ' + n + ' but got ' + JSON.stringify(actual));
         }
-      },
-      toContainKey: function (key) {
-        if (!actual || !actual[key]) {
-          throw new Error('Expected object to have key ' + JSON.stringify(key));
-        }
       }
     };
   }
 
-  // ── runSearchExact ────────────────────────────────────────────────────────
+  // ── getAyahForInsert ──────────────────────────────────────────────────────
 
-  results.push('\nrunSearchExact()');
+  results.push('\ngetAyahForInsert()');
 
-  it('runSearchExact("الكرسي", simple) returns results including 2:255', function () {
-    var hits = runSearchExact('الكرسي', 'simple');
-    var found = false;
-    for (var i = 0; i < hits.length; i++) {
-      if (hits[i].surah === 2 && hits[i].ayah === 255) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) throw new Error('Expected 2:255 in results, got ' + hits.length + ' hits');
-  });
-
-  it('runSearchExact results have matchStart and matchEnd for highlighting', function () {
-    var hits = runSearchExact('الكرسي', 'simple');
-    var hit255 = null;
-    for (var i = 0; i < hits.length; i++) {
-      if (hits[i].surah === 2 && hits[i].ayah === 255) {
-        hit255 = hits[i];
-        break;
-      }
-    }
-    if (!hit255) throw new Error('2:255 not in results');
-    expect(hit255.matchStart).toBeGreaterThan(-1);
-    expect(hit255.matchEnd).toBeGreaterThan(hit255.matchStart);
-    var snippet = hit255.arabicText.substring(hit255.matchStart, hit255.matchEnd);
-    if (snippet.indexOf('الكرسي') < 0 && snippet.indexOf('كُرْسِي') < 0) {
-      throw new Error('matchStart/matchEnd should span the matched term');
-    }
-  });
-
-  it('runSearchExact returns empty array for empty query', function () {
-    var hits = runSearchExact('', 'simple');
-    expect(hits.length).toBe(0);
-  });
-
-  it('runSearchExact("الحمد لله رب العالمين", simple) returns Al-Fatihah 1:1', function () {
-    var hits = runSearchExact('الحمد لله رب العالمين', 'simple');
-    var found = false;
-    for (var i = 0; i < hits.length; i++) {
-      if (hits[i].surah === 1 && hits[i].ayah === 1) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) throw new Error('Expected 1:1 in results, got ' + hits.length + ' hits');
-  });
-
-  // ── getAyahForSearchInsert ──────────────────────────────────────────────────
-
-  results.push('\ngetAyahForSearchInsert()');
-
-  it('getAyahForSearchInsert(2, 255, sahih) returns full ayah with translation', function () {
-    var ayah = getAyahForSearchInsert(2, 255, 'sahih');
+  it('returns full ayah data for 2:255 (uthmani)', function () {
+    var ayah = getAyahForInsert(2, 255, 'uthmani');
     expect(ayah).toBeTruthy();
     expect(ayah.surah).toBe(2);
     expect(ayah.ayah).toBe(255);
+    expect(ayah.arabicText).toBeTruthy();
     expect(ayah.textUthmani).toBeTruthy();
     expect(ayah.textSimple).toBeTruthy();
-    expect(ayah.textUthmani.length).toBeGreaterThan(50);
-    expect(ayah.translationText.length).toBeGreaterThan(20);
+    expect(ayah.translationText).toBeTruthy();
   });
 
-  it('getAyahForSearchInsert returns null for invalid surah', function () {
-    var ayah = getAyahForSearchInsert(999, 1, 'sahih');
+  it('returns full ayah data for 1:1 (simple)', function () {
+    var ayah = getAyahForInsert(1, 1, 'simple');
+    expect(ayah).toBeTruthy();
+    expect(ayah.surah).toBe(1);
+    expect(ayah.ayah).toBe(1);
+    expect(ayah.arabicText).toBeTruthy();
+  });
+
+  it('returns null for invalid surah', function () {
+    var ayah = getAyahForInsert(999, 1, 'uthmani');
     expect(ayah === null).toBe(true);
+  });
+
+  it('returns null for invalid ayah', function () {
+    var ayah = getAyahForInsert(1, 999, 'uthmani');
+    expect(ayah === null).toBe(true);
+  });
+
+  it('returns null for missing parameters', function () {
+    var ayah = getAyahForInsert(null, null, 'uthmani');
+    expect(ayah === null).toBe(true);
+  });
+
+  it('defaults to uthmani when style is not provided', function () {
+    var ayah = getAyahForInsert(1, 1);
+    expect(ayah).toBeTruthy();
+    expect(ayah.arabicText).toBeTruthy();
   });
 
   // ── Summary ────────────────────────────────────────────────────────────────

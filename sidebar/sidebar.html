@@ -16,16 +16,8 @@
 
     <?!= include('sidebar/components/format-bar') ?>
 
-    <nav class="tabs">
-      <button type="button" class="tab active" data-tab="browse">Browse</button>
-      <button type="button" class="tab" data-tab="search">Search</button>
-      <button type="button" class="tab" data-tab="ai">AI Search</button>
-    </nav>
-
-    <main class="tab-content">
-      <div id="tab-browse" class="tab-pane active"><?!= include('sidebar/components/tab-browse') ?></div>
-      <div id="tab-search" class="tab-pane"><?!= include('sidebar/components/tab-search') ?></div>
-      <div id="tab-ai" class="tab-pane"><?!= include('sidebar/components/tab-ai') ?></div>
+    <main class="unified-content">
+      <?!= include('sidebar/components/tab-unified') ?>
     </main>
 
     <footer class="footer">

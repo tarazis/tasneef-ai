@@ -1,10 +1,10 @@
 /**
- * GAS-native tests for ClaudeAPI.gs
+ * GAS-native tests for ClaudeAPI.gs (Unified query handler)
  *
  * Run from Apps Script editor: select runClaudeAPITests, click Run.
  * View results in View → Logs.
  *
- * Unit tests for parsing/validation run without network.
+ * Unit tests for parsing/classification run without network.
  * Integration tests require a Claude API key in User Properties.
  */
 
@@ -47,153 +47,211 @@ function runClaudeAPITests() {
     };
   }
 
-  // ── _parseReferencesFromText (unit tests, no network) ─────────────────────
+  // ── _parseClassificationResponse (unit tests, no network) ─────────────────
 
-  results.push('\n_parseReferencesFromText()');
+  results.push('\n_parseClassificationResponse()');
 
-  it('parses a clean JSON array', function () {
-    var refs = _parseReferencesFromText('[{"surah":2,"ayah":255},{"surah":112,"ayah":1}]');
-    expect(refs.length).toBe(2);
-    expect(refs[0].surah).toBe(2);
-    expect(refs[0].ayah).toBe(255);
-    expect(refs[1].surah).toBe(112);
-    expect(refs[1].ayah).toBe(1);
+  it('parses a clean fetch_ayah JSON object', function () {
+    var parsed = _parseClassificationResponse('{"action":"fetch_ayah","surah":2,"ayah":255}');
+    expect(parsed.action).toBe('fetch_ayah');
+    expect(parsed.surah).toBe(2);
+    expect(parsed.ayah).toBe(255);
+  });
+
+  it('parses an exact_search JSON object', function () {
+    var parsed = _parseClassificationResponse('{"action":"exact_search","query":"بسم الله"}');
+    expect(parsed.action).toBe('exact_search');
+    expect(parsed.query).toBe('بسم الله');
+  });
+
+  it('parses a semantic_search JSON object with references', function () {
+    var text = '{"action":"semantic_search","references":[{"surah":2,"ayah":153},{"surah":3,"ayah":200}]}';
+    var parsed = _parseClassificationResponse(text);
+    expect(parsed.action).toBe('semantic_search');
+    expect(parsed.references.length).toBe(2);
+    expect(parsed.references[0].surah).toBe(2);
+    expect(parsed.references[0].ayah).toBe(153);
+  });
+
+  it('parses a clarify JSON object', function () {
+    var parsed = _parseClassificationResponse('{"action":"clarify","message":"Which surah?"}');
+    expect(parsed.action).toBe('clarify');
+    expect(parsed.message).toBe('Which surah?');
   });
 
   it('parses JSON wrapped in markdown code fences', function () {
-    var text = '```json\n[{"surah":1,"ayah":1},{"surah":36,"ayah":1}]\n```';
-    var refs = _parseReferencesFromText(text);
-    expect(refs.length).toBe(2);
-    expect(refs[0].surah).toBe(1);
-    expect(refs[1].surah).toBe(36);
+    var text = '```json\n{"action":"fetch_ayah","surah":1,"ayah":1}\n```';
+    var parsed = _parseClassificationResponse(text);
+    expect(parsed.action).toBe('fetch_ayah');
+    expect(parsed.surah).toBe(1);
+    expect(parsed.ayah).toBe(1);
   });
 
-  it('extracts JSON array from surrounding text', function () {
-    var text = 'Here are the results:\n[{"surah":55,"ayah":13}]\nI hope this helps.';
-    var refs = _parseReferencesFromText(text);
-    expect(refs.length).toBe(1);
-    expect(refs[0].surah).toBe(55);
-    expect(refs[0].ayah).toBe(13);
+  it('extracts JSON object from surrounding text', function () {
+    var text = 'Here is the response:\n{"action":"fetch_ayah","surah":55,"ayah":13}\nHope this helps.';
+    var parsed = _parseClassificationResponse(text);
+    expect(parsed.action).toBe('fetch_ayah');
+    expect(parsed.surah).toBe(55);
   });
 
-  it('returns empty for null/empty input', function () {
-    expect(_parseReferencesFromText(null).length).toBe(0);
-    expect(_parseReferencesFromText('').length).toBe(0);
+  it('returns null for null/empty input', function () {
+    expect(_parseClassificationResponse(null) === null).toBe(true);
+    expect(_parseClassificationResponse('') === null).toBe(true);
   });
 
-  it('returns empty for invalid JSON', function () {
-    expect(_parseReferencesFromText('not json at all').length).toBe(0);
+  it('returns null for invalid JSON', function () {
+    expect(_parseClassificationResponse('not json at all') === null).toBe(true);
   });
 
-  it('filters out invalid surah numbers', function () {
-    var text = '[{"surah":0,"ayah":1},{"surah":115,"ayah":1},{"surah":50,"ayah":5}]';
-    var refs = _parseReferencesFromText(text);
-    expect(refs.length).toBe(1);
-    expect(refs[0].surah).toBe(50);
+  // ── _handleFetchAyah (integration, real network) ──────────────────────────
+
+  results.push('\n_handleFetchAyah()');
+
+  it('fetches a valid ayah (1:1)', function () {
+    var result = _handleFetchAyah({ surah: 1, ayah: 1 }, 'uthmani');
+    expect(result.type).toBe('single');
+    expect(result.results.length).toBe(1);
+    expect(result.results[0].surah).toBe(1);
+    expect(result.results[0].ayah).toBe(1);
+    expect(result.results[0].arabicText).toBeTruthy();
+    expect(result.results[0].translationText).toBeTruthy();
   });
 
-  it('filters out invalid ayah numbers', function () {
-    var text = '[{"surah":1,"ayah":0},{"surah":1,"ayah":-1},{"surah":1,"ayah":3}]';
-    var refs = _parseReferencesFromText(text);
-    expect(refs.length).toBe(1);
-    expect(refs[0].ayah).toBe(3);
+  it('fetches Ayat al-Kursi (2:255)', function () {
+    var result = _handleFetchAyah({ surah: 2, ayah: 255 }, 'uthmani');
+    expect(result.type).toBe('single');
+    expect(result.results[0].surah).toBe(2);
+    expect(result.results[0].ayah).toBe(255);
   });
 
-  it('caps results at AI_MAX_REFERENCES (10)', function () {
-    var arr = [];
-    for (var i = 1; i <= 15; i++) arr.push({ surah: 1, ayah: i });
-    var refs = _parseReferencesFromText(JSON.stringify(arr));
-    expect(refs.length).toBe(10);
+  it('returns error for invalid surah (0)', function () {
+    var result = _handleFetchAyah({ surah: 0, ayah: 1 }, 'uthmani');
+    expect(result.type).toBe('error');
   });
 
-  // ── _validateAndFetchReferences (integration, real network) ───────────────
-
-  results.push('\n_validateAndFetchReferences()');
-
-  it('validates known-good references and returns full ayah data', function () {
-    var refs = [{ surah: 1, ayah: 1 }, { surah: 2, ayah: 255 }];
-    var validated = _validateAndFetchReferences(refs, 'uthmani');
-    expect(validated.length).toBe(2);
-    expect(validated[0].surah).toBe(1);
-    expect(validated[0].ayah).toBe(1);
-    expect(validated[0].arabicText).toBeTruthy();
-    expect(validated[0].translationText).toBeTruthy();
-    expect(validated[0].textUthmani).toBeTruthy();
-    expect(validated[0].textSimple).toBeTruthy();
-    expect(validated[1].surah).toBe(2);
-    expect(validated[1].ayah).toBe(255);
+  it('returns error for surah > 114', function () {
+    var result = _handleFetchAyah({ surah: 115, ayah: 1 }, 'uthmani');
+    expect(result.type).toBe('error');
   });
 
-  it('silently discards hallucinated references (invalid surah/ayah)', function () {
-    var refs = [{ surah: 1, ayah: 1 }, { surah: 999, ayah: 1 }, { surah: 2, ayah: 9999 }];
-    var validated = _validateAndFetchReferences(refs, 'uthmani');
-    expect(validated.length).toBe(1);
-    expect(validated[0].surah).toBe(1);
-    expect(validated[0].ayah).toBe(1);
+  it('returns error for non-existent ayah', function () {
+    var result = _handleFetchAyah({ surah: 1, ayah: 999 }, 'uthmani');
+    expect(result.type).toBe('error');
   });
 
-  it('returns empty array for all-invalid references', function () {
-    var refs = [{ surah: 999, ayah: 1 }, { surah: 200, ayah: 5 }];
-    var validated = _validateAndFetchReferences(refs, 'uthmani');
-    expect(validated.length).toBe(0);
+  // ── _handleExactSearch (integration, real network for QuranData) ──────────
+
+  results.push('\n_handleExactSearch()');
+
+  it('finds results for Arabic text "الكرسي"', function () {
+    var result = _handleExactSearch({ query: 'الكرسي' }, 'simple');
+    expect(result.type).toBe('search');
+    expect(result.results.length).toBeGreaterThan(0);
+    var found = false;
+    for (var i = 0; i < result.results.length; i++) {
+      if (result.results[i].surah === 2 && result.results[i].ayah === 255) found = true;
+    }
+    if (!found) throw new Error('Expected 2:255 in results');
   });
 
-  it('returns empty array for empty input', function () {
-    var validated = _validateAndFetchReferences([], 'uthmani');
-    expect(validated.length).toBe(0);
+  it('returns search type with empty results for nonsense query', function () {
+    var result = _handleExactSearch({ query: 'xyznonexistent123' }, 'simple');
+    expect(result.type).toBe('search');
+    expect(result.results.length).toBe(0);
   });
 
-  it('respects style parameter (simple vs uthmani)', function () {
-    var refs = [{ surah: 1, ayah: 1 }];
-    var uthmani = _validateAndFetchReferences(refs, 'uthmani');
-    var simple = _validateAndFetchReferences(refs, 'simple');
-    expect(uthmani.length).toBe(1);
-    expect(simple.length).toBe(1);
-    expect(uthmani[0].arabicText).toBeTruthy();
-    expect(simple[0].arabicText).toBeTruthy();
+  it('returns error for empty query', function () {
+    var result = _handleExactSearch({ query: '' }, 'simple');
+    expect(result.type).toBe('error');
   });
 
-  // ── runAiSearch (integration) ─────────────────────────────────────────────
+  // ── _handleSemanticSearch (integration, validates against quranapi) ────────
 
-  results.push('\nrunAiSearch()');
+  results.push('\n_handleSemanticSearch()');
 
-  it('runAiSearch returns NO_API_KEY when no key is set', function () {
+  it('validates known-good references', function () {
+    var parsed = { references: [{ surah: 1, ayah: 1 }, { surah: 2, ayah: 255 }] };
+    var result = _handleSemanticSearch(parsed, 'uthmani');
+    expect(result.type).toBe('semantic');
+    expect(result.results.length).toBe(2);
+    expect(result.results[0].arabicText).toBeTruthy();
+    expect(result.results[0].translationText).toBeTruthy();
+  });
+
+  it('silently discards hallucinated references', function () {
+    var parsed = { references: [{ surah: 1, ayah: 1 }, { surah: 999, ayah: 1 }] };
+    var result = _handleSemanticSearch(parsed, 'uthmani');
+    expect(result.type).toBe('semantic');
+    expect(result.results.length).toBe(1);
+  });
+
+  it('returns error when all references are invalid', function () {
+    var parsed = { references: [{ surah: 999, ayah: 1 }] };
+    var result = _handleSemanticSearch(parsed, 'uthmani');
+    expect(result.type).toBe('error');
+  });
+
+  it('returns error for empty references array', function () {
+    var parsed = { references: [] };
+    var result = _handleSemanticSearch(parsed, 'uthmani');
+    expect(result.type).toBe('error');
+  });
+
+  it('caps at AI_MAX_REFERENCES', function () {
+    var refs = [];
+    for (var i = 1; i <= 15; i++) refs.push({ surah: 1, ayah: i });
+    var parsed = { references: refs };
+    var result = _handleSemanticSearch(parsed, 'uthmani');
+    expect(result.type).toBe('semantic');
+    if (result.results.length > AI_MAX_REFERENCES) {
+      throw new Error('Expected <= ' + AI_MAX_REFERENCES + ' results but got ' + result.results.length);
+    }
+  });
+
+  // ── processUnifiedQuery (integration) ─────────────────────────────────────
+
+  results.push('\nprocessUnifiedQuery()');
+
+  it('returns NO_API_KEY when no key is set', function () {
     var savedKey = getClaudeApiKey();
     try {
       PropertiesService.getUserProperties().deleteProperty(PROPERTY_KEYS.CLAUDE_API_KEY);
-      var result = runAiSearch('verses about mercy');
-      expect(result.success).toBe(false);
+      var result = processUnifiedQuery('show me 2:255');
+      expect(result.type).toBe('error');
       expect(result.error).toBe('NO_API_KEY');
     } finally {
       if (savedKey) setClaudeApiKey(savedKey);
     }
   });
 
-  it('runAiSearch returns error for empty query', function () {
-    var result = runAiSearch('');
-    expect(result.success).toBe(false);
+  it('returns error for empty query', function () {
+    var result = processUnifiedQuery('');
+    expect(result.type).toBe('error');
   });
 
-  it('runAiSearch returns error for whitespace-only query', function () {
-    var result = runAiSearch('   ');
-    expect(result.success).toBe(false);
+  it('returns error for whitespace-only query', function () {
+    var result = processUnifiedQuery('   ');
+    expect(result.type).toBe('error');
   });
 
   // Full integration test — only runs if API key is present
   var apiKey = getClaudeApiKey();
   if (apiKey) {
-    it('runAiSearch("verses about patience") returns validated results (live API)', function () {
-      var result = runAiSearch('verses about patience');
-      expect(result.success).toBe(true);
+    it('processUnifiedQuery("show me ayat al kursi") returns a single result (live API)', function () {
+      var result = processUnifiedQuery('show me ayat al kursi');
+      if (result.type === 'error') throw new Error('Got error: ' + result.error);
       expect(result.results.length).toBeGreaterThan(0);
-      var first = result.results[0];
-      expect(first.surah).toBeGreaterThan(0);
-      expect(first.ayah).toBeGreaterThan(0);
-      expect(first.arabicText).toBeTruthy();
-      expect(first.translationText).toBeTruthy();
+      expect(result.results[0].arabicText).toBeTruthy();
+    });
+
+    it('processUnifiedQuery("verses about patience") returns semantic results (live API)', function () {
+      var result = processUnifiedQuery('verses about patience');
+      if (result.type === 'error') throw new Error('Got error: ' + result.error);
+      expect(result.results.length).toBeGreaterThan(0);
+      expect(result.results[0].surah).toBeGreaterThan(0);
     });
   } else {
-    results.push('  ⊘ Skipped live API test (no Claude API key configured)');
+    results.push('  ⊘ Skipped live API tests (no Claude API key configured)');
   }
 
   // ── Summary ───────────────────────────────────────────────────────────────

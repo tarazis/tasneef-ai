@@ -31,57 +31,15 @@ function include(filename) {
 }
 
 /**
- * Returns surah list for Browse tab. Uses quranapi.pages.dev.
- * @return {Array<{number, nameArabic, nameEnglish, ayahCount}>}
- */
-function getSurahListForBrowse() {
-  return getSurahListFromQuranApi();
-}
-
-/**
- * Returns a single ayah for Browse tab. Uses quranapi (Arabic + translation in one call).
- * @param {number} surahNum - Surah number (1–114)
+ * Fetches a single ayah for insertion. Used after user clicks Insert on a result.
+ * For exact_search results (which only have Arabic from GitHub), this fetches
+ * the full data (Arabic + translation) from quranapi.
+ * @param {number} surahNum - Surah number (1-114)
  * @param {number} ayahNum - Ayah number
- * @param {string} style - "uthmani" or "simple" (for preview display)
- * @return {Object|null} { surah, ayah, surahNameArabic, surahNameEnglish, arabicText, textUthmani, textSimple, translationText } or null
- */
-function getAyahForBrowse(surahNum, ayahNum, style) {
-  return getAyahFromQuranApi(surahNum, ayahNum, style || 'uthmani');
-}
-
-/**
- * Runs exact text search against QuranData (GitHub Pages).
- * @param {string} query - Search string (Arabic or Latin)
  * @param {string} style - "uthmani" or "simple"
- * @return {Array<{surah, ayah, surahNameArabic, surahNameEnglish, arabicText, matchIndex, matchStart, matchEnd}>}
+ * @return {Object|null} Full ayah data for insertion
  */
-function runSearchExact(query, style) {
-  if (!query || typeof query !== 'string') return [];
-  var data = loadQuranData();
-  return searchQuran(data, query.trim(), style || 'uthmani');
-}
-
-/**
- * Fetches ayah data for Search tab insert. Uses QuranData (Arabic) + TranslationAPI (translation).
- * @param {number} surahNum - Surah number (1–114)
- * @param {number} ayahNum - Ayah number
- * @param {string} edition - Translation edition (e.g. "sahih")
- * @return {Object|null} { surah, ayah, surahNameArabic, surahNameEnglish, textUthmani, textSimple, translationText } or null
- */
-function getAyahForSearchInsert(surahNum, ayahNum, edition) {
+function getAyahForInsert(surahNum, ayahNum, style) {
   if (!surahNum || !ayahNum) return null;
-  var data = loadQuranData();
-  var uthmani = getAyah(data, surahNum, ayahNum, 'uthmani');
-  var simple = getAyah(data, surahNum, ayahNum, 'simple');
-  if (!uthmani || !simple) return null;
-  var translationText = getTranslation(surahNum, ayahNum, edition || 'sahih');
-  return {
-    surah: uthmani.surah,
-    ayah: uthmani.ayah,
-    surahNameArabic: uthmani.surahNameArabic,
-    surahNameEnglish: uthmani.surahNameEnglish,
-    textUthmani: uthmani.arabicText,
-    textSimple: simple.arabicText,
-    translationText: translationText
-  };
+  return getAyahFromQuranApi(surahNum, ayahNum, style || 'uthmani');
 }

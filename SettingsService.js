@@ -4,7 +4,7 @@
  * All settings are persisted to User Properties (per-user, per-script).
  */
 
-var AI_SEARCH_DAILY_LIMIT = 10;
+var AI_SEARCH_DAILY_LIMIT = 100;
 
 var SETTINGS_DEFAULTS = {
   insertMode: 'cursor',       // "cursor" | "newline" | "inserttag"
