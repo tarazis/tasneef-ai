@@ -15,7 +15,7 @@ function onOpen(e) {
 function showSidebar() {
   var html = HtmlService.createTemplateFromFile('sidebar/sidebar')
     .evaluate()
-    .setTitle('Tasneef Quran')
+    .setTitle('Tasneef AI')
     .setWidth(350);
   DocumentApp.getUi().showSidebar(html);
 }

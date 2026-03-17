@@ -93,6 +93,7 @@
 
   function initSettings() {
     var btnSettings = document.getElementById('btn-settings');
+    var btnClear = document.getElementById('btn-clear');
     var overlay = document.getElementById('settings-overlay');
     var btnBack = document.getElementById('btn-settings-back');
 
@@ -101,6 +102,10 @@
         overlay.classList.remove('hidden');
         loadSettingsIntoPanel();
       });
+    }
+
+    if (btnClear) {
+      btnClear.addEventListener('click', clearConversation);
     }
 
     if (btnBack && overlay) {
@@ -233,6 +238,22 @@
   // ─── Unified Tab ────────────────────────────────────────────────────────────
 
   var _conversationMessages = [];
+
+  function clearConversation() {
+    _conversationMessages = [];
+    var resultsEl = document.getElementById('unified-results');
+    var clarifyEl = document.getElementById('unified-clarify');
+    var emptyEl = document.getElementById('unified-empty');
+    var loadingEl = document.getElementById('unified-loading');
+    var noKeyEl = document.getElementById('unified-no-key');
+    var queryEl = document.getElementById('unified-query');
+    if (resultsEl) resultsEl.innerHTML = '';
+    if (clarifyEl) { clarifyEl.classList.add('hidden'); clarifyEl.textContent = ''; }
+    if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
+    if (loadingEl) loadingEl.classList.add('hidden');
+    if (noKeyEl) noKeyEl.classList.add('hidden');
+    if (queryEl) { queryEl.value = ''; queryEl.focus(); }
+  }
 
   function escapeHtml(s) {
     if (!s) return '';

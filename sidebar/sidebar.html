@@ -9,8 +9,12 @@
   <div class="sidebar">
     <header class="header">
       <div class="header-brand">
-        <span class="logo">T</span>
-        <span class="title">Tasneef Quran</span>
+        <?!= include('sidebar/components/logo-img') ?>
+        <span class="title">Tasneef AI</span>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="btn-icon" id="btn-clear" title="Clear conversation" aria-label="Clear conversation">&#128465;</button>
+        <button type="button" class="btn-icon" id="btn-settings" title="Settings" aria-label="Settings">&#9881;</button>
       </div>
     </header>
 
@@ -19,10 +23,6 @@
     <main class="unified-content">
       <?!= include('sidebar/components/tab-unified') ?>
     </main>
-
-    <footer class="footer">
-      <button type="button" class="btn-icon" id="btn-settings" title="Settings" aria-label="Settings">&#9881;</button>
-    </footer>
   </div>
 
   <div id="settings-overlay" class="settings-overlay hidden">
