@@ -67,26 +67,28 @@ FONTS:       https://tarazis97.github.io/tasneef-data/fonts.json
 8. **File extension:** Always use `.js` for server-side scripts. Never create `.gs` files. Clasp handles the conversion on push.
 
 ## IMPORTANT:
-1. Before you make any change, create and checkout a feature branch according to the naming patterns specified below, then make the changes and commit your changes to the branch you created. 
+1. Before starting any new feature, bugfix, hotfix, or refactor — or any substantial/independent change — create and checkout a branch following this naming convention:
+
+   - `feature/<issue-number>-kebab-case-description`
+   - `bugfix/<issue-number>-kebab-case-description`
+   - `hotfix/<issue-number>-kebab-case-description`
+   - `refactor/<issue-number>-kebab-case-description`
+
+   Always confirm the GitHub issue number before creating the branch. If no issue exists, create one first.
 
 2. You must write unit and integration tests for all code.
 
 3. You must compile the code and pass ALL tests before committing.
 
 4. **After every commit that passes tests, run `clasp push`** to deploy the code to the Apps Script project.
+   Reference the issue number in every commit message:
+   - `feat(#42): add Arabic text tokenization`
+   - `fix(#17): correct sidebar overflow on mobile`
+   - `refactor(#8): simplify hadith search handler`
 
-## Version Control Guidelines
-**ALWAYS** use the following branch naming pattern:
-```
-feature/kebab-case-description
-bugfix/kebab-case-description
-hotfix/kebab-case-description
-refactor/kebab-case-description
-```
-**Examples:**
-- `feature/adding-expense-summary`
-- `bugfix/fix-login-validation`
-- `refactor/improve-api-performance`
+5. Before pushing any change, open a pull request with:
+   - A title matching the issue title
+   - A body that includes `Closes #<issue-number>` on its own line
 
 ### Commit Message Style
 
