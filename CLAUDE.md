@@ -8,30 +8,6 @@ A Google Docs sidebar add-on for Islamic scholars to search and insert Quranic a
 - HTML/CSS/JS via HtmlService (client-side, no npm/bundler)
 - Client ↔ server communication via `google.script.run`
 
-## Project Structure
-```
-tasneef-ai/
-├── appsscript.json
-├── Code.js                      # Menu, sidebar launcher, include() helper
-├── QuranData.js                 # Load Quran JSON from GitHub Pages, lookup, in-memory search
-├── TranslationAPI.js            # Fetch English translations from quranapi.pages.dev
-├── ClaudeAPI.js                 # Claude API wrapper (semantic search)
-├── DocumentService.js           # Insert logic (cursor, new line, insert tag)
-├── FormatService.js             # Formatting + Arabic-Indic numeral conversion
-├── SettingsService.js           # User Properties (settings, API key, usage counter)
-├── FontService.js               # Google Fonts API + exclusion filter
-├── sidebar/
-│   ├── sidebar.html             # Main shell (template includes via <?!= ?>)
-│   ├── sidebar-css.html         # Styles (wrapped in <style>)
-│   ├── sidebar-js.html          # Client-side JS
-│   └── components/
-│       ├── format-bar.html
-│       ├── tab-browse.html
-│       ├── tab-search.html
-│       ├── tab-ai.html
-│       └── settings-panel.html
-```
-
 ## Data Architecture (Critical)
 
 ### Arabic text — GitHub Pages (loaded once into client memory per session)
@@ -41,8 +17,6 @@ SIMPLE:      https://tarazis97.github.io/tasneef-data/quran/imlaei-simple.json
 SURAH META:  https://tarazis97.github.io/tasneef-data/quran/quran-metadata-surah-name.json
 FONTS:       https://tarazis97.github.io/tasneef-data/fonts.json
 ```
-- Fetched once on sidebar open via UrlFetchApp.fetch()
-- Used by: Browse tab, Search tab (in-memory exact text search), AI Search validation
 - INSPECT the actual JSON structure before writing code against it
 
 ### English translations — quranapi.pages.dev (fetched on demand per ayah)
@@ -53,14 +27,12 @@ FONTS:       https://tarazis97.github.io/tasneef-data/fonts.json
 ### Claude API — semantic search only
 - Model: claude-sonnet-4-20250514, temperature: 0
 - Claude returns surah/ayah references as JSON — NEVER Quranic text
-- Every reference from Claude MUST be validated against local data before display
+- Every reference from Claude MUST be validated against local or api data before display
 - API key stored in User Properties
 
 ## Hard Rules
-1. **All Quranic Arabic text comes from GitHub Pages JSON. Never from Claude. Never generated.**
-2. **All English translations come from quranapi.pages.dev. Never from Claude.**
+1. **All Quranic Arabic text and English Translations comes from GitHub Pages JSON or quranapi.pages.dev. Never from Claude. Never generated.**
 3. **Claude is a reference finder only.** It returns {surah, ayah} pairs. We look up the real text ourselves.
-4. **Exact search is in-memory.** Arabic text is already loaded. Filter/match against it directly.
 5. **Arabic search must normalize.** Strip tashkeel/diacritics for comparison. Normalize alef variants.
 6. **Font fallback is Amiri.** If selected font fails, use Amiri and show a toast.
 7. **Apps Script constraints:** No npm. No import/require. No ES modules. All server-side files are `.js` (clasp pushes them as `.gs`); they share global scope. HTML files served via HtmlService. Max project size ~2MB (code only, data is external).
