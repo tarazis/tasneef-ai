@@ -22,7 +22,7 @@ function getSurahListFromQuranApi() {
       list.push({
         number: i + 1,
         nameArabic: s.surahNameArabic || '',
-        nameEnglish: s.surahNameTranslation || s.surahName || '',
+        nameEnglish: s.surahName || '',
         ayahCount: s.totalAyah || 0
       });
     }
@@ -58,7 +58,7 @@ function getAyahFromQuranApi(surahNum, ayahNum, style) {
       surah: json.surahNo || surahNum,
       ayah: json.ayahNo || ayahNum,
       surahNameArabic: json.surahNameArabic || '',
-      surahNameEnglish: json.surahNameTranslation || json.surahName || '',
+      surahNameEnglish: json.surahName || '',
       arabicText: arabicText,
       textUthmani: arabic1,
       textSimple: arabic2,
