@@ -19,8 +19,7 @@ function insertAyah(ayahData, formatState, settings) {
   var body = doc.getBody();
   var cursor = doc.getCursor();
   if (!cursor) {
-    DocumentApp.getUi().toast('Place your cursor in the document before inserting.');
-    return { success: false, message: 'No cursor' };
+    return { success: false, message: 'Place your cursor in the document before inserting.' };
   }
 
   var arabicStyle = (settings && settings.arabicStyle) || 'uthmani';
@@ -42,7 +41,6 @@ function insertAyah(ayahData, formatState, settings) {
   if (insertMode === 'inserttag') {
     found = body.findText('\\[insert\\]');
     if (!found) {
-      DocumentApp.getUi().alert('No [insert] tag found. Inserted at cursor.');
       insertMode = 'cursor';
     } else {
       var textEl = found.getElement();
@@ -87,27 +85,28 @@ function insertAyah(ayahData, formatState, settings) {
     });
   }
 
+  var fontWarning = null;
   if (insertMode === 'inserttag' && tagParagraph) {
     tagParagraph.clear();
     tagParagraph.appendText(paragraphsToInsert[0].text);
     tagParagraph.setAlignment(paragraphsToInsert[0].align);
     if (paragraphsToInsert[0].rtl) tagParagraph.setLeftToRight(false);
-    applyFormat(tagParagraph.editAsText(), formatState);
+    fontWarning = applyFormat(tagParagraph.editAsText(), formatState) || fontWarning;
     for (var j = 1; j < paragraphsToInsert.length; j++) {
       var p = body.insertParagraph(insertIndex + j, paragraphsToInsert[j].text);
       p.setAlignment(paragraphsToInsert[j].align);
       if (paragraphsToInsert[j].rtl) p.setLeftToRight(false);
-      applyFormat(p.editAsText(), formatState);
+      fontWarning = applyFormat(p.editAsText(), formatState) || fontWarning;
     }
   } else {
     for (var i = 0; i < paragraphsToInsert.length; i++) {
       var p = body.insertParagraph(insertIndex + i, paragraphsToInsert[i].text);
       p.setAlignment(paragraphsToInsert[i].align);
       if (paragraphsToInsert[i].rtl) p.setLeftToRight(false);
-      applyFormat(p.editAsText(), formatState);
+      fontWarning = applyFormat(p.editAsText(), formatState) || fontWarning;
     }
   }
 
-  DocumentApp.getUi().toast('Ayah inserted.');
-  return { success: true };
+  var message = fontWarning ? 'Ayah inserted. ' + fontWarning : 'Ayah inserted.';
+  return { success: true, message: message };
 }

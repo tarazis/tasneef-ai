@@ -423,7 +423,12 @@
           }
           var fs = window.getFormatState ? window.getFormatState() : {};
           google.script.run
-            .withSuccessHandler(function() { btn.disabled = false; })
+            .withSuccessHandler(function(result) {
+              btn.disabled = false;
+              if (result && !result.success) {
+                console.warn('Insert warning:', result.message);
+              }
+            })
             .withFailureHandler(function(err) {
               btn.disabled = false;
               console.error('Insert failed:', err);

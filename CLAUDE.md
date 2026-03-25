@@ -52,7 +52,7 @@ FONTS:       https://tarazis97.github.io/tasneef-data/fonts.json
 
 3. You must compile the code and pass ALL tests before committing.
 
-4. **After every commit that passes tests, run `clasp push`** to deploy the code to the Apps Script project.
+4. **After every commit that passes tests, run `clasp push`** to deploy the code to the Apps Script project. **Do not open a PR unless explicitly instructed.**
    Reference the issue number in every commit message:
    - `feat(#42): add Arabic text tokenization`
    - `fix(#17): correct sidebar overflow on mobile`

@@ -25,19 +25,21 @@ function toArabicIndic(num) {
 
 /**
  * Applies format state to a Google Docs Text element.
- * Falls back to Amiri if font fails, shows toast.
+ * Falls back to Amiri if font fails.
  * @param {GoogleAppsScript.Document.Text} textElement - The text element to format
  * @param {Object} formatState - { fontName, fontSize, bold, textColor }
+ * @return {string|null} Warning message if font fallback occurred, null otherwise
  */
 function applyFormat(textElement, formatState) {
-  if (!textElement || !formatState) return;
+  if (!textElement || !formatState) return null;
 
+  var fontWarning = null;
   var fontName = formatState.fontName || FALLBACK_FONT;
   try {
     textElement.setFontFamily(fontName);
   } catch (e) {
     textElement.setFontFamily(FALLBACK_FONT);
-    DocumentApp.getUi().toast('Font "' + fontName + '" not available. Using Amiri.');
+    fontWarning = 'Font "' + fontName + '" not available. Using Amiri.';
   }
 
   if (formatState.fontSize != null) {
@@ -49,4 +51,6 @@ function applyFormat(textElement, formatState) {
   if (formatState.textColor) {
     textElement.setForegroundColor(formatState.textColor);
   }
+
+  return fontWarning;
 }
