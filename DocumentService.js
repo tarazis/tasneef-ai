@@ -70,12 +70,8 @@ function insertAyah(ayahData, formatState, settings) {
       rtl: true
     });
     paragraphsToInsert.push({
-      text: translationText,
-      align: DocumentApp.HorizontalAlignment.LEFT
-    });
-    paragraphsToInsert.push({
-      text: '[' + surahNameEn + ' ' + ayahData.surah + ':' + ayahData.ayah + ']',
-      align: DocumentApp.HorizontalAlignment.LEFT
+      text: '\u201C' + translationText + '\u201D (' + surahNameEn + ' ' + ayahData.surah + ':' + ayahData.ayah + ')',
+      align: DocumentApp.HorizontalAlignment.CENTER
     });
   } else {
     paragraphsToInsert.push({
