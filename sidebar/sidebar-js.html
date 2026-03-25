@@ -172,7 +172,10 @@
               showToast('Save failed.');
             } else {
               showToast('Saved');
-              refreshSettings();
+              _settings.insertMode = mode ? mode.value : 'cursor';
+              _settings.insertArabic = document.getElementById('insert-arabic').checked;
+              _settings.showTranslation = document.getElementById('insert-translation').checked;
+              _settings.showReference = document.getElementById('insert-reference').checked;
               if (overlay) overlay.classList.add('hidden');
             }
           }

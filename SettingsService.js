@@ -71,11 +71,12 @@ function saveSetting(key, value) {
 function saveSettings(settingsObj) {
   if (!settingsObj) return;
   var props = PropertiesService.getUserProperties();
+  var batch = {};
   Object.keys(settingsObj).forEach(function(key) {
     var value = settingsObj[key];
-    var stored = (typeof value === 'string') ? value : JSON.stringify(value);
-    props.setProperty(PROPERTY_KEYS.SETTINGS_PREFIX + key, stored);
+    batch[PROPERTY_KEYS.SETTINGS_PREFIX + key] = (typeof value === 'string') ? value : JSON.stringify(value);
   });
+  props.setProperties(batch);
 }
 
 /**
