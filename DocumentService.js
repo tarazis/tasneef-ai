@@ -4,10 +4,10 @@
  */
 
 /**
- * Inserts an ayah into the document.
+ * Inserts an ayah into the document at the cursor position.
  * @param {Object} ayahData - { surah, ayah, surahNameArabic, surahNameEnglish, textUthmani, textSimple, translationText }
  * @param {Object} formatState - { fontName, fontSize, bold, textColor }
- * @param {Object} settings - { insertMode, showTranslation, arabicStyle }
+ * @param {Object} settings - { showTranslation, arabicStyle }
  * @return {Object} { success: boolean, message?: string }
  */
 function insertAyah(ayahData, formatState, settings) {
@@ -24,7 +24,6 @@ function insertAyah(ayahData, formatState, settings) {
 
   var arabicStyle = (settings && settings.arabicStyle) || 'uthmani';
   var showTranslation = settings && settings.showTranslation !== false;
-  var insertMode = (settings && settings.insertMode) || 'cursor';
 
   var arabicText = (arabicStyle === 'uthmani' && ayahData.textUthmani)
     ? ayahData.textUthmani
@@ -34,33 +33,13 @@ function insertAyah(ayahData, formatState, settings) {
   var surahNameEn = ayahData.surahNameEnglish || '';
   var ayahNumAr = toArabicIndic(ayahData.ayah);
 
-  var insertIndex;
-  var found = null;
-  var tagParagraph = null;
-
-  if (insertMode === 'inserttag') {
-    found = body.findText('\\[insert\\]');
-    if (!found) {
-      insertMode = 'cursor';
-    } else {
-      var textEl = found.getElement();
-      var startOffset = found.getStartOffset();
-      var endOffset = found.getEndOffsetInclusive();
-      tagParagraph = textEl.getParent().asParagraph();
-      textEl.asText().deleteText(startOffset, endOffset);
-      insertIndex = body.getChildIndex(tagParagraph);
-    }
+  var cursorElement = cursor.getElement();
+  var parent = cursorElement.getParent();
+  while (parent && parent.getType() !== DocumentApp.ElementType.PARAGRAPH) {
+    parent = parent.getParent();
   }
-
-  if (insertMode !== 'inserttag' || !tagParagraph) {
-    var cursorElement = cursor.getElement();
-    var parent = cursorElement.getParent();
-    while (parent && parent.getType() !== DocumentApp.ElementType.PARAGRAPH) {
-      parent = parent.getParent();
-    }
-    var cursorParagraph = parent ? parent.asParagraph() : body.getParagraphs()[0];
-    insertIndex = body.getChildIndex(cursorParagraph) + 1;
-  }
+  var cursorParagraph = parent ? parent.asParagraph() : body.getParagraphs()[0];
+  var insertIndex = body.getChildIndex(cursorParagraph) + 1;
 
   var paragraphsToInsert = [];
   if (showTranslation && translationText) {
@@ -82,25 +61,11 @@ function insertAyah(ayahData, formatState, settings) {
   }
 
   var fontWarning = null;
-  if (insertMode === 'inserttag' && tagParagraph) {
-    tagParagraph.clear();
-    tagParagraph.appendText(paragraphsToInsert[0].text);
-    tagParagraph.setAlignment(paragraphsToInsert[0].align);
-    if (paragraphsToInsert[0].rtl) tagParagraph.setLeftToRight(false);
-    fontWarning = applyFormat(tagParagraph.editAsText(), formatState) || fontWarning;
-    for (var j = 1; j < paragraphsToInsert.length; j++) {
-      var p = body.insertParagraph(insertIndex + j, paragraphsToInsert[j].text);
-      p.setAlignment(paragraphsToInsert[j].align);
-      if (paragraphsToInsert[j].rtl) p.setLeftToRight(false);
-      fontWarning = applyFormat(p.editAsText(), formatState) || fontWarning;
-    }
-  } else {
-    for (var i = 0; i < paragraphsToInsert.length; i++) {
-      var p = body.insertParagraph(insertIndex + i, paragraphsToInsert[i].text);
-      p.setAlignment(paragraphsToInsert[i].align);
-      if (paragraphsToInsert[i].rtl) p.setLeftToRight(false);
-      fontWarning = applyFormat(p.editAsText(), formatState) || fontWarning;
-    }
+  for (var i = 0; i < paragraphsToInsert.length; i++) {
+    var p = body.insertParagraph(insertIndex + i, paragraphsToInsert[i].text);
+    p.setAlignment(paragraphsToInsert[i].align);
+    if (paragraphsToInsert[i].rtl) p.setLeftToRight(false);
+    fontWarning = applyFormat(p.editAsText(), formatState) || fontWarning;
   }
 
   var message = fontWarning ? 'Ayah inserted. ' + fontWarning : 'Ayah inserted.';
