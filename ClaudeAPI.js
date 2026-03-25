@@ -337,7 +337,7 @@ function _validateAndFetchReferences(references, style) {
         surah: json.surahNo || refMap[j].surah,
         ayah: json.ayahNo || refMap[j].ayah,
         surahNameArabic: json.surahNameArabic || '',
-        surahNameEnglish: json.surahNameTranslation || json.surahName || '',
+        surahNameEnglish: json.surahName || json.surahNameTranslation || '',
         arabicText: arabicText,
         textUthmani: arabic1,
         textSimple: arabic2,

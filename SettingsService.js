@@ -7,7 +7,7 @@
 var AI_SEARCH_DAILY_LIMIT = 100;
 
 var SETTINGS_DEFAULTS = {
-  insertMode: 'cursor',       // "cursor" | "lastparagraph" | "inserttag"
+  insertMode: 'cursor',       // "cursor" | "lastparagraph"
   showTranslation: true,
   insertArabic: true,
   showReference: true,

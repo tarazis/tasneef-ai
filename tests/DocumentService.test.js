@@ -203,10 +203,26 @@ function runDocumentServiceTests() {
     var env = buildMock(true);
     runInsertAyah(env.mock, sampleAyah, sampleFormat,
       { insertMode: 'cursor', showTranslation: true });
-    // Second inserted paragraph should be "translationText (Name S:A)"
     var transText = env.inserted[1]._text;
     expect(transText).toContain('Al-Baqarah 2:255');
     expect(transText).toContain('Allah — there is no deity except Him');
+  });
+
+  it('translation paragraph is centered', function() {
+    var env = buildMock(true);
+    runInsertAyah(env.mock, sampleAyah, sampleFormat,
+      { insertMode: 'cursor', showTranslation: true });
+    expect(env.inserted[1]._align).toBe('CENTER');
+  });
+
+  it('translation text is wrapped in quotation marks with citation outside', function() {
+    var env = buildMock(true);
+    runInsertAyah(env.mock, sampleAyah, sampleFormat,
+      { insertMode: 'cursor', showTranslation: true });
+    var transText = env.inserted[1]._text;
+    // Should start with " and have " before the citation
+    expect(transText).toContain('"Allah');
+    expect(transText).toContain('Him" (Al-Baqarah');
   });
 
   results.push('\ninsertAyah() — showTranslation: false');
@@ -233,22 +249,13 @@ function runDocumentServiceTests() {
     expect(text).toContain('\uFD3F');
   });
 
-  it('Arabic-only paragraph uses ornamental closing bracket \uFD3E for citation', function() {
+  it('Arabic-only citation uses square brackets', function() {
     var env = buildMock(true);
     runInsertAyah(env.mock, sampleAyah, sampleFormat,
       { insertMode: 'cursor', showTranslation: false });
     var text = env.inserted[0]._text;
-    // Citation bracket: ﴿Name: Num﴾ — the citation closing bracket appears at the very end
-    var lastChar = text.charAt(text.length - 1);
-    expect(lastChar).toBe('\uFD3E');
-  });
-
-  it('Arabic-only citation does not use square brackets', function() {
-    var env = buildMock(true);
-    runInsertAyah(env.mock, sampleAyah, sampleFormat,
-      { insertMode: 'cursor', showTranslation: false });
-    var text = env.inserted[0]._text;
-    expect(text).not.toContain('[');
+    expect(text).toContain('[');
+    expect(text).toContain(']');
   });
 
   it('Arabic-only paragraph contains surah name Arabic', function() {

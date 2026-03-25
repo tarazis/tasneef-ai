@@ -156,31 +156,51 @@
 
   function initSettingsPanelHandlers() {
     var btnSaveSettings = document.getElementById('btn-save-settings');
-    var btnSave = document.getElementById('btn-save-api-key');
     var apiKeyInput = document.getElementById('claude-api-key');
+    var overlay = document.getElementById('settings-overlay');
 
     if (btnSaveSettings) {
       btnSaveSettings.addEventListener('click', function() {
         var mode = document.querySelector('input[name="insertMode"]:checked');
+        var pending = 0;
+        var failed = false;
+
+        function onComplete() {
+          pending--;
+          if (pending <= 0) {
+            if (failed) {
+              showToast('Save failed.');
+            } else {
+              showToast('Saved');
+              refreshSettings();
+              if (overlay) overlay.classList.add('hidden');
+            }
+          }
+        }
+
+        // Save settings
+        pending++;
         google.script.run
-          .withSuccessHandler(function() { showToast('Settings saved.'); })
-          .withFailureHandler(function(e) { console.error(e); showToast('Save failed.'); })
+          .withSuccessHandler(onComplete)
+          .withFailureHandler(function(e) { console.error(e); failed = true; onComplete(); })
           .saveSettings({
             insertMode: mode ? mode.value : 'cursor',
             insertArabic: document.getElementById('insert-arabic').checked,
             showTranslation: document.getElementById('insert-translation').checked,
             showReference: document.getElementById('insert-reference').checked
           });
-      });
-    }
 
-    if (btnSave && apiKeyInput) {
-      btnSave.addEventListener('click', function() {
-        var key = apiKeyInput.value.trim();
-        google.script.run
-          .withSuccessHandler(function() { apiKeyInput.placeholder = 'Saved'; })
-          .withFailureHandler(function() {})
-          .setClaudeApiKey(key);
+        // Save API key if present
+        if (apiKeyInput) {
+          var key = apiKeyInput.value.trim();
+          if (key) {
+            pending++;
+            google.script.run
+              .withSuccessHandler(onComplete)
+              .withFailureHandler(function() { failed = true; onComplete(); })
+              .setClaudeApiKey(key);
+          }
+        }
       });
     }
   }
@@ -392,8 +412,8 @@
 
         if (showTrans && r.translationText) {
           var citationEn = (r.surahNameEnglish || '') + ' ' + r.surah + ':' + r.ayah;
-          html += '<div class="translation">' + escapeHtml(r.translationText)
-                + ' <span class="citation">(' + escapeHtml(citationEn) + ')</span></div>';
+          html += '<div class="translation">\u201C' + escapeHtml(r.translationText)
+                + '\u201D <span class="citation">(' + escapeHtml(citationEn) + ')</span></div>';
         }
 
         html += '<button type="button" class="btn-primary btn-insert-result" ' +

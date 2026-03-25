@@ -36,28 +36,11 @@ function insertAyah(ayahData, formatState, settings) {
   var ayahNumAr = toArabicIndic(ayahData.ayah);
 
   var insertIndex;
-  var found = null;
-  var tagParagraph = null;
-
-  if (insertMode === 'inserttag') {
-    found = body.findText('\\[insert\\]');
-    if (!found) {
-      DocumentApp.getUi().alert('No [insert] tag found. Inserted at cursor.');
-      insertMode = 'cursor';
-    } else {
-      var textEl = found.getElement();
-      var startOffset = found.getStartOffset();
-      var endOffset = found.getEndOffsetInclusive();
-      tagParagraph = textEl.getParent().asParagraph();
-      textEl.asText().deleteText(startOffset, endOffset);
-      insertIndex = body.getChildIndex(tagParagraph);
-    }
-  }
 
   if (insertMode === 'lastparagraph') {
     var paragraphs = body.getParagraphs();
     insertIndex = body.getChildIndex(paragraphs[paragraphs.length - 1]) + 1;
-  } else if (insertMode !== 'inserttag' || !tagParagraph) {
+  } else {
     var cursorElement = cursor.getElement();
     var parent = cursorElement.getParent();
     while (parent && parent.getType() !== DocumentApp.ElementType.PARAGRAPH) {
@@ -75,36 +58,22 @@ function insertAyah(ayahData, formatState, settings) {
       rtl: true
     });
     paragraphsToInsert.push({
-      text: translationText + ' (' + surahNameEn + ' ' + ayahData.surah + ':' + ayahData.ayah + ')',
-      align: DocumentApp.HorizontalAlignment.LEFT
+      text: '"' + translationText + '" (' + surahNameEn + ' ' + ayahData.surah + ':' + ayahData.ayah + ')',
+      align: DocumentApp.HorizontalAlignment.CENTER
     });
   } else {
     paragraphsToInsert.push({
-      text: '\uFD3F ' + arabicText + ' \uFD3E \uFD3F' + surahNameAr + ': ' + ayahNumAr + '\uFD3E',
+      text: '\uFD3F ' + arabicText + ' \uFD3E [' + surahNameAr + ': ' + ayahNumAr + ']',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true
     });
   }
 
-  if (insertMode === 'inserttag' && tagParagraph) {
-    tagParagraph.clear();
-    tagParagraph.appendText(paragraphsToInsert[0].text);
-    tagParagraph.setAlignment(paragraphsToInsert[0].align);
-    if (paragraphsToInsert[0].rtl) tagParagraph.setLeftToRight(false);
-    applyFormat(tagParagraph.editAsText(), formatState);
-    for (var j = 1; j < paragraphsToInsert.length; j++) {
-      var p = body.insertParagraph(insertIndex + j, paragraphsToInsert[j].text);
-      p.setAlignment(paragraphsToInsert[j].align);
-      if (paragraphsToInsert[j].rtl) p.setLeftToRight(false);
-      applyFormat(p.editAsText(), formatState);
-    }
-  } else {
-    for (var i = 0; i < paragraphsToInsert.length; i++) {
-      var p = body.insertParagraph(insertIndex + i, paragraphsToInsert[i].text);
-      p.setAlignment(paragraphsToInsert[i].align);
-      if (paragraphsToInsert[i].rtl) p.setLeftToRight(false);
-      applyFormat(p.editAsText(), formatState);
-    }
+  for (var i = 0; i < paragraphsToInsert.length; i++) {
+    var p = body.insertParagraph(insertIndex + i, paragraphsToInsert[i].text);
+    p.setAlignment(paragraphsToInsert[i].align);
+    if (paragraphsToInsert[i].rtl) p.setLeftToRight(false);
+    applyFormat(p.editAsText(), formatState);
   }
 
   DocumentApp.getUi().toast('Ayah inserted.');
