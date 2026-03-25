@@ -54,7 +54,10 @@ function insertAyah(ayahData, formatState, settings) {
     }
   }
 
-  if (insertMode !== 'inserttag' || !tagParagraph) {
+  if (insertMode === 'lastparagraph') {
+    var paragraphs = body.getParagraphs();
+    insertIndex = body.getChildIndex(paragraphs[paragraphs.length - 1]) + 1;
+  } else if (insertMode !== 'inserttag' || !tagParagraph) {
     var cursorElement = cursor.getElement();
     var parent = cursorElement.getParent();
     while (parent && parent.getType() !== DocumentApp.ElementType.PARAGRAPH) {
@@ -72,16 +75,12 @@ function insertAyah(ayahData, formatState, settings) {
       rtl: true
     });
     paragraphsToInsert.push({
-      text: translationText,
-      align: DocumentApp.HorizontalAlignment.LEFT
-    });
-    paragraphsToInsert.push({
-      text: '[' + surahNameEn + ' ' + ayahData.surah + ':' + ayahData.ayah + ']',
+      text: translationText + ' (' + surahNameEn + ' ' + ayahData.surah + ':' + ayahData.ayah + ')',
       align: DocumentApp.HorizontalAlignment.LEFT
     });
   } else {
     paragraphsToInsert.push({
-      text: '\uFD3F ' + arabicText + ' \uFD3E [' + surahNameAr + ': ' + ayahNumAr + ']',
+      text: '\uFD3F ' + arabicText + ' \uFD3E \uFD3F' + surahNameAr + ': ' + ayahNumAr + '\uFD3E',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true
     });

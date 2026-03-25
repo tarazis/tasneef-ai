@@ -11,21 +11,9 @@
       <label for="insert-cursor">At cursor position</label>
     </div>
     <div class="settings-radio">
-      <input type="radio" name="insertMode" id="insert-newline" value="newline">
-      <label for="insert-newline">New line after cursor</label>
+      <input type="radio" name="insertMode" id="insert-lastparagraph" value="lastparagraph">
+      <label for="insert-lastparagraph">New line after all content</label>
     </div>
-    <div class="settings-radio">
-      <input type="radio" name="insertMode" id="insert-tag" value="inserttag">
-      <label for="insert-tag">At [insert] tag</label>
-    </div>
-    <p class="hint">Place [insert] anywhere in your doc. Tasneef will replace it with the ayah.</p>
-  </div>
-
-  <div class="settings-section">
-    <label for="translation-edition">Default translation</label>
-    <select id="translation-edition">
-      <option value="sahih" selected>Saheeh International</option>
-    </select>
   </div>
 
   <div class="settings-section">
@@ -40,15 +28,14 @@
     </div>
     <div class="settings-check">
       <input type="checkbox" id="insert-reference" checked>
-      <label for="insert-reference">Reference (surah:ayah)</label>
+      <label for="insert-reference">Citation</label>
     </div>
   </div>
 
   <div class="settings-section">
-    <label for="reference-format">Reference format</label>
-    <select id="reference-format">
-      <option value="surah-ayah">Surah Name Chapter:Verse</option>
-    </select>
+    <div class="settings-save-row">
+      <button type="button" class="btn-primary" id="btn-save-settings">Save settings</button>
+    </div>
   </div>
 
   <div class="settings-section">

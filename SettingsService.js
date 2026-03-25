@@ -7,7 +7,7 @@
 var AI_SEARCH_DAILY_LIMIT = 100;
 
 var SETTINGS_DEFAULTS = {
-  insertMode: 'cursor',       // "cursor" | "newline" | "inserttag"
+  insertMode: 'cursor',       // "cursor" | "lastparagraph" | "inserttag"
   showTranslation: true,
   insertArabic: true,
   showReference: true,
@@ -63,13 +63,19 @@ function saveSetting(key, value) {
 
 /**
  * Saves multiple settings at once.
+ * Iterates over all keys in the passed object and persists each one.
+ * String values are stored as-is; all others are JSON-stringified so
+ * booleans and numbers round-trip correctly through _coerceValue.
  * @param {Object} settingsObj - An object of key/value pairs to persist.
- * @throws {Error} If any key is not a recognised setting.
  */
 function saveSettings(settingsObj) {
-  for (var key in settingsObj) {
-    saveSetting(key, settingsObj[key]);
-  }
+  if (!settingsObj) return;
+  var props = PropertiesService.getUserProperties();
+  Object.keys(settingsObj).forEach(function(key) {
+    var value = settingsObj[key];
+    var stored = (typeof value === 'string') ? value : JSON.stringify(value);
+    props.setProperty(PROPERTY_KEYS.SETTINGS_PREFIX + key, stored);
+  });
 }
 
 /**

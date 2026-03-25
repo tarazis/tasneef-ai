@@ -133,17 +133,13 @@
     google.script.run
       .withSuccessHandler(function(s) {
         var cursor = document.getElementById('insert-cursor');
-        var newline = document.getElementById('insert-newline');
-        var tag = document.getElementById('insert-tag');
-        var edition = document.getElementById('translation-edition');
+        var lastparagraph = document.getElementById('insert-lastparagraph');
         var arabic = document.getElementById('insert-arabic');
         var trans = document.getElementById('insert-translation');
         var ref = document.getElementById('insert-reference');
         var apiKey = document.getElementById('claude-api-key');
-        if (cursor) cursor.checked = (s.insertMode === 'cursor');
-        if (newline) newline.checked = (s.insertMode === 'newline');
-        if (tag) tag.checked = (s.insertMode === 'inserttag');
-        if (edition) edition.value = s.translationEdition || 'sahih';
+        if (cursor) cursor.checked = s.insertMode === 'cursor';
+        if (lastparagraph) lastparagraph.checked = s.insertMode === 'lastparagraph';
         if (arabic) arabic.checked = s.insertArabic !== false;
         if (trans) trans.checked = s.showTranslation !== false;
         if (ref) ref.checked = s.showReference !== false;
@@ -159,39 +155,22 @@
   }
 
   function initSettingsPanelHandlers() {
-    var insertRadios = document.querySelectorAll('input[name="insertMode"]');
-    var edition = document.getElementById('translation-edition');
-    var arabic = document.getElementById('insert-arabic');
-    var trans = document.getElementById('insert-translation');
-    var ref = document.getElementById('insert-reference');
+    var btnSaveSettings = document.getElementById('btn-save-settings');
     var btnSave = document.getElementById('btn-save-api-key');
     var apiKeyInput = document.getElementById('claude-api-key');
 
-    insertRadios.forEach(function(r) {
-      r.addEventListener('change', function() {
-        google.script.run.withFailureHandler(function(){}).saveSetting('insertMode', r.value);
-      });
-    });
-
-    if (edition) {
-      edition.addEventListener('change', function() {
-        google.script.run.withFailureHandler(function(){}).saveSetting('translationEdition', edition.value);
-      });
-    }
-
-    if (arabic) {
-      arabic.addEventListener('change', function() {
-        google.script.run.withFailureHandler(function(){}).saveSetting('insertArabic', arabic.checked);
-      });
-    }
-    if (trans) {
-      trans.addEventListener('change', function() {
-        google.script.run.withFailureHandler(function(){}).saveSetting('showTranslation', trans.checked);
-      });
-    }
-    if (ref) {
-      ref.addEventListener('change', function() {
-        google.script.run.withFailureHandler(function(){}).saveSetting('showReference', ref.checked);
+    if (btnSaveSettings) {
+      btnSaveSettings.addEventListener('click', function() {
+        var mode = document.querySelector('input[name="insertMode"]:checked');
+        google.script.run
+          .withSuccessHandler(function() { showToast('Settings saved.'); })
+          .withFailureHandler(function(e) { console.error(e); showToast('Save failed.'); })
+          .saveSettings({
+            insertMode: mode ? mode.value : 'cursor',
+            insertArabic: document.getElementById('insert-arabic').checked,
+            showTranslation: document.getElementById('insert-translation').checked,
+            showReference: document.getElementById('insert-reference').checked
+          });
       });
     }
 
@@ -237,6 +216,11 @@
 
   // ─── Unified Tab ────────────────────────────────────────────────────────────
 
+  var ARABIC_INDIC_DIGITS = ['\u0660','\u0661','\u0662','\u0663','\u0664','\u0665','\u0666','\u0667','\u0668','\u0669'];
+  function toArabicIndicClient(num) {
+    return String(num).replace(/[0-9]/g, function(d) { return ARABIC_INDIC_DIGITS[+d]; });
+  }
+
   var _conversationMessages = [];
 
   function clearConversation() {
@@ -260,6 +244,19 @@
     var d = document.createElement('div');
     d.textContent = s;
     return d.innerHTML;
+  }
+
+  function showToast(message) {
+    var toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);' +
+      'background:#333;color:#fff;padding:8px 14px;border-radius:4px;font-size:12px;' +
+      'z-index:9999;pointer-events:none;opacity:1;transition:opacity 0.4s';
+    document.body.appendChild(toast);
+    setTimeout(function() {
+      toast.style.opacity = '0';
+      setTimeout(function() { toast.parentNode && toast.parentNode.removeChild(toast); }, 400);
+    }, 1800);
   }
 
   function getLastMessages(limit) {
@@ -379,7 +376,7 @@
         var card = document.createElement('div');
         card.className = 'result-card';
 
-        var refLabel = (r.surahNameEnglish || 'Surah') + ' ' + r.surah + ':' + r.ayah;
+        var refLabel = (r.surahNameArabic || 'سورة') + ': ' + toArabicIndicClient(r.ayah);
         var arabicHtml = escapeHtml(r.arabicText);
 
         if (type === 'search' && r.matchStart != null && r.matchEnd != null && r.matchEnd > r.matchStart) {
@@ -390,11 +387,13 @@
         }
 
         var html =
-          '<div class="ref">' + escapeHtml(refLabel) + '</div>' +
+          '<div class="ref" dir="rtl">' + escapeHtml(refLabel) + '</div>' +
           '<div class="arabic" style="font-family:' + escapeHtml(font) + ',serif">' + arabicHtml + '</div>';
 
         if (showTrans && r.translationText) {
-          html += '<div class="translation">' + escapeHtml(r.translationText) + '</div>';
+          var citationEn = (r.surahNameEnglish || '') + ' ' + r.surah + ':' + r.ayah;
+          html += '<div class="translation">' + escapeHtml(r.translationText)
+                + ' <span class="citation">(' + escapeHtml(citationEn) + ')</span></div>';
         }
 
         html += '<button type="button" class="btn-primary btn-insert-result" ' +
