@@ -367,15 +367,47 @@
       })
       .getSurahListFromQuranApi();
 
-    // Update ayah max when surah changes
+    function populateAyahSelect(selectEl, from, to, placeholder) {
+      selectEl.innerHTML = '';
+      var ph = document.createElement('option');
+      ph.value = '';
+      ph.textContent = placeholder;
+      selectEl.appendChild(ph);
+      for (var i = from; i <= to; i++) {
+        var opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = i;
+        selectEl.appendChild(opt);
+      }
+      selectEl.disabled = false;
+    }
+
+    function resetAyahSelects() {
+      ayahStart.innerHTML = '<option value="">From</option>';
+      ayahEnd.innerHTML = '<option value="">To</option>';
+      ayahStart.disabled = true;
+      ayahEnd.disabled = true;
+    }
+
     surahSelect.addEventListener('change', function() {
       var surahNum = parseInt(surahSelect.value, 10);
       var surah = _surahList.find(function(s) { return s.number === surahNum; });
-      var max = surah ? surah.ayahCount : 999;
-      ayahStart.max = max;
-      ayahEnd.max = max;
-      ayahStart.value = '';
-      ayahEnd.value = '';
+      if (!surah) { resetAyahSelects(); return; }
+      populateAyahSelect(ayahStart, 1, surah.ayahCount, 'From');
+      ayahEnd.innerHTML = '<option value="">To</option>';
+      ayahEnd.disabled = true;
+    });
+
+    ayahStart.addEventListener('change', function() {
+      var surahNum = parseInt(surahSelect.value, 10);
+      var surah = _surahList.find(function(s) { return s.number === surahNum; });
+      var startVal = parseInt(ayahStart.value, 10);
+      if (!surah || !startVal) {
+        ayahEnd.innerHTML = '<option value="">To</option>';
+        ayahEnd.disabled = true;
+        return;
+      }
+      populateAyahSelect(ayahEnd, startVal, surah.ayahCount, 'To');
     });
 
     function doDirectInsert() {
@@ -389,7 +421,7 @@
         return;
       }
       if (!start || start < 1) {
-        emptyEl.textContent = 'Please enter an Ayah number.';
+        emptyEl.textContent = 'Please select an Ayah.';
         emptyEl.classList.remove('hidden');
         return;
       }
@@ -446,8 +478,8 @@
     var emptyEl = document.getElementById('direct-insert-empty');
     var loadingEl = document.getElementById('direct-insert-loading');
     if (surahSelect) surahSelect.value = '';
-    if (ayahStart) ayahStart.value = '';
-    if (ayahEnd) ayahEnd.value = '';
+    if (ayahStart) { ayahStart.innerHTML = '<option value="">From</option>'; ayahStart.disabled = true; }
+    if (ayahEnd) { ayahEnd.innerHTML = '<option value="">To</option>'; ayahEnd.disabled = true; }
     if (resultsEl) resultsEl.innerHTML = '';
     if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
     if (loadingEl) loadingEl.classList.add('hidden');

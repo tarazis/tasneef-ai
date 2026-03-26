@@ -9,11 +9,15 @@
     <div class="form-row">
       <div class="form-group form-group-half">
         <label for="ayah-start">Ayah</label>
-        <input type="number" id="ayah-start" class="form-input" min="1" placeholder="From">
+        <select id="ayah-start" class="form-select" disabled>
+          <option value="">From</option>
+        </select>
       </div>
       <div class="form-group form-group-half">
         <label for="ayah-end">To <span class="hint-inline">(optional)</span></label>
-        <input type="number" id="ayah-end" class="form-input" min="1" placeholder="To">
+        <select id="ayah-end" class="form-select" disabled>
+          <option value="">To</option>
+        </select>
       </div>
     </div>
     <button type="button" class="btn-primary btn-block" id="btn-direct-insert">Insert</button>
