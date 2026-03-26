@@ -19,9 +19,27 @@
   .format-bar .color-trigger { width: 28px; height: 28px; padding: 0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #000; }
   .format-bar .color-picker-hidden { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
 
-  /* Unified content area — fills space between format bar and footer */
-  .unified-content { flex: 1; overflow: hidden; min-height: 0; }
-  .unified-tab { display: flex; flex-direction: column; height: 100%; }
+  /* Tab navigation */
+  .tab-nav { display: flex; border-bottom: 2px solid #e0e0e0; flex-shrink: 0; padding: 0 8px; }
+  .tab-btn { flex: 1; padding: 10px 4px; border: none; background: none; font-size: 13px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color 0.15s, border-color 0.15s; }
+  .tab-btn:hover { color: #333; }
+  .tab-btn.active { color: #2e7d32; border-bottom-color: #2e7d32; }
+
+  /* Tab content area — fills space below nav */
+  .tab-content { flex: 1; overflow: hidden; min-height: 0; }
+  .tab-panel { display: none; flex-direction: column; height: 100%; }
+  .tab-panel.active { display: flex; }
+
+  /* Direct Insert form */
+  .direct-insert-form { padding: 16px; flex-shrink: 0; }
+  .form-group { margin-bottom: 12px; }
+  .form-group label { display: block; font-weight: 500; margin-bottom: 4px; font-size: 12px; color: #555; }
+  .form-select, .form-input { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+  .form-select:focus, .form-input:focus { outline: none; border-color: #2e7d32; }
+  .form-row { display: flex; gap: 12px; }
+  .form-group-half { flex: 1; }
+  .hint-inline { font-weight: 400; color: #999; font-size: 11px; }
+  .btn-block { width: 100%; }
 
   /* Results scroll area */
   .results-list { flex: 1; overflow-y: auto; padding: 16px; min-height: 0; }
@@ -41,11 +59,11 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .empty-state { color: #666; font-size: 13px; padding: 24px 16px; text-align: center; }
 
-  /* Input area pinned to bottom */
-  .unified-input-area { flex-shrink: 0; padding: 12px 16px; border-top: 1px solid #e0e0e0; background: #fff; }
-  .unified-input-wrap { display: flex; align-items: flex-end; gap: 8px; }
-  .unified-input-wrap textarea { flex: 1; padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 13px; font-family: inherit; resize: none; line-height: 1.4; min-height: 40px; max-height: 120px; overflow-y: auto; }
-  .unified-input-wrap textarea:focus { outline: none; border-color: #2e7d32; }
+  /* Input area pinned to bottom of tab */
+  .tab-input-area { flex-shrink: 0; padding: 12px 16px; border-top: 1px solid #e0e0e0; background: #fff; }
+  .tab-input-wrap { display: flex; align-items: flex-end; gap: 8px; }
+  .tab-input-wrap textarea { flex: 1; padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 13px; font-family: inherit; resize: none; line-height: 1.4; min-height: 40px; max-height: 120px; overflow-y: auto; }
+  .tab-input-wrap textarea:focus { outline: none; border-color: #2e7d32; }
   .btn-send { width: 36px; height: 36px; border: none; background: #2e7d32; color: #fff; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .btn-send:hover { background: #1b5e20; }
   .btn-send:disabled { background: #a5d6a7; cursor: not-allowed; }
@@ -53,6 +71,7 @@
   /* Buttons */
   .btn-primary { padding: 8px 16px; background: #2e7d32; color: #fff; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
   .btn-primary:hover { background: #1b5e20; }
+  .btn-primary:disabled { background: #a5d6a7; cursor: not-allowed; }
   .btn-secondary { padding: 8px 16px; background: #f5f5f5; color: #333; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; cursor: pointer; }
   .btn-secondary:hover { background: #e8e8e8; }
 

@@ -13,15 +13,23 @@
         <span class="title">Tasneef AI</span>
       </div>
       <div class="header-actions">
-        <button type="button" class="btn-icon" id="btn-clear" title="Clear conversation" aria-label="Clear conversation">&#128465;</button>
+        <button type="button" class="btn-icon" id="btn-clear" title="Clear" aria-label="Clear">&#128465;</button>
         <button type="button" class="btn-icon" id="btn-settings" title="Settings" aria-label="Settings">&#9881;</button>
       </div>
     </header>
 
     <?!= include('sidebar/components/format-bar') ?>
 
-    <main class="unified-content">
-      <?!= include('sidebar/components/tab-unified') ?>
+    <nav class="tab-nav">
+      <button type="button" class="tab-btn active" data-tab="direct-insert">Insert</button>
+      <button type="button" class="tab-btn" data-tab="exact-search">Search</button>
+      <button type="button" class="tab-btn" data-tab="ai-search">AI Search</button>
+    </nav>
+
+    <main class="tab-content">
+      <?!= include('sidebar/components/tab-direct-insert') ?>
+      <?!= include('sidebar/components/tab-exact-search') ?>
+      <?!= include('sidebar/components/tab-ai-search') ?>
     </main>
   </div>
 
