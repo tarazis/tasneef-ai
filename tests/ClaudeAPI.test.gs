@@ -1,5 +1,5 @@
 /**
- * GAS-native tests for ClaudeAPI.gs (Unified query handler)
+ * GAS-native tests for ClaudeAPI.gs (modular query handlers)
  *
  * Run from Apps Script editor: select runClaudeAPITests, click Run.
  * View results in View → Logs.
@@ -148,34 +148,60 @@ function runClaudeAPITests() {
     expect(trimmed.length).toBe(0);
   });
 
-  // ── _handleFetchAyah (integration, real network) ──────────────────────────
+  // ── insertDirectAyah (integration, real network) ──────────────────────────
 
-  results.push('\n_handleFetchAyah()');
+  results.push('\ninsertDirectAyah()');
 
-  it('fetches a valid ayah (1:1)', function () {
-    var result = _handleFetchAyah({ surah: 1, ayah: 1 }, 'uthmani');
+  it('fetches a single ayah (1:1)', function () {
+    var result = insertDirectAyah(1, 1);
     expect(result.type).toBe('single');
     expect(result.results.length).toBe(1);
     expect(result.results[0].arabicText).toBeTruthy();
     expect(result.results[0].translationText).toBeTruthy();
   });
 
-  it('returns error for invalid surah', function () {
-    var result = _handleFetchAyah({ surah: 0, ayah: 1 }, 'uthmani');
+  it('fetches a range (1:1-3)', function () {
+    var result = insertDirectAyah(1, 1, 3);
+    expect(result.type).toBe('range');
+    expect(result.results.length).toBe(3);
+    expect(result.results[0].ayah).toBe(1);
+    expect(result.results[2].ayah).toBe(3);
+  });
+
+  it('returns error for invalid surah (0)', function () {
+    var result = insertDirectAyah(0, 1);
+    expect(result.type).toBe('error');
+  });
+
+  it('returns error for invalid surah (115)', function () {
+    var result = insertDirectAyah(115, 1);
+    expect(result.type).toBe('error');
+  });
+
+  it('returns error when ayahEnd < ayahStart', function () {
+    var result = insertDirectAyah(1, 5, 3);
     expect(result.type).toBe('error');
   });
 
   it('returns error for non-existent ayah', function () {
-    var result = _handleFetchAyah({ surah: 1, ayah: 999 }, 'uthmani');
+    var result = insertDirectAyah(1, 999);
     expect(result.type).toBe('error');
   });
 
-  // ── _handleSearch — Arabic (integration) ──────────────────────────────────
+  it('defaults ayahEnd to ayahStart when not provided', function () {
+    var result = insertDirectAyah(2, 255);
+    expect(result.type).toBe('single');
+    expect(result.results.length).toBe(1);
+    expect(result.results[0].surah).toBe(2);
+    expect(result.results[0].ayah).toBe(255);
+  });
 
-  results.push('\n_handleSearch() — Arabic');
+  // ── performExactSearch (integration, real network for data load) ──────────
+
+  results.push('\nperformExactSearch()');
 
   it('finds Arabic text results for "الكرسي"', function () {
-    var result = _handleSearch({ query: 'الكرسي', language: 'arabic' }, 'simple');
+    var result = performExactSearch('الكرسي');
     expect(result.type).toBe('search');
     expect(result.results.length).toBeGreaterThan(0);
     var found = false;
@@ -185,52 +211,92 @@ function runClaudeAPITests() {
     if (!found) throw new Error('Expected 2:255 in results');
   });
 
-  it('returns empty results for nonsense Arabic query', function () {
-    var result = _handleSearch({ query: 'xyznonexistent', language: 'arabic' }, 'simple');
+  it('returns empty results for nonsense query', function () {
+    var result = performExactSearch('xyznonexistent');
     expect(result.type).toBe('search');
     expect(result.results.length).toBe(0);
   });
 
-  it('returns error for empty Arabic query', function () {
-    var result = _handleSearch({ query: '', language: 'arabic' }, 'simple');
+  it('returns error for empty query', function () {
+    var result = performExactSearch('');
     expect(result.type).toBe('error');
   });
 
-  // ── _handleSearch — English (integration) ─────────────────────────────────
+  it('returns error for whitespace-only query', function () {
+    var result = performExactSearch('   ');
+    expect(result.type).toBe('error');
+  });
 
-  results.push('\n_handleSearch() — English');
+  it('returns results with match positions', function () {
+    var result = performExactSearch('بسم الله');
+    expect(result.type).toBe('search');
+    expect(result.results.length).toBeGreaterThan(0);
+    var r = result.results[0];
+    expect(r.matchStart != null).toBe(true);
+    expect(r.matchEnd != null).toBe(true);
+  });
+
+  // ── _handleEnglishSearch (integration) ─────────────────────────────────────
+
+  results.push('\n_handleEnglishSearch()');
 
   it('validates good references for English search', function () {
-    var parsed = {
+    var classified = {
       query: 'patience',
       language: 'english',
       references: [{ surah: 1, ayah: 1 }, { surah: 2, ayah: 255 }]
     };
-    var result = _handleSearch(parsed, 'uthmani');
+    var result = _handleEnglishSearch(classified);
     expect(result.type).toBe('search');
     expect(result.results.length).toBe(2);
     expect(result.results[0].arabicText).toBeTruthy();
   });
 
   it('discards hallucinated references', function () {
-    var parsed = {
+    var classified = {
       query: 'test',
       language: 'english',
       references: [{ surah: 1, ayah: 1 }, { surah: 999, ayah: 1 }]
     };
-    var result = _handleSearch(parsed, 'uthmani');
+    var result = _handleEnglishSearch(classified);
     expect(result.type).toBe('search');
     expect(result.results.length).toBe(1);
   });
 
   it('returns error when no references provided for English search', function () {
-    var result = _handleSearch({ query: 'patience', language: 'english' }, 'uthmani');
+    var result = _handleEnglishSearch({ query: 'patience', language: 'english' });
     expect(result.type).toBe('error');
   });
 
-  // ── processUnifiedQuery (integration) ─────────────────────────────────────
+  // ── performAISearch (integration) ──────────────────────────────────────────
 
-  results.push('\nprocessUnifiedQuery()');
+  results.push('\nperformAISearch()');
+
+  it('returns NO_API_KEY when no key is set', function () {
+    var savedKey = getClaudeApiKey();
+    try {
+      PropertiesService.getUserProperties().deleteProperty(PROPERTY_KEYS.CLAUDE_API_KEY);
+      var result = performAISearch([{ role: 'user', content: 'show me 2:255' }]);
+      expect(result.type).toBe('error');
+      expect(result.error).toBe('NO_API_KEY');
+    } finally {
+      if (savedKey) setClaudeApiKey(savedKey);
+    }
+  });
+
+  it('returns error for empty messages array', function () {
+    var result = performAISearch([]);
+    expect(result.type).toBe('error');
+  });
+
+  it('returns error for messages with empty content', function () {
+    var result = performAISearch([{ role: 'user', content: '   ' }]);
+    expect(result.type).toBe('error');
+  });
+
+  // ── processUnifiedQuery — backward compatibility (integration) ─────────────
+
+  results.push('\nprocessUnifiedQuery() — backward compatibility');
 
   it('returns NO_API_KEY when no key is set', function () {
     var savedKey = getClaudeApiKey();
@@ -249,24 +315,19 @@ function runClaudeAPITests() {
     expect(result.type).toBe('error');
   });
 
-  it('returns error for messages with empty content', function () {
-    var result = processUnifiedQuery([{ role: 'user', content: '   ' }]);
-    expect(result.type).toBe('error');
-  });
-
   // Full integration tests — only run if API key is present
   var apiKey = getClaudeApiKey();
   if (apiKey) {
-    it('processUnifiedQuery("show me ayat al kursi") returns results (live API)', function () {
-      var result = processUnifiedQuery([{ role: 'user', content: 'show me ayat al kursi' }]);
+    it('performAISearch("show me ayat al kursi") returns results (live API)', function () {
+      var result = performAISearch([{ role: 'user', content: 'show me ayat al kursi' }]);
       if (result.type === 'error') throw new Error('Got error: ' + result.error);
       expect(result.results.length).toBeGreaterThan(0);
       expect(result.results[0].arabicText).toBeTruthy();
       expect(result.rawResponse).toBeTruthy();
     });
 
-    it('processUnifiedQuery("verses about patience") returns search results (live API)', function () {
-      var result = processUnifiedQuery([{ role: 'user', content: 'verses about patience' }]);
+    it('performAISearch("verses about patience") returns search results (live API)', function () {
+      var result = performAISearch([{ role: 'user', content: 'verses about patience' }]);
       if (result.type === 'error') throw new Error('Got error: ' + result.error);
       expect(result.results.length).toBeGreaterThan(0);
     });
@@ -277,10 +338,17 @@ function runClaudeAPITests() {
         { role: 'assistant', content: '{"action":"clarify","message":"Which surah do you mean?"}' },
         { role: 'user', content: 'Al-Baqarah' }
       ];
-      var result = processUnifiedQuery(messages);
+      var result = performAISearch(messages);
       if (result.type === 'clarify') return; // acceptable if Claude still needs more info
       if (result.type === 'error') throw new Error('Got error: ' + result.error);
       expect(result.results.length).toBeGreaterThan(0);
+    });
+
+    it('processUnifiedQuery delegates to performAISearch (live API)', function () {
+      var result = processUnifiedQuery([{ role: 'user', content: 'show me ayat al kursi' }]);
+      if (result.type === 'error') throw new Error('Got error: ' + result.error);
+      expect(result.results.length).toBeGreaterThan(0);
+      expect(result.rawResponse).toBeTruthy();
     });
   } else {
     results.push('  ⊘ Skipped live API tests (no Claude API key configured)');

@@ -13,6 +13,8 @@
   var saveDebounceTimer = null;
   var SAVE_DEBOUNCE_MS = 500;
 
+  // ─── Format Bar ──────────────────────────────────────────────────────────────
+
   function debouncedSave() {
     if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
     saveDebounceTimer = setTimeout(function() {
@@ -61,14 +63,12 @@
         debouncedSave();
       });
     }
-
     if (sizeSelect) {
       sizeSelect.addEventListener('change', function() {
         formatState.fontSize = parseInt(sizeSelect.value, 10) || 18;
         debouncedSave();
       });
     }
-
     if (boldBtn) {
       boldBtn.addEventListener('click', function() {
         formatState.bold = !formatState.bold;
@@ -76,11 +76,8 @@
         debouncedSave();
       });
     }
-
     if (colorTrigger && colorPicker) {
-      colorTrigger.addEventListener('click', function() {
-        colorPicker.click();
-      });
+      colorTrigger.addEventListener('click', function() { colorPicker.click(); });
       function onColorChange() {
         formatState.textColor = colorPicker.value;
         colorTrigger.style.backgroundColor = colorPicker.value;
@@ -90,6 +87,8 @@
       colorPicker.addEventListener('change', onColorChange);
     }
   }
+
+  // ─── Settings ────────────────────────────────────────────────────────────────
 
   function initSettings() {
     var btnSettings = document.getElementById('btn-settings');
@@ -103,24 +102,23 @@
         loadSettingsIntoPanel();
       });
     }
-
     if (btnClear) {
-      btnClear.addEventListener('click', clearConversation);
+      btnClear.addEventListener('click', clearActiveTab);
     }
-
     if (btnBack && overlay) {
       btnBack.addEventListener('click', function() {
         overlay.classList.add('hidden');
         refreshSettings();
       });
     }
-
-    overlay.addEventListener('click', function(e) {
-      if (e.target === overlay) {
-        overlay.classList.add('hidden');
-        refreshSettings();
-      }
-    });
+    if (overlay) {
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) {
+          overlay.classList.add('hidden');
+          refreshSettings();
+        }
+      });
+    }
   }
 
   function refreshSettings() {
@@ -164,7 +162,6 @@
         google.script.run.withFailureHandler(function(){}).saveSetting('showTranslation', trans.checked);
       });
     }
-
     if (btnSave && apiKeyInput) {
       btnSave.addEventListener('click', function() {
         var key = apiKeyInput.value.trim();
@@ -205,25 +202,49 @@
     }
   }
 
-  // ─── Unified Tab ────────────────────────────────────────────────────────────
+  // ─── Tab Navigation ──────────────────────────────────────────────────────────
 
-  var _conversationMessages = [];
+  var _activeTab = 'direct-insert';
 
-  function clearConversation() {
-    _conversationMessages = [];
-    var resultsEl = document.getElementById('unified-results');
-    var clarifyEl = document.getElementById('unified-clarify');
-    var emptyEl = document.getElementById('unified-empty');
-    var loadingEl = document.getElementById('unified-loading');
-    var noKeyEl = document.getElementById('unified-no-key');
-    var queryEl = document.getElementById('unified-query');
-    if (resultsEl) resultsEl.innerHTML = '';
-    if (clarifyEl) { clarifyEl.classList.add('hidden'); clarifyEl.textContent = ''; }
-    if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
-    if (loadingEl) loadingEl.classList.add('hidden');
-    if (noKeyEl) noKeyEl.classList.add('hidden');
-    if (queryEl) { queryEl.value = ''; queryEl.focus(); }
+  function initTabNav() {
+    var tabBtns = document.querySelectorAll('.tab-btn');
+    tabBtns.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        switchTab(btn.getAttribute('data-tab'));
+      });
+    });
+    switchTab('direct-insert');
   }
+
+  function switchTab(tabId) {
+    _activeTab = tabId;
+
+    var tabBtns = document.querySelectorAll('.tab-btn');
+    tabBtns.forEach(function(btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+    });
+
+    var panels = document.querySelectorAll('.tab-panel');
+    panels.forEach(function(panel) {
+      panel.classList.toggle('active', panel.id === 'panel-' + tabId);
+    });
+  }
+
+  function clearActiveTab() {
+    switch (_activeTab) {
+      case 'direct-insert':
+        clearDirectInsert();
+        break;
+      case 'exact-search':
+        clearExactSearch();
+        break;
+      case 'ai-search':
+        clearAISearch();
+        break;
+    }
+  }
+
+  // ─── Shared Helpers ──────────────────────────────────────────────────────────
 
   function escapeHtml(s) {
     if (!s) return '';
@@ -232,26 +253,335 @@
     return d.innerHTML;
   }
 
-  function getLastMessages(limit) {
-    if (_conversationMessages.length <= limit) return _conversationMessages.slice();
-    return _conversationMessages.slice(_conversationMessages.length - limit);
+  function renderResults(containerEl, results, type) {
+    containerEl.innerHTML = '';
+    var font = formatState.fontName || 'Amiri';
+    var showTrans = _settings.showTranslation !== false;
+
+    results.forEach(function(r) {
+      var card = document.createElement('div');
+      card.className = 'result-card';
+
+      var refLabel = (r.surahNameEnglish || 'Surah') + ' ' + r.surah + ':' + r.ayah;
+      var arabicHtml = escapeHtml(r.arabicText);
+
+      if (type === 'search' && r.matchStart != null && r.matchEnd != null && r.matchEnd > r.matchStart) {
+        var before = escapeHtml(r.arabicText.substring(0, r.matchStart));
+        var match = escapeHtml(r.arabicText.substring(r.matchStart, r.matchEnd));
+        var after = escapeHtml(r.arabicText.substring(r.matchEnd));
+        arabicHtml = before + '<mark>' + match + '</mark>' + after;
+      }
+
+      var html =
+        '<div class="ref">' + escapeHtml(refLabel) + '</div>' +
+        '<div class="arabic" style="font-family:' + escapeHtml(font) + ',serif">' + arabicHtml + '</div>';
+
+      if (showTrans && r.translationText) {
+        html += '<div class="translation">' + escapeHtml(r.translationText) + '</div>';
+      }
+
+      html += '<button type="button" class="btn-primary btn-insert-result" ' +
+        'data-surah="' + r.surah + '" data-ayah="' + r.ayah + '">Insert</button>';
+
+      card.innerHTML = html;
+      containerEl.appendChild(card);
+    });
   }
 
-  function initUnifiedTab() {
-    var queryEl = document.getElementById('unified-query');
-    var btnSend = document.getElementById('btn-unified-send');
-    var resultsEl = document.getElementById('unified-results');
-    var clarifyEl = document.getElementById('unified-clarify');
-    var emptyEl = document.getElementById('unified-empty');
-    var loadingEl = document.getElementById('unified-loading');
-    var noKeyEl = document.getElementById('unified-no-key');
+  function onInsertClick(e) {
+    var btn = e.target;
+    if (btn.tagName !== 'BUTTON' || !btn.classList.contains('btn-insert-result')) return;
+    var surah = parseInt(btn.getAttribute('data-surah'), 10);
+    var ayah = parseInt(btn.getAttribute('data-ayah'), 10);
+    if (!surah || !ayah) return;
+
+    btn.disabled = true;
+    var style = _settings.arabicStyle || 'uthmani';
+
+    google.script.run
+      .withSuccessHandler(function(ayahData) {
+        if (!ayahData) { btn.disabled = false; return; }
+        var fs = window.getFormatState ? window.getFormatState() : {};
+        google.script.run
+          .withSuccessHandler(function(result) {
+            btn.disabled = false;
+            if (result && !result.success) {
+              console.warn('Insert warning:', result.message);
+            }
+          })
+          .withFailureHandler(function(err) {
+            btn.disabled = false;
+            console.error('Insert failed:', err);
+          })
+          .insertAyah(ayahData, fs, _settings);
+      })
+      .withFailureHandler(function() { btn.disabled = false; })
+      .getAyahForInsert(surah, ayah, style);
+  }
+
+  function setupTextarea(el, onSubmit) {
+    if (!el) return;
+    el.addEventListener('input', function() {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+    });
+    el.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        onSubmit();
+      }
+    });
+  }
+
+  // ─── Direct Insert Tab ───────────────────────────────────────────────────────
+
+  var _surahList = [];
+
+  function initDirectInsertTab() {
+    var surahSelect = document.getElementById('surah-select');
+    var ayahStart = document.getElementById('ayah-start');
+    var ayahEnd = document.getElementById('ayah-end');
+    var btnInsert = document.getElementById('btn-direct-insert');
+    var resultsEl = document.getElementById('direct-insert-results');
+    var emptyEl = document.getElementById('direct-insert-empty');
+    var loadingEl = document.getElementById('direct-insert-loading');
+
+    // Load surah list
+    google.script.run
+      .withSuccessHandler(function(list) {
+        _surahList = list || [];
+        surahSelect.innerHTML = '';
+        var placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Select a Surah…';
+        surahSelect.appendChild(placeholder);
+        _surahList.forEach(function(s) {
+          var opt = document.createElement('option');
+          opt.value = s.number;
+          opt.textContent = s.number + '. ' + s.nameEnglish + ' - ' + s.nameArabic;
+          surahSelect.appendChild(opt);
+        });
+      })
+      .withFailureHandler(function() {
+        surahSelect.innerHTML = '<option value="">Failed to load</option>';
+      })
+      .getSurahListFromQuranApi();
+
+    function populateAyahSelect(selectEl, from, to, placeholder) {
+      selectEl.innerHTML = '';
+      var ph = document.createElement('option');
+      ph.value = '';
+      ph.textContent = placeholder;
+      selectEl.appendChild(ph);
+      for (var i = from; i <= to; i++) {
+        var opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = i;
+        selectEl.appendChild(opt);
+      }
+      selectEl.disabled = false;
+    }
+
+    function resetAyahSelects() {
+      ayahStart.innerHTML = '<option value="">From</option>';
+      ayahEnd.innerHTML = '<option value="">To</option>';
+      ayahStart.disabled = true;
+      ayahEnd.disabled = true;
+    }
+
+    surahSelect.addEventListener('change', function() {
+      var surahNum = parseInt(surahSelect.value, 10);
+      var surah = _surahList.find(function(s) { return s.number === surahNum; });
+      if (!surah) { resetAyahSelects(); return; }
+      populateAyahSelect(ayahStart, 1, surah.ayahCount, 'From');
+      ayahEnd.innerHTML = '<option value="">To</option>';
+      ayahEnd.disabled = true;
+    });
+
+    ayahStart.addEventListener('change', function() {
+      var surahNum = parseInt(surahSelect.value, 10);
+      var surah = _surahList.find(function(s) { return s.number === surahNum; });
+      var startVal = parseInt(ayahStart.value, 10);
+      if (!surah || !startVal) {
+        ayahEnd.innerHTML = '<option value="">To</option>';
+        ayahEnd.disabled = true;
+        return;
+      }
+      var currentEnd = parseInt(ayahEnd.value, 10);
+      populateAyahSelect(ayahEnd, startVal, surah.ayahCount, 'To');
+      if (currentEnd && currentEnd >= startVal) {
+        ayahEnd.value = String(currentEnd);
+      }
+    });
+
+    function doDirectInsert() {
+      var surah = parseInt(surahSelect.value, 10);
+      var start = parseInt(ayahStart.value, 10);
+      var end = ayahEnd.value ? parseInt(ayahEnd.value, 10) : null;
+
+      if (!surah) {
+        emptyEl.textContent = 'Please select a Surah.';
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      if (!start || start < 1) {
+        emptyEl.textContent = 'Please select an Ayah.';
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+
+      resultsEl.innerHTML = '';
+      emptyEl.classList.add('hidden');
+      loadingEl.classList.remove('hidden');
+      btnInsert.disabled = true;
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          loadingEl.classList.add('hidden');
+          btnInsert.disabled = false;
+          handleDirectInsertResponse(response);
+        })
+        .withFailureHandler(function(err) {
+          loadingEl.classList.add('hidden');
+          btnInsert.disabled = false;
+          emptyEl.textContent = 'Something went wrong. Please try again.';
+          emptyEl.classList.remove('hidden');
+        })
+        .insertDirectAyah(surah, start, end);
+    }
+
+    function handleDirectInsertResponse(response) {
+      if (!response) {
+        emptyEl.textContent = 'No response received.';
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      if (response.type === 'error') {
+        emptyEl.textContent = response.error;
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      var results = response.results || [];
+      if (!results.length) {
+        emptyEl.textContent = 'No results found.';
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      renderResults(resultsEl, results, response.type);
+    }
+
+    if (btnInsert) btnInsert.addEventListener('click', doDirectInsert);
+    if (resultsEl) resultsEl.addEventListener('click', onInsertClick);
+  }
+
+  function clearDirectInsert() {
+    var surahSelect = document.getElementById('surah-select');
+    var ayahStart = document.getElementById('ayah-start');
+    var ayahEnd = document.getElementById('ayah-end');
+    var resultsEl = document.getElementById('direct-insert-results');
+    var emptyEl = document.getElementById('direct-insert-empty');
+    var loadingEl = document.getElementById('direct-insert-loading');
+    if (surahSelect) surahSelect.value = '';
+    if (ayahStart) { ayahStart.innerHTML = '<option value="">From</option>'; ayahStart.disabled = true; }
+    if (ayahEnd) { ayahEnd.innerHTML = '<option value="">To</option>'; ayahEnd.disabled = true; }
+    if (resultsEl) resultsEl.innerHTML = '';
+    if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
+    if (loadingEl) loadingEl.classList.add('hidden');
+  }
+
+  // ─── Exact Search Tab ────────────────────────────────────────────────────────
+
+  function initExactSearchTab() {
+    var queryEl = document.getElementById('exact-search-query');
+    var btnSearch = document.getElementById('btn-exact-search');
+    var resultsEl = document.getElementById('exact-search-results');
+    var emptyEl = document.getElementById('exact-search-empty');
+    var loadingEl = document.getElementById('exact-search-loading');
+
+    function setEnabled(enabled) {
+      if (btnSearch) btnSearch.disabled = !enabled;
+      if (queryEl) queryEl.disabled = !enabled;
+    }
+
+    function doExactSearch() {
+      var query = queryEl ? queryEl.value.trim() : '';
+      if (!query) return;
+
+      resultsEl.innerHTML = '';
+      emptyEl.classList.add('hidden');
+      loadingEl.classList.remove('hidden');
+      setEnabled(false);
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          loadingEl.classList.add('hidden');
+          setEnabled(true);
+          handleExactSearchResponse(response);
+        })
+        .withFailureHandler(function() {
+          loadingEl.classList.add('hidden');
+          setEnabled(true);
+          emptyEl.textContent = 'Something went wrong. Please try again.';
+          emptyEl.classList.remove('hidden');
+        })
+        .performExactSearch(query);
+    }
+
+    function handleExactSearchResponse(response) {
+      if (!response) {
+        emptyEl.textContent = 'No response received.';
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      if (response.type === 'error') {
+        emptyEl.textContent = response.error;
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      var results = response.results || [];
+      if (!results.length) {
+        emptyEl.textContent = response.message || 'No results found.';
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      renderResults(resultsEl, results, 'search');
+    }
+
+    setupTextarea(queryEl, doExactSearch);
+    if (btnSearch) btnSearch.addEventListener('click', doExactSearch);
+    if (resultsEl) resultsEl.addEventListener('click', onInsertClick);
+  }
+
+  function clearExactSearch() {
+    var queryEl = document.getElementById('exact-search-query');
+    var resultsEl = document.getElementById('exact-search-results');
+    var emptyEl = document.getElementById('exact-search-empty');
+    var loadingEl = document.getElementById('exact-search-loading');
+    if (queryEl) { queryEl.value = ''; queryEl.style.height = 'auto'; }
+    if (resultsEl) resultsEl.innerHTML = '';
+    if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
+    if (loadingEl) loadingEl.classList.add('hidden');
+  }
+
+  // ─── AI Search Tab ───────────────────────────────────────────────────────────
+
+  var _conversationMessages = [];
+
+  function initAISearchTab() {
+    var queryEl = document.getElementById('ai-search-query');
+    var btnSend = document.getElementById('btn-ai-search');
+    var resultsEl = document.getElementById('ai-search-results');
+    var clarifyEl = document.getElementById('ai-search-clarify');
+    var emptyEl = document.getElementById('ai-search-empty');
+    var loadingEl = document.getElementById('ai-search-loading');
+    var noKeyEl = document.getElementById('ai-no-key');
 
     function setEnabled(enabled) {
       if (btnSend) btnSend.disabled = !enabled;
       if (queryEl) queryEl.disabled = !enabled;
     }
 
-    function clearResults() {
+    function clearAIResults() {
       resultsEl.innerHTML = '';
       clarifyEl.classList.add('hidden');
       clarifyEl.textContent = '';
@@ -260,7 +590,12 @@
       if (noKeyEl) noKeyEl.classList.add('hidden');
     }
 
-    function doQuery() {
+    function getLastMessages(limit) {
+      if (_conversationMessages.length <= limit) return _conversationMessages.slice();
+      return _conversationMessages.slice(_conversationMessages.length - limit);
+    }
+
+    function doAISearch() {
       var query = queryEl ? queryEl.value.trim() : '';
       if (!query) return;
 
@@ -269,7 +604,7 @@
 
       _conversationMessages.push({ role: 'user', content: query });
 
-      clearResults();
+      clearAIResults();
       loadingEl.classList.remove('hidden');
       setEnabled(false);
 
@@ -284,7 +619,7 @@
             _conversationMessages.push({ role: 'assistant', content: response.rawResponse });
           }
 
-          handleResponse(response);
+          handleAIResponse(response);
         })
         .withFailureHandler(function() {
           loadingEl.classList.add('hidden');
@@ -293,10 +628,10 @@
           emptyEl.textContent = 'Something went wrong. Please try again.';
           emptyEl.classList.remove('hidden');
         })
-        .processUnifiedQuery(messagesToSend);
+        .performAISearch(messagesToSend);
     }
 
-    function handleResponse(response) {
+    function handleAIResponse(response) {
       if (!response) {
         emptyEl.textContent = 'No response received. Please try again.';
         emptyEl.classList.remove('hidden');
@@ -324,112 +659,42 @@
       _conversationMessages = [];
 
       var results = response.results || [];
-
       if (response.message && results.length === 0) {
         emptyEl.textContent = response.message;
         emptyEl.classList.remove('hidden');
         return;
       }
-
       if (results.length === 0) {
         emptyEl.textContent = 'No results found. Try a different query.';
         emptyEl.classList.remove('hidden');
         return;
       }
 
-      renderResults(results, response.type);
+      renderResults(resultsEl, results, response.type);
     }
 
-    function renderResults(results, type) {
-      resultsEl.innerHTML = '';
-      var font = formatState.fontName || 'Amiri';
-      var showTrans = _settings.showTranslation !== false;
-
-      results.forEach(function(r) {
-        var card = document.createElement('div');
-        card.className = 'result-card';
-
-        var refLabel = (r.surahNameEnglish || 'Surah') + ' ' + r.surah + ':' + r.ayah;
-        var arabicHtml = escapeHtml(r.arabicText);
-
-        if (type === 'search' && r.matchStart != null && r.matchEnd != null && r.matchEnd > r.matchStart) {
-          var before = escapeHtml(r.arabicText.substring(0, r.matchStart));
-          var match = escapeHtml(r.arabicText.substring(r.matchStart, r.matchEnd));
-          var after = escapeHtml(r.arabicText.substring(r.matchEnd));
-          arabicHtml = before + '<mark>' + match + '</mark>' + after;
-        }
-
-        var html =
-          '<div class="ref">' + escapeHtml(refLabel) + '</div>' +
-          '<div class="arabic" style="font-family:' + escapeHtml(font) + ',serif">' + arabicHtml + '</div>';
-
-        if (showTrans && r.translationText) {
-          html += '<div class="translation">' + escapeHtml(r.translationText) + '</div>';
-        }
-
-        html += '<button type="button" class="btn-primary btn-insert-result" ' +
-          'data-surah="' + r.surah + '" data-ayah="' + r.ayah + '">Insert</button>';
-
-        card.innerHTML = html;
-        resultsEl.appendChild(card);
-      });
-    }
-
-    function onInsertClick(e) {
-      var btn = e.target;
-      if (btn.tagName !== 'BUTTON' || !btn.classList.contains('btn-insert-result')) return;
-      var surah = parseInt(btn.getAttribute('data-surah'), 10);
-      var ayah = parseInt(btn.getAttribute('data-ayah'), 10);
-      if (!surah || !ayah) return;
-
-      btn.disabled = true;
-      var style = _settings.arabicStyle || 'uthmani';
-
-      google.script.run
-        .withSuccessHandler(function(ayahData) {
-          if (!ayahData) {
-            btn.disabled = false;
-            return;
-          }
-          var fs = window.getFormatState ? window.getFormatState() : {};
-          google.script.run
-            .withSuccessHandler(function(result) {
-              btn.disabled = false;
-              if (result && !result.success) {
-                console.warn('Insert warning:', result.message);
-              }
-            })
-            .withFailureHandler(function(err) {
-              btn.disabled = false;
-              console.error('Insert failed:', err);
-            })
-            .insertAyah(ayahData, fs, _settings);
-        })
-        .withFailureHandler(function() {
-          btn.disabled = false;
-        })
-        .getAyahForInsert(surah, ayah, style);
-    }
-
-    if (queryEl) {
-      queryEl.addEventListener('input', function() {
-        queryEl.style.height = 'auto';
-        queryEl.style.height = Math.min(queryEl.scrollHeight, 120) + 'px';
-      });
-
-      queryEl.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          doQuery();
-        }
-      });
-    }
-
-    if (btnSend) btnSend.addEventListener('click', doQuery);
+    setupTextarea(queryEl, doAISearch);
+    if (btnSend) btnSend.addEventListener('click', doAISearch);
     if (resultsEl) resultsEl.addEventListener('click', onInsertClick);
   }
 
-  // ─── Init ───────────────────────────────────────────────────────────────────
+  function clearAISearch() {
+    _conversationMessages = [];
+    var queryEl = document.getElementById('ai-search-query');
+    var resultsEl = document.getElementById('ai-search-results');
+    var clarifyEl = document.getElementById('ai-search-clarify');
+    var emptyEl = document.getElementById('ai-search-empty');
+    var loadingEl = document.getElementById('ai-search-loading');
+    var noKeyEl = document.getElementById('ai-no-key');
+    if (queryEl) { queryEl.value = ''; queryEl.style.height = 'auto'; queryEl.focus(); }
+    if (resultsEl) resultsEl.innerHTML = '';
+    if (clarifyEl) { clarifyEl.classList.add('hidden'); clarifyEl.textContent = ''; }
+    if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
+    if (loadingEl) loadingEl.classList.add('hidden');
+    if (noKeyEl) noKeyEl.classList.add('hidden');
+  }
+
+  // ─── Init ────────────────────────────────────────────────────────────────────
 
   function init() {
     google.script.run
@@ -445,7 +710,10 @@
     initFormatBar();
     initSettings();
     initSettingsPanelHandlers();
-    initUnifiedTab();
+    initTabNav();
+    initDirectInsertTab();
+    initExactSearchTab();
+    initAISearchTab();
   }
 
   if (document.readyState === 'loading') {
