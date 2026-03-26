@@ -33,11 +33,41 @@ function getSurahListFromQuranApi() {
 }
 
 /**
+ * Parses a quranapi JSON response into the standard ayah result object.
+ * Shared helper used by getAyahFromQuranApi, insertDirectAyah, and _validateAndFetchReferences.
+ * @param {Object} json - Raw JSON from quranapi
+ * @param {number} fallbackSurah - Surah number to use if not in JSON
+ * @param {number} fallbackAyah - Ayah number to use if not in JSON
+ * @param {string} style - "uthmani" or "simple"
+ * @return {Object|null} Standard ayah result object or null
+ */
+function _parseQuranApiResponse(json, fallbackSurah, fallbackAyah, style) {
+  if (!json) return null;
+
+  var arabic1 = json.arabic1 || '';
+  var arabic2 = json.arabic2 || '';
+  var s = style || 'uthmani';
+  var arabicText = (s === 'uthmani') ? arabic1 : arabic2;
+  if (!arabicText) arabicText = arabic1 || arabic2;
+
+  return {
+    surah: json.surahNo || fallbackSurah,
+    ayah: json.ayahNo || fallbackAyah,
+    surahNameArabic: json.surahNameArabic || '',
+    surahNameEnglish: json.surahName || '',
+    arabicText: arabicText,
+    textUthmani: arabic1,
+    textSimple: arabic2,
+    translationText: json.english || ''
+  };
+}
+
+/**
  * Fetches a single ayah from quranapi (Arabic + translation in one call).
  * @param {number} surahNum - Surah number (1–114)
  * @param {number} ayahNum - Ayah number
  * @param {string} style - "uthmani" (arabic1) or "simple" (arabic2)
- * @return {Object|null} { surah, ayah, surahNameArabic, surahNameEnglish, arabicText, textUthmani, textSimple, translationText } or null
+ * @return {Object|null} Standard ayah result object or null
  */
 function getAyahFromQuranApi(surahNum, ayahNum, style) {
   if (!surahNum || !ayahNum) return null;
@@ -46,24 +76,7 @@ function getAyahFromQuranApi(surahNum, ayahNum, style) {
     var response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     if (response.getResponseCode() !== 200) return null;
     var json = JSON.parse(response.getContentText());
-    if (!json) return null;
-
-    var arabic1 = json.arabic1 || '';
-    var arabic2 = json.arabic2 || '';
-    var s = style || 'uthmani';
-    var arabicText = (s === 'uthmani') ? arabic1 : arabic2;
-    if (!arabicText) arabicText = arabic1 || arabic2;
-
-    return {
-      surah: json.surahNo || surahNum,
-      ayah: json.ayahNo || ayahNum,
-      surahNameArabic: json.surahNameArabic || '',
-      surahNameEnglish: json.surahName || '',
-      arabicText: arabicText,
-      textUthmani: arabic1,
-      textSimple: arabic2,
-      translationText: json.english || ''
-    };
+    return _parseQuranApiResponse(json, surahNum, ayahNum, style);
   } catch (e) {
     return null;
   }

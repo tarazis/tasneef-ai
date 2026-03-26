@@ -67,6 +67,45 @@ function runQuranAPITests() {
     expect(s2.ayahCount).toBe(286);
   });
 
+  // ── _parseQuranApiResponse ─────────────────────────────────────────────────
+
+  results.push('\n_parseQuranApiResponse()');
+
+  it('parses a valid quranapi JSON response (uthmani)', function () {
+    var json = {
+      surahNo: 2, ayahNo: 255,
+      surahNameArabic: 'البقرة', surahName: 'Al-Baqara',
+      arabic1: 'uthmani text', arabic2: 'simple text',
+      english: 'Translation text'
+    };
+    var result = _parseQuranApiResponse(json, 2, 255, 'uthmani');
+    expect(result.surah).toBe(2);
+    expect(result.ayah).toBe(255);
+    expect(result.arabicText).toBe('uthmani text');
+    expect(result.textUthmani).toBe('uthmani text');
+    expect(result.textSimple).toBe('simple text');
+    expect(result.translationText).toBe('Translation text');
+    expect(result.surahNameEnglish).toBe('Al-Baqara');
+  });
+
+  it('parses with simple style', function () {
+    var json = { arabic1: 'uthmani', arabic2: 'simple', surahName: 'Al-Fatiha' };
+    var result = _parseQuranApiResponse(json, 1, 1, 'simple');
+    expect(result.arabicText).toBe('simple');
+  });
+
+  it('uses fallback surah/ayah when missing from JSON', function () {
+    var json = { arabic1: 'text' };
+    var result = _parseQuranApiResponse(json, 5, 10, 'uthmani');
+    expect(result.surah).toBe(5);
+    expect(result.ayah).toBe(10);
+  });
+
+  it('returns null for null input', function () {
+    var result = _parseQuranApiResponse(null, 1, 1, 'uthmani');
+    expect(result === null).toBe(true);
+  });
+
   // ── getAyahFromQuranApi ────────────────────────────────────────────────────
 
   results.push('\ngetAyahFromQuranApi()');

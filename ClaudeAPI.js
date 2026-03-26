@@ -1,11 +1,11 @@
 /**
  * ClaudeAPI.gs
- * Unified query handler: classifies user intent via Claude, then routes to
- * the appropriate data source (quranapi, GitHub Pages, or semantic references).
- * Claude is a text classifier only — never returns Quranic text or translations.
+ * Three modular backend functions for Quran lookup:
+ *   - insertDirectAyah(surah, ayahStart, ayahEnd) — direct ayah/range fetch
+ *   - performExactSearch(query) — Arabic exact text search (local data)
+ *   - performAISearch(messages) — Claude-powered semantic search
  *
- * Three actions: fetch_ayah, search, clarify
- * Accepts conversation context (last 3 messages) for clarification exchanges.
+ * processUnifiedQuery is kept as a thin wrapper for frontend compatibility.
  */
 
 var CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
@@ -13,6 +13,7 @@ var CLAUDE_MODEL = 'claude-sonnet-4-20250514';
 var CLAUDE_MAX_TOKENS = 1024;
 var AI_MAX_REFERENCES = 10;
 var CONVERSATION_CONTEXT_LIMIT = 3;
+var DIRECT_AYAH_RANGE_CAP = 30;
 
 var UNIFIED_SYSTEM_PROMPT =
   'You are a Quran search assistant for Islamic scholars. ' +
@@ -40,13 +41,102 @@ var UNIFIED_SYSTEM_PROMPT =
   '- If the user gives a surah name without an ayah number, use clarify to ask which ayah.\n' +
   '- Prefer clarify over guessing when the input is ambiguous.';
 
+// ─── Public API ──────────────────────────────────────────────────────────────
+
 /**
- * Processes a user query through the unified Claude-based interface.
- * Accepts conversation context for multi-turn clarification exchanges.
- * @param {Array<{role: string, content: string}>} messages - Conversation messages (last 3)
- * @return {Object} { type: string, results?: Array, message?: string, error?: string, rawResponse?: string }
+ * Fetches one or more ayahs directly from quranapi by surah/ayah reference.
+ * No Claude call. Supports single ayah or range.
+ * @param {number} surah - Surah number (1–114)
+ * @param {number} ayahStart - First ayah number
+ * @param {number} [ayahEnd] - Last ayah number (defaults to ayahStart)
+ * @return {Object} { type, results, error? }
  */
-function processUnifiedQuery(messages) {
+function insertDirectAyah(surah, ayahStart, ayahEnd) {
+  surah = parseInt(surah, 10);
+  ayahStart = parseInt(ayahStart, 10);
+  ayahEnd = ayahEnd != null ? parseInt(ayahEnd, 10) : ayahStart;
+
+  if (!surah || surah < 1 || surah > 114) {
+    return { type: 'error', error: 'Invalid surah number. Must be 1–114.' };
+  }
+  if (!ayahStart || ayahStart < 1) {
+    return { type: 'error', error: 'Invalid ayah number.' };
+  }
+  if (ayahEnd < ayahStart) {
+    return { type: 'error', error: 'End ayah must be greater than or equal to start ayah.' };
+  }
+  if (ayahEnd - ayahStart + 1 > DIRECT_AYAH_RANGE_CAP) {
+    return { type: 'error', error: 'Range too large. Maximum ' + DIRECT_AYAH_RANGE_CAP + ' ayahs at once.' };
+  }
+
+  var settings = getSettings();
+  var style = settings.arabicStyle || 'uthmani';
+
+  if (ayahStart === ayahEnd) {
+    var result = getAyahFromQuranApi(surah, ayahStart, style);
+    if (!result) {
+      return { type: 'error', error: 'Ayah ' + surah + ':' + ayahStart + ' not found.' };
+    }
+    return { type: 'single', results: [result] };
+  }
+
+  var requests = [];
+  for (var i = ayahStart; i <= ayahEnd; i++) {
+    requests.push({
+      url: QURAN_API_BASE + '/' + surah + '/' + i + '.json',
+      muteHttpExceptions: true
+    });
+  }
+
+  var responses = UrlFetchApp.fetchAll(requests);
+  var results = [];
+  for (var j = 0; j < responses.length; j++) {
+    if (responses[j].getResponseCode() !== 200) continue;
+    try {
+      var json = JSON.parse(responses[j].getContentText());
+      var parsed = _parseQuranApiResponse(json, surah, ayahStart + j, style);
+      if (parsed) results.push(parsed);
+    } catch (e) {
+      // Skip malformed responses
+    }
+  }
+
+  if (!results.length) {
+    return { type: 'error', error: 'No ayahs found in range ' + surah + ':' + ayahStart + '-' + ayahEnd + '.' };
+  }
+
+  return { type: 'range', results: results };
+}
+
+/**
+ * Performs exact Arabic text search against locally cached Quran data.
+ * No Claude call. Uses normalized matching (strips diacritics, normalizes alef).
+ * @param {string} query - Arabic text to search for
+ * @return {Object} { type, results, message? }
+ */
+function performExactSearch(query) {
+  if (!query || typeof query !== 'string' || !query.trim()) {
+    return { type: 'error', error: 'Please enter a search query.' };
+  }
+
+  var data = loadQuranData();
+  var results = searchQuran(data, query.trim(), 'simple');
+
+  if (!results || !results.length) {
+    return { type: 'search', results: [], message: 'No exact matches found for that text.' };
+  }
+
+  return { type: 'search', results: results };
+}
+
+/**
+ * Performs AI-powered search using Claude for intent classification.
+ * Handles conversation context for multi-turn clarification.
+ * Delegates to insertDirectAyah/performExactSearch when appropriate.
+ * @param {Array<{role: string, content: string}>} messages - Conversation messages
+ * @return {Object} { type, results?, message?, error?, rawResponse? }
+ */
+function performAISearch(messages) {
   if (!messages || !Array.isArray(messages) || !messages.length) {
     return { type: 'error', error: 'Please enter a query.' };
   }
@@ -72,32 +162,29 @@ function processUnifiedQuery(messages) {
   var trimmedMessages = _trimConversationContext(messages);
 
   var rawResponse;
-  var parsed;
+  var classified;
   try {
     var result = _callClaudeForClassification(apiKey, trimmedMessages);
     rawResponse = result.raw;
-    parsed = result.parsed;
+    classified = result.parsed;
   } catch (e) {
     return { type: 'error', error: 'Something went wrong. Please try again.' };
   }
 
-  if (!parsed || !parsed.action) {
+  if (!classified || !classified.action) {
     return { type: 'error', error: 'Could not understand request. Please try again.' };
   }
 
-  var settings = getSettings();
-  var style = settings.arabicStyle || 'uthmani';
-
   var response;
-  switch (parsed.action) {
+  switch (classified.action) {
     case 'fetch_ayah':
-      response = _handleFetchAyah(parsed, style);
+      response = insertDirectAyah(classified.surah, classified.ayah, classified.ayah);
       break;
     case 'search':
-      response = _handleSearch(parsed, style);
+      response = _handleSearchRouting(classified);
       break;
     case 'clarify':
-      response = { type: 'clarify', message: parsed.message || 'Could you be more specific?' };
+      response = { type: 'clarify', message: classified.message || 'Could you be more specific?' };
       break;
     default:
       response = { type: 'error', error: 'Could not understand request. Please try again.' };
@@ -106,6 +193,66 @@ function processUnifiedQuery(messages) {
 
   response.rawResponse = rawResponse || '';
   return response;
+}
+
+/**
+ * Thin wrapper for frontend compatibility.
+ * @param {Array<{role: string, content: string}>} messages
+ * @return {Object} Unified response
+ */
+function processUnifiedQuery(messages) {
+  return performAISearch(messages);
+}
+
+// ─── Internal Helpers ────────────────────────────────────────────────────────
+
+/**
+ * Routes search based on language classification from Claude.
+ * @param {Object} classified - { query, language, references? }
+ * @return {Object} Unified result object
+ */
+function _handleSearchRouting(classified) {
+  var language = (classified.language || '').toLowerCase();
+
+  if (language === 'arabic') {
+    return performExactSearch(classified.query);
+  }
+  return _handleEnglishSearch(classified);
+}
+
+/**
+ * Handles English/semantic search: validates Claude's references against quranapi.
+ * @param {Object} classified - { query, references: [{surah, ayah}] }
+ * @return {Object} Unified result object
+ */
+function _handleEnglishSearch(classified) {
+  var settings = getSettings();
+  var style = settings.arabicStyle || 'uthmani';
+  var refs = classified.references;
+
+  if (!refs || !Array.isArray(refs) || !refs.length) {
+    return { type: 'error', error: 'No results found. Try a different query.' };
+  }
+
+  var validRefs = [];
+  for (var i = 0; i < refs.length && i < AI_MAX_REFERENCES; i++) {
+    var s = parseInt(refs[i].surah, 10);
+    var a = parseInt(refs[i].ayah, 10);
+    if (s >= 1 && s <= 114 && a >= 1) {
+      validRefs.push({ surah: s, ayah: a });
+    }
+  }
+
+  if (!validRefs.length) {
+    return { type: 'error', error: 'No valid results found. Try a different query.' };
+  }
+
+  var validated = _validateAndFetchReferences(validRefs, style);
+  if (!validated.length) {
+    return { type: 'error', error: 'No verified results found. Try a different query.' };
+  }
+
+  return { type: 'search', results: validated };
 }
 
 /**
@@ -203,99 +350,6 @@ function _parseClassificationResponse(text) {
 }
 
 /**
- * Handles fetch_ayah action: looks up a single ayah from quranapi.pages.dev.
- * @param {Object} parsed - { action, surah, ayah }
- * @param {string} style - "uthmani" or "simple"
- * @return {Object} Unified result object
- */
-function _handleFetchAyah(parsed, style) {
-  var surah = parseInt(parsed.surah, 10);
-  var ayah = parseInt(parsed.ayah, 10);
-
-  if (!surah || surah < 1 || surah > 114 || !ayah || ayah < 1) {
-    return { type: 'error', error: 'Invalid ayah reference. Please try again.' };
-  }
-
-  var result = getAyahFromQuranApi(surah, ayah, style);
-  if (!result) {
-    return { type: 'error', error: 'Ayah ' + surah + ':' + ayah + ' not found.' };
-  }
-
-  return { type: 'single', results: [result] };
-}
-
-/**
- * Handles unified search action. Routes based on language:
- * - "arabic": in-memory exact text search via QuranData (GitHub Pages)
- * - "english" (or other): validates Claude's references against quranapi
- * @param {Object} parsed - { action, query, language, references? }
- * @param {string} style - "uthmani" or "simple"
- * @return {Object} Unified result object
- */
-function _handleSearch(parsed, style) {
-  var language = (parsed.language || '').toLowerCase();
-
-  if (language === 'arabic') {
-    return _handleArabicSearch(parsed);
-  }
-  return _handleEnglishSearch(parsed, style);
-}
-
-/**
- * Handles Arabic text search: runs in-memory exact search via QuranData.
- * @param {Object} parsed - { query }
- * @return {Object} Unified result object
- */
-function _handleArabicSearch(parsed) {
-  var query = parsed.query;
-  if (!query || typeof query !== 'string' || !query.trim()) {
-    return { type: 'error', error: 'No search text provided.' };
-  }
-
-  var data = loadQuranData();
-  var results = searchQuran(data, query.trim(), 'simple');
-
-  if (!results || !results.length) {
-    return { type: 'search', results: [], message: 'No exact matches found for that text.' };
-  }
-
-  return { type: 'search', results: results };
-}
-
-/**
- * Handles English/semantic search: validates Claude's references against quranapi.
- * @param {Object} parsed - { query, references: [{surah, ayah}] }
- * @param {string} style - "uthmani" or "simple"
- * @return {Object} Unified result object
- */
-function _handleEnglishSearch(parsed, style) {
-  var refs = parsed.references;
-  if (!refs || !Array.isArray(refs) || !refs.length) {
-    return { type: 'error', error: 'No results found. Try a different query.' };
-  }
-
-  var validRefs = [];
-  for (var i = 0; i < refs.length && i < AI_MAX_REFERENCES; i++) {
-    var s = parseInt(refs[i].surah, 10);
-    var a = parseInt(refs[i].ayah, 10);
-    if (s >= 1 && s <= 114 && a >= 1) {
-      validRefs.push({ surah: s, ayah: a });
-    }
-  }
-
-  if (!validRefs.length) {
-    return { type: 'error', error: 'No valid results found. Try a different query.' };
-  }
-
-  var validated = _validateAndFetchReferences(validRefs, style);
-  if (!validated.length) {
-    return { type: 'error', error: 'No verified results found. Try a different query.' };
-  }
-
-  return { type: 'search', results: validated };
-}
-
-/**
  * Validates references by fetching each from quranapi.pages.dev in parallel.
  * Silently discards any reference that returns non-200 (hallucination guard).
  * @param {Array<{surah: number, ayah: number}>} references
@@ -325,24 +379,8 @@ function _validateAndFetchReferences(references, style) {
 
     try {
       var json = JSON.parse(responses[j].getContentText());
-      if (!json) continue;
-
-      var arabic1 = json.arabic1 || '';
-      var arabic2 = json.arabic2 || '';
-      var s = style || 'uthmani';
-      var arabicText = (s === 'uthmani') ? arabic1 : arabic2;
-      if (!arabicText) arabicText = arabic1 || arabic2;
-
-      validated.push({
-        surah: json.surahNo || refMap[j].surah,
-        ayah: json.ayahNo || refMap[j].ayah,
-        surahNameArabic: json.surahNameArabic || '',
-        surahNameEnglish: json.surahNameTranslation || json.surahName || '',
-        arabicText: arabicText,
-        textUthmani: arabic1,
-        textSimple: arabic2,
-        translationText: json.english || ''
-      });
+      var result = _parseQuranApiResponse(json, refMap[j].surah, refMap[j].ayah, style);
+      if (result) validated.push(result);
     } catch (e) {
       // Silently discard — hallucination guard
     }
