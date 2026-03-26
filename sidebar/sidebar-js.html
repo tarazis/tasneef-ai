@@ -407,7 +407,11 @@
         ayahEnd.disabled = true;
         return;
       }
+      var currentEnd = parseInt(ayahEnd.value, 10);
       populateAyahSelect(ayahEnd, startVal, surah.ayahCount, 'To');
+      if (currentEnd && currentEnd >= startVal) {
+        ayahEnd.value = String(currentEnd);
+      }
     });
 
     function doDirectInsert() {
