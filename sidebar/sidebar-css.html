@@ -1,7 +1,7 @@
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; color: #333; background: #fff; }
-  .sidebar { display: flex; flex-direction: column; height: 100vh; width: 350px; max-width: 100%; }
+  .sidebar { display: flex; flex-direction: column; height: 100vh; width: 350px; max-width: 100%; position: relative; }
 
   .header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #e0e0e0; flex-shrink: 0; }
   .header-brand { display: flex; align-items: center; gap: 8px; }
@@ -55,10 +55,27 @@
   .clarify-message { padding: 12px 16px; margin: 8px 16px; background: #f5f5f5; border-radius: 8px; font-size: 13px; color: #333; line-height: 1.5; }
 
   /* Loading and empty states */
-  .search-loading { display: flex; align-items: center; gap: 8px; padding: 16px; font-size: 13px; color: #666; }
-  .search-loading .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #e0e0e0; border-top-color: #2e7d32; border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .empty-state { color: #666; font-size: 13px; padding: 24px 16px; text-align: center; }
+
+  /* Startup overlay */
+  .startup-overlay { position: absolute; inset: 0; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 200; gap: 12px; }
+  .startup-spinner { width: 32px; height: 32px; border: 3px solid #e0e0e0; border-top-color: #2e7d32; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  .startup-text { font-size: 13px; color: #888; }
+
+  /* Skeleton cards */
+  .skeleton-card { border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px; margin-bottom: 8px; }
+  .skeleton-line { height: 12px; background: #e0e0e0; border-radius: 3px; margin-bottom: 8px; animation: skeleton-pulse 1.4s ease-in-out infinite; }
+  .skeleton-line:last-child { margin-bottom: 0; }
+  .sk-short { width: 40%; }
+  .sk-arabic { height: 20px; width: 85%; margin-left: auto; }
+  .sk-medium { width: 70%; }
+  .sk-long { width: 100%; }
+  @keyframes skeleton-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* Insert button loading spinner */
+  .btn-insert-result.btn-loading { color: transparent; pointer-events: none; position: relative; }
+  .btn-insert-result.btn-loading::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.5); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
 
   /* Input area pinned to bottom of tab */
   .tab-input-area { flex-shrink: 0; padding: 12px 16px; border-top: 1px solid #e0e0e0; background: #fff; }

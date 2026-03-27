@@ -164,8 +164,13 @@
         var showTranslation = trans ? trans.checked : true;
         var key = apiKeyInput ? apiKeyInput.value.trim() : '';
 
+        btnSave.disabled = true;
+        btnSave.textContent = 'Saving…';
+
         google.script.run
           .withSuccessHandler(function() {
+            btnSave.disabled = false;
+            btnSave.textContent = 'Save';
             // Save API key only if the user typed something
             if (key) {
               google.script.run
@@ -178,6 +183,8 @@
             showSavedMessage('Settings saved!', false);
           })
           .withFailureHandler(function() {
+            btnSave.disabled = false;
+            btnSave.textContent = 'Save';
             showSavedMessage('Failed to save settings.', true);
           })
           .saveSettings({ showTranslation: showTranslation });
@@ -258,6 +265,19 @@
 
   // ─── Shared Helpers ──────────────────────────────────────────────────────────
 
+  function makeSkeleton(count) {
+    var html = '';
+    for (var i = 0; i < count; i++) {
+      html += '<div class="skeleton-card">' +
+        '<div class="skeleton-line sk-short"></div>' +
+        '<div class="skeleton-line sk-arabic"></div>' +
+        '<div class="skeleton-line sk-medium"></div>' +
+        '<div class="skeleton-line sk-long"></div>' +
+        '</div>';
+    }
+    return html;
+  }
+
   function escapeHtml(s) {
     if (!s) return '';
     var d = document.createElement('div');
@@ -317,26 +337,36 @@
     if (!surah || !ayah) return;
 
     btn.disabled = true;
+    btn.classList.add('btn-loading');
     var style = _settings.arabicStyle || 'uthmani';
 
     google.script.run
       .withSuccessHandler(function(ayahData) {
-        if (!ayahData) { btn.disabled = false; return; }
+        if (!ayahData) {
+          btn.disabled = false;
+          btn.classList.remove('btn-loading');
+          return;
+        }
         var fs = window.getFormatState ? window.getFormatState() : {};
         google.script.run
           .withSuccessHandler(function(result) {
             btn.disabled = false;
+            btn.classList.remove('btn-loading');
             if (result && !result.success) {
               console.warn('Insert warning:', result.message);
             }
           })
           .withFailureHandler(function(err) {
             btn.disabled = false;
+            btn.classList.remove('btn-loading');
             console.error('Insert failed:', err);
           })
           .insertAyah(ayahData, fs, _settings);
       })
-      .withFailureHandler(function() { btn.disabled = false; })
+      .withFailureHandler(function() {
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+      })
       .getAyahForInsert(surah, ayah, style);
   }
 
@@ -365,7 +395,6 @@
     var btnInsert = document.getElementById('btn-direct-insert');
     var resultsEl = document.getElementById('direct-insert-results');
     var emptyEl = document.getElementById('direct-insert-empty');
-    var loadingEl = document.getElementById('direct-insert-loading');
 
     // Load surah list
     google.script.run
@@ -451,19 +480,18 @@
         return;
       }
 
-      resultsEl.innerHTML = '';
+      resultsEl.innerHTML = makeSkeleton(3);
       emptyEl.classList.add('hidden');
-      loadingEl.classList.remove('hidden');
       btnInsert.disabled = true;
 
       google.script.run
         .withSuccessHandler(function(response) {
-          loadingEl.classList.add('hidden');
+          resultsEl.innerHTML = '';
           btnInsert.disabled = false;
           handleDirectInsertResponse(response);
         })
         .withFailureHandler(function(err) {
-          loadingEl.classList.add('hidden');
+          resultsEl.innerHTML = '';
           btnInsert.disabled = false;
           emptyEl.textContent = 'Something went wrong. Please try again.';
           emptyEl.classList.remove('hidden');
@@ -501,13 +529,11 @@
     var ayahEnd = document.getElementById('ayah-end');
     var resultsEl = document.getElementById('direct-insert-results');
     var emptyEl = document.getElementById('direct-insert-empty');
-    var loadingEl = document.getElementById('direct-insert-loading');
     if (surahSelect) surahSelect.value = '';
     if (ayahStart) { ayahStart.innerHTML = '<option value="">From</option>'; ayahStart.disabled = true; }
     if (ayahEnd) { ayahEnd.innerHTML = '<option value="">To</option>'; ayahEnd.disabled = true; }
     if (resultsEl) resultsEl.innerHTML = '';
     if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
-    if (loadingEl) loadingEl.classList.add('hidden');
   }
 
   // ─── Exact Search Tab ────────────────────────────────────────────────────────
@@ -517,7 +543,6 @@
     var btnSearch = document.getElementById('btn-exact-search');
     var resultsEl = document.getElementById('exact-search-results');
     var emptyEl = document.getElementById('exact-search-empty');
-    var loadingEl = document.getElementById('exact-search-loading');
 
     function setEnabled(enabled) {
       if (btnSearch) btnSearch.disabled = !enabled;
@@ -528,19 +553,18 @@
       var query = queryEl ? queryEl.value.trim() : '';
       if (!query) return;
 
-      resultsEl.innerHTML = '';
+      resultsEl.innerHTML = makeSkeleton(3);
       emptyEl.classList.add('hidden');
-      loadingEl.classList.remove('hidden');
       setEnabled(false);
 
       google.script.run
         .withSuccessHandler(function(response) {
-          loadingEl.classList.add('hidden');
+          resultsEl.innerHTML = '';
           setEnabled(true);
           handleExactSearchResponse(response);
         })
         .withFailureHandler(function() {
-          loadingEl.classList.add('hidden');
+          resultsEl.innerHTML = '';
           setEnabled(true);
           emptyEl.textContent = 'Something went wrong. Please try again.';
           emptyEl.classList.remove('hidden');
@@ -577,11 +601,9 @@
     var queryEl = document.getElementById('exact-search-query');
     var resultsEl = document.getElementById('exact-search-results');
     var emptyEl = document.getElementById('exact-search-empty');
-    var loadingEl = document.getElementById('exact-search-loading');
     if (queryEl) { queryEl.value = ''; queryEl.style.height = 'auto'; }
     if (resultsEl) resultsEl.innerHTML = '';
     if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
-    if (loadingEl) loadingEl.classList.add('hidden');
   }
 
   // ─── AI Search Tab ───────────────────────────────────────────────────────────
@@ -594,7 +616,6 @@
     var resultsEl = document.getElementById('ai-search-results');
     var clarifyEl = document.getElementById('ai-search-clarify');
     var emptyEl = document.getElementById('ai-search-empty');
-    var loadingEl = document.getElementById('ai-search-loading');
     var noKeyEl = document.getElementById('ai-no-key');
 
     function setEnabled(enabled) {
@@ -626,14 +647,14 @@
       _conversationMessages.push({ role: 'user', content: query });
 
       clearAIResults();
-      loadingEl.classList.remove('hidden');
+      resultsEl.innerHTML = makeSkeleton(3);
       setEnabled(false);
 
       var messagesToSend = getLastMessages(3);
 
       google.script.run
         .withSuccessHandler(function(response) {
-          loadingEl.classList.add('hidden');
+          resultsEl.innerHTML = '';
           setEnabled(true);
 
           if (response && response.rawResponse) {
@@ -643,7 +664,7 @@
           handleAIResponse(response);
         })
         .withFailureHandler(function() {
-          loadingEl.classList.add('hidden');
+          resultsEl.innerHTML = '';
           setEnabled(true);
           _conversationMessages.pop();
           emptyEl.textContent = 'Something went wrong. Please try again.';
@@ -705,27 +726,33 @@
     var resultsEl = document.getElementById('ai-search-results');
     var clarifyEl = document.getElementById('ai-search-clarify');
     var emptyEl = document.getElementById('ai-search-empty');
-    var loadingEl = document.getElementById('ai-search-loading');
     var noKeyEl = document.getElementById('ai-no-key');
     if (queryEl) { queryEl.value = ''; queryEl.style.height = 'auto'; queryEl.focus(); }
     if (resultsEl) resultsEl.innerHTML = '';
     if (clarifyEl) { clarifyEl.classList.add('hidden'); clarifyEl.textContent = ''; }
     if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
-    if (loadingEl) loadingEl.classList.add('hidden');
     if (noKeyEl) noKeyEl.classList.add('hidden');
   }
 
   // ─── Init ────────────────────────────────────────────────────────────────────
 
   function init() {
+    var pendingInit = 2;
+    function onInitDone() {
+      if (--pendingInit <= 0) {
+        var overlay = document.getElementById('startup-overlay');
+        if (overlay) overlay.classList.add('hidden');
+      }
+    }
+
     google.script.run
-      .withSuccessHandler(onSettingsLoaded)
-      .withFailureHandler(function() { applyFormatStateToUI(); })
+      .withSuccessHandler(function(s) { onSettingsLoaded(s); onInitDone(); })
+      .withFailureHandler(function() { applyFormatStateToUI(); onInitDone(); })
       .getSettings();
 
     google.script.run
-      .withSuccessHandler(onFontsLoaded)
-      .withFailureHandler(function() {})
+      .withSuccessHandler(function(f) { onFontsLoaded(f); onInitDone(); })
+      .withFailureHandler(function() { onInitDone(); })
       .getArabicFonts();
 
     initFormatBar();
