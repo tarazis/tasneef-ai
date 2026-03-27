@@ -79,12 +79,29 @@ function getClaudeApiKey() {
 }
 
 /**
+ * Returns true if a Claude API key has been stored, false otherwise.
+ * Use this instead of getClaudeApiKey() when you only need to check existence
+ * (avoids sending the key value to the client).
+ * @return {boolean}
+ */
+function hasClaudeApiKey() {
+  var key = PropertiesService.getUserProperties()
+    .getProperty(PROPERTY_KEYS.CLAUDE_API_KEY);
+  return !!(key && key.length > 0);
+}
+
+/**
  * Persists the Claude API key to User Properties.
+ * Pass an empty string or null to delete the stored key.
  * @param {string} key - The API key to store.
  */
 function setClaudeApiKey(key) {
-  PropertiesService.getUserProperties()
-    .setProperty(PROPERTY_KEYS.CLAUDE_API_KEY, key);
+  var props = PropertiesService.getUserProperties();
+  if (!key || key.trim().length === 0) {
+    props.deleteProperty(PROPERTY_KEYS.CLAUDE_API_KEY);
+  } else {
+    props.setProperty(PROPERTY_KEYS.CLAUDE_API_KEY, key.trim());
+  }
 }
 
 /**

@@ -130,16 +130,15 @@
   function loadSettingsIntoPanel() {
     google.script.run
       .withSuccessHandler(function(s) {
-        var arabic = document.getElementById('insert-arabic');
         var trans = document.getElementById('insert-translation');
         var apiKey = document.getElementById('claude-api-key');
-        if (arabic) arabic.checked = s.insertArabic !== false;
         if (trans) trans.checked = s.showTranslation !== false;
         if (apiKey) {
-          google.script.run.withSuccessHandler(function(k) {
-            apiKey.value = k || '';
-            apiKey.placeholder = k ? '••••••••••' : 'sk-ant-...';
-          }).getClaudeApiKey();
+          // Never populate the input with the actual key value — check existence only
+          google.script.run.withSuccessHandler(function(hasKey) {
+            apiKey.value = '';
+            apiKey.placeholder = hasKey ? '••••••••••' : 'sk-ant-...';
+          }).hasClaudeApiKey();
         }
       })
       .withFailureHandler(function() {})
@@ -147,28 +146,41 @@
   }
 
   function initSettingsPanelHandlers() {
-    var arabic = document.getElementById('insert-arabic');
     var trans = document.getElementById('insert-translation');
-    var btnSave = document.getElementById('btn-save-api-key');
+    var btnSave = document.getElementById('btn-save-settings');
     var apiKeyInput = document.getElementById('claude-api-key');
+    var savedMsg = document.getElementById('settings-saved-msg');
 
-    if (arabic) {
-      arabic.addEventListener('change', function() {
-        google.script.run.withFailureHandler(function(){}).saveSetting('insertArabic', arabic.checked);
-      });
+    function showSavedMessage(text, isError) {
+      if (!savedMsg) return;
+      savedMsg.textContent = text;
+      savedMsg.className = 'settings-saved-msg ' + (isError ? 'error' : 'success');
+      savedMsg.classList.remove('hidden');
+      setTimeout(function() { savedMsg.classList.add('hidden'); }, 3000);
     }
-    if (trans) {
-      trans.addEventListener('change', function() {
-        google.script.run.withFailureHandler(function(){}).saveSetting('showTranslation', trans.checked);
-      });
-    }
-    if (btnSave && apiKeyInput) {
+
+    if (btnSave) {
       btnSave.addEventListener('click', function() {
-        var key = apiKeyInput.value.trim();
+        var showTranslation = trans ? trans.checked : true;
+        var key = apiKeyInput ? apiKeyInput.value.trim() : '';
+
         google.script.run
-          .withSuccessHandler(function() { apiKeyInput.placeholder = 'Saved'; })
-          .withFailureHandler(function() {})
-          .setClaudeApiKey(key);
+          .withSuccessHandler(function() {
+            // Save API key only if the user typed something
+            if (key) {
+              google.script.run
+                .withSuccessHandler(function() {
+                  if (apiKeyInput) { apiKeyInput.value = ''; apiKeyInput.placeholder = '••••••••••'; }
+                })
+                .withFailureHandler(function() {})
+                .setClaudeApiKey(key);
+            }
+            showSavedMessage('Settings saved!', false);
+          })
+          .withFailureHandler(function() {
+            showSavedMessage('Failed to save settings.', true);
+          })
+          .saveSettings({ showTranslation: showTranslation });
       });
     }
   }

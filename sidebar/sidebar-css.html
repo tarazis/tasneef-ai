@@ -92,7 +92,10 @@
   .settings-section input[type="text"][data-masked] { font-family: monospace; }
   .settings-radio, .settings-check { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; cursor: pointer; }
   .settings-radio input, .settings-check input { margin: 0; }
-  .settings-save-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  .settings-save-row { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .settings-saved-msg { font-size: 12px; margin: 0; }
+  .settings-saved-msg.success { color: #2e7d32; }
+  .settings-saved-msg.error { color: #c62828; }
 
   .hidden { display: none !important; }
 </style>
