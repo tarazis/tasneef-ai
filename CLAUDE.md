@@ -48,6 +48,12 @@ FONTS:       https://tarazis97.github.io/tasneef-data/fonts.json
 
    Always confirm the GitHub issue number before creating the branch. If no issue exists, create one first.
 
+   Immediately after creating the branch, open a **draft pull request** with:
+   - A title matching the issue title
+   - `Closes #<issue-number>` on its own line in the body
+
+   This triggers GitHub Projects automation to move the issue to **In Progress** automatically.
+
 2. You must write unit and integration tests for all code.
 
 3. You must compile the code and pass ALL tests before committing.
@@ -58,9 +64,7 @@ FONTS:       https://tarazis97.github.io/tasneef-data/fonts.json
    - `fix(#17): correct sidebar overflow on mobile`
    - `refactor(#8): simplify hadith search handler`
 
-5. Before pushing any change, open a pull request with:
-   - A title matching the issue title
-   - A body that includes `Closes #<issue-number>` on its own line
+5. When explicitly instructed to open a PR, convert the existing draft PR to **ready for review.**
 
 ### Commit Message Style
 
