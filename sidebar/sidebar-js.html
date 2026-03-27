@@ -265,6 +265,13 @@
     return d.innerHTML;
   }
 
+  var _ARABIC_INDIC = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+  function toArabicIndicClient(num) {
+    return String(Math.floor(Number(num) || 0)).replace(/[0-9]/g, function(d) {
+      return _ARABIC_INDIC[+d];
+    });
+  }
+
   function renderResults(containerEl, results, type) {
     containerEl.innerHTML = '';
     var font = formatState.fontName || 'Amiri';
@@ -274,7 +281,8 @@
       var card = document.createElement('div');
       card.className = 'result-card';
 
-      var refLabel = (r.surahNameEnglish || 'Surah') + ' ' + r.surah + ':' + r.ayah;
+      var arabicRef = 'سورة ' + escapeHtml(r.surahNameArabic || '') + ' ' + toArabicIndicClient(r.ayah);
+      var englishRef = escapeHtml((r.surahNameEnglish || 'Surah') + ' ' + r.surah + ':' + r.ayah);
       var arabicHtml = escapeHtml(r.arabicText);
 
       if (type === 'search' && r.matchStart != null && r.matchEnd != null && r.matchEnd > r.matchStart) {
@@ -285,8 +293,9 @@
       }
 
       var html =
-        '<div class="ref">' + escapeHtml(refLabel) + '</div>' +
-        '<div class="arabic" style="font-family:' + escapeHtml(font) + ',serif">' + arabicHtml + '</div>';
+        '<div class="ref-arabic">' + arabicRef + '</div>' +
+        '<div class="arabic" style="font-family:' + escapeHtml(font) + ',serif">' + arabicHtml + '</div>' +
+        '<div class="ref-english">' + englishRef + '</div>';
 
       if (showTrans && r.translationText) {
         html += '<div class="translation">' + escapeHtml(r.translationText) + '</div>';
