@@ -48,6 +48,8 @@ FONTS:       https://tarazis97.github.io/tasneef-data/fonts.json
 
    Always confirm the GitHub issue number before creating the branch. If no issue exists, create one first.
 
+   **Exception — Issue #26:** Do not create a branch or PR for this issue. It is a tracking issue only, used to log future bug fixes and features.
+
    Immediately after creating the branch, open a **draft pull request** with:
    - A title matching the issue title
    - `Closes #<issue-number>` on its own line in the body
