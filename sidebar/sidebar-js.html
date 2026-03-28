@@ -339,6 +339,7 @@
     var font  = formatState.fontName || 'Amiri';
     var first = results[0];
     var last  = results[results.length - 1];
+    var showTrans = _settings.showTranslation !== false;
 
     var concatenated = results.map(function(r) {
       return r.arabicText + ' (' + toArabicIndicClient(r.ayah) + ')';
@@ -349,18 +350,29 @@
                     ' - ' + toArabicIndicClient(last.ayah);
     var englishRef = escapeHtml(
       (first.surahNameEnglish || 'Surah') + ' ' +
-      first.surah + ':' + first.ayah + '-' + last.ayah
+      first.surah + ':' + first.ayah + ' - ' + last.ayah
     );
 
-    var card = document.createElement('div');
-    card.className = 'result-card';
-    card.innerHTML =
+    var html =
       '<div class="ref-arabic">' + arabicRef + '</div>' +
       '<div class="arabic range-block" style="font-family:' + escapeHtml(font) + ',serif">' +
         escapeHtml(concatenated) +
       '</div>' +
       '<div class="ref-english">' + englishRef + '</div>';
 
+    if (showTrans) {
+      var translationConcatenated = results.map(function(r) {
+        return escapeHtml(r.translationText || '');
+      }).join(' ');
+
+      if (translationConcatenated.trim()) {
+        html += '<div class="translation">' + translationConcatenated + '</div>';
+      }
+    }
+
+    var card = document.createElement('div');
+    card.className = 'result-card';
+    card.innerHTML = html;
     containerEl.appendChild(card);
   }
 
