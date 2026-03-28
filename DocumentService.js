@@ -120,7 +120,7 @@ function insertAyahRange(rangeData, formatState, settings) {
     paragraphsToInsert.push({
       text: '\u201C' + translationText + '\u201D (' +
             surahNameEn + ' ' + rangeData.surah + ':' +
-            rangeData.ayahStart + ' - ' + rangeData.ayahEnd + ')',
+            rangeData.ayahStart + '-' + rangeData.ayahEnd + ')',
       align: DocumentApp.HorizontalAlignment.CENTER
     });
   } else {
