@@ -1,0 +1,8 @@
+{
+  "name": "tasneef-ai",
+  "private": true,
+  "scripts": {
+    "test": "npm run test:client",
+    "test:client": "node tests/makeClientCache.test.js"
+  }
+}

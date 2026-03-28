@@ -7,3 +7,5 @@ node_modules/**
 README.md
 .clasp.json
 sidebar/assets/**
+package.json
+tests/makeClientCache.test.js

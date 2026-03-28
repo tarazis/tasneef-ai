@@ -14,16 +14,89 @@
   var saveDebounceTimer = null;
   var SAVE_DEBOUNCE_MS = 500;
 
-  // ─── Uthmani Cache ───────────────────────────────────────────────────────────
-  // null = not started, 'loading' = fetch in flight, Object = ready
+  // ─── Cache URLs ──────────────────────────────────────────────────────────────
 
-  var _uthmaniCache = null;
-  var _uthmaniCallbacks = [];
-  var UTHMANI_URL = 'https://tarazis97.github.io/tasneef-data/quran/uthmani.json';
+  var UTHMANI_URL     = 'https://tarazis97.github.io/tasneef-data/quran/uthmani.json';
+  var TRANSLATION_URL = 'https://quranapi.pages.dev/api/english.json';
 
-  var _translationCache = null;      // null | 'loading' | Object (flat "S:A" → text)
-  var _translationCallbacks = [];
-  var _translationEditionUrl = 'https://quranapi.pages.dev/api/english.json';
+  // ─── Client-side Quran / translation caches (makeClientCache from sidebar/client-cache) ──
+
+  var _uthmaniCacheApi = makeClientCache({
+    url: UTHMANI_URL,
+    statusElId: 'uthmani-cache-status',
+    loadingMsg: 'Loading Quran text\u2026',
+    errorMsg: 'Failed to load Quran text.',
+    logLabel: 'Uthmani cache'
+  });
+
+  function _parseTranslationData(arr) {
+    var map = {};
+    for (var i = 0; i < arr.length; i++) {
+      var s = arr[i];
+      var surahNo = s.surahNo;
+      var translations = s.translation || [];
+      for (var j = 0; j < translations.length; j++) {
+        var text = translations[j];
+        if (text) map[surahNo + ':' + (j + 1)] = text;
+      }
+    }
+    return map;
+  }
+
+  var _translationCacheApi = makeClientCache({
+    url: TRANSLATION_URL,
+    statusElId: 'translation-cache-status',
+    loadingMsg: 'Loading translations\u2026',
+    errorMsg: 'Failed to load translations.',
+    parseData: _parseTranslationData,
+    logLabel: 'Translation cache'
+  });
+
+  /**
+   * Ensures uthmani.json is fetched and cached. Fetches at most once; subsequent calls queue callbacks.
+   * @param {Function} [onReady]
+   * @param {Function} [onError]
+   */
+  function ensureUthmaniCache(onReady, onError) {
+    _uthmaniCacheApi.ensure(onReady, onError);
+  }
+
+  /**
+   * @param {number} surahNum
+   * @param {number} ayahNum
+   * @return {{surah, ayah, text}|null}
+   */
+  function lookupUthmaniAyah(surahNum, ayahNum) {
+    return _uthmaniCacheApi.lookup(surahNum, ayahNum);
+  }
+
+  /**
+   * Ensures the current translation edition JSON is fetched and parsed. At most once per URL.
+   * @param {Function} [onReady]
+   * @param {Function} [onError]
+   */
+  function ensureTranslationCache(onReady, onError) {
+    _translationCacheApi.ensure(onReady, onError);
+  }
+
+  /**
+   * Loads a different translation edition by URL, replacing the current cache.
+   * @param {string} url
+   * @param {Function} [onReady]
+   * @param {Function} [onError]
+   */
+  function loadTranslationEdition(url, onReady, onError) {
+    _translationCacheApi.loadEdition(url, onReady, onError);
+  }
+
+  /**
+   * @param {number} surahNum
+   * @param {number} ayahNum
+   * @return {string|null}
+   */
+  function lookupTranslation(surahNum, ayahNum) {
+    return _translationCacheApi.lookup(surahNum, ayahNum);
+  }
 
   var _refreshDirectInsert = null;   // set by initDirectInsertTab, called by initFormatBar
 
@@ -494,185 +567,6 @@
         onSubmit();
       }
     });
-  }
-
-  function _setUthmaniStatus(state) {
-    var el = document.getElementById('uthmani-cache-status');
-    if (!el) return;
-    if (state === 'ready') {
-      el.classList.add('hidden');
-      el.innerHTML = '';
-      return;
-    }
-    el.classList.remove('hidden');
-    if (state === 'loading') {
-      el.innerHTML = '<span class="cache-status-text">Loading Quran text\u2026</span>';
-    } else if (state === 'error') {
-      el.innerHTML =
-        '<span class="cache-status-text cache-status-error">Failed to load Quran text.</span>' +
-        '<button type="button" class="cache-status-retry">Retry</button>';
-      el.querySelector('.cache-status-retry').addEventListener('click', function() {
-        ensureUthmaniCache();
-      });
-    }
-  }
-
-  /**
-   * Ensures uthmani.json is fetched and cached in _uthmaniCache.
-   * Fetches at most once; subsequent calls are no-ops or queue callbacks.
-   * @param {Function} [onReady] - called with the cache object when ready
-   * @param {Function} [onError] - called with the error if fetch fails
-   */
-  function ensureUthmaniCache(onReady, onError) {
-    if (_uthmaniCache && _uthmaniCache !== 'loading') {
-      if (onReady) onReady(_uthmaniCache);
-      return;
-    }
-    if (_uthmaniCache === 'loading') {
-      if (onReady || onError) _uthmaniCallbacks.push({ onReady: onReady, onError: onError });
-      return;
-    }
-    // First call — begin fetch
-    _uthmaniCache = 'loading';
-    if (onReady || onError) _uthmaniCallbacks.push({ onReady: onReady, onError: onError });
-
-    _setUthmaniStatus('loading');
-
-    fetch(UTHMANI_URL)
-      .then(function(resp) {
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        return resp.json();
-      })
-      .then(function(data) {
-        _uthmaniCache = data;
-        _setUthmaniStatus('ready');
-        var cbs = _uthmaniCallbacks.splice(0);
-        cbs.forEach(function(cb) { if (cb.onReady) cb.onReady(data); });
-      })
-      .catch(function(err) {
-        console.error('Uthmani cache fetch failed:', err);
-        _uthmaniCache = null; // reset so retry is possible
-        _setUthmaniStatus('error');
-        var cbs = _uthmaniCallbacks.splice(0);
-        cbs.forEach(function(cb) { if (cb.onError) cb.onError(err); });
-      });
-  }
-
-  /**
-   * Synchronous O(1) lookup of a single ayah from the client-side cache.
-   * Returns null if the cache is not yet ready.
-   * @param {number} surahNum
-   * @param {number} ayahNum
-   * @return {{surah, ayah, text}|null}
-   */
-  function lookupUthmaniAyah(surahNum, ayahNum) {
-    if (!_uthmaniCache || _uthmaniCache === 'loading') return null;
-    return _uthmaniCache[surahNum + ':' + ayahNum] || null;
-  }
-
-  function _parseTranslationData(arr) {
-    var map = {};
-    for (var i = 0; i < arr.length; i++) {
-      var s = arr[i];
-      var surahNo = s.surahNo;
-      var translations = s.translation || [];
-      for (var j = 0; j < translations.length; j++) {
-        var text = translations[j];
-        if (text) map[surahNo + ':' + (j + 1)] = text; // 0-indexed array, 1-indexed ayahs
-      }
-    }
-    return map;
-  }
-
-  function _setTranslationStatus(state) {
-    var el = document.getElementById('translation-cache-status');
-    if (!el) return;
-    if (state === 'ready') {
-      el.classList.add('hidden');
-      el.innerHTML = '';
-      return;
-    }
-    el.classList.remove('hidden');
-    if (state === 'loading') {
-      el.innerHTML = '<span class="cache-status-text">Loading translations\u2026</span>';
-    } else if (state === 'error') {
-      el.innerHTML =
-        '<span class="cache-status-text cache-status-error">Failed to load translations.</span>' +
-        '<button type="button" class="cache-status-retry">Retry</button>';
-      el.querySelector('.cache-status-retry').addEventListener('click', function() {
-        ensureTranslationCache();
-      });
-    }
-  }
-
-  /**
-   * Ensures english.json is fetched, parsed, and cached in _translationCache.
-   * Fetches at most once per edition URL; subsequent calls are no-ops or queue callbacks.
-   * @param {Function} [onReady] - called with the flat cache map when ready
-   * @param {Function} [onError] - called with the error if fetch fails
-   */
-  function ensureTranslationCache(onReady, onError) {
-    if (_translationCache && _translationCache !== 'loading') {
-      if (onReady) onReady(_translationCache);
-      return;
-    }
-    if (_translationCache === 'loading') {
-      if (onReady || onError) _translationCallbacks.push({ onReady: onReady, onError: onError });
-      return;
-    }
-    _translationCache = 'loading';
-    if (onReady || onError) _translationCallbacks.push({ onReady: onReady, onError: onError });
-
-    _setTranslationStatus('loading');
-
-    fetch(_translationEditionUrl)
-      .then(function(resp) {
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        return resp.json();
-      })
-      .then(function(arr) {
-        _translationCache = _parseTranslationData(arr);
-        _setTranslationStatus('ready');
-        var cbs = _translationCallbacks.splice(0);
-        cbs.forEach(function(cb) { if (cb.onReady) cb.onReady(_translationCache); });
-      })
-      .catch(function(err) {
-        console.error('Translation cache fetch failed:', err);
-        _translationCache = null; // reset so retry is possible
-        _setTranslationStatus('error');
-        var cbs = _translationCallbacks.splice(0);
-        cbs.forEach(function(cb) { if (cb.onError) cb.onError(err); });
-      });
-  }
-
-  /**
-   * Loads a different translation edition by URL, replacing the current cache.
-   * No-op if the requested URL is already loaded.
-   * @param {string} url - URL of a bulk translation JSON in the same format as english.json
-   * @param {Function} [onReady]
-   * @param {Function} [onError]
-   */
-  function loadTranslationEdition(url, onReady, onError) {
-    if (url === _translationEditionUrl && _translationCache && _translationCache !== 'loading') {
-      if (onReady) onReady(_translationCache);
-      return;
-    }
-    _translationCache = null;
-    _translationCallbacks = [];
-    _translationEditionUrl = url;
-    ensureTranslationCache(onReady, onError);
-  }
-
-  /**
-   * Synchronous O(1) lookup of a translation from the client-side cache.
-   * Returns null if the cache is not yet ready.
-   * @param {number} surahNum
-   * @param {number} ayahNum
-   * @return {string|null}
-   */
-  function lookupTranslation(surahNum, ayahNum) {
-    if (!_translationCache || _translationCache === 'loading') return null;
-    return _translationCache[surahNum + ':' + ayahNum] || null;
   }
 
   // ─── Direct Insert Tab ───────────────────────────────────────────────────────

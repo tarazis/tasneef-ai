@@ -1,0 +1,90 @@
+/**
+ * Factory for a single-flight fetch cache with callback queuing and status DOM updates.
+ * Intended to be included once inside a <script> block (see sidebar/client-cache.html).
+ * @param {Object}   opts
+ * @param {string}   opts.url         - Initial fetch URL
+ * @param {string}   opts.statusElId  - DOM element ID for status messages
+ * @param {string}   opts.loadingMsg  - Text shown while loading
+ * @param {string}   opts.errorMsg    - Text shown on error
+ * @param {string}   [opts.logLabel]  - console.error prefix (default: statusElId)
+ * @param {Function} [opts.parseData] - Transform raw JSON before storing (default: identity)
+ * @return {{ ensure: Function, lookup: Function, loadEdition: Function }}
+ */
+function makeClientCache(opts) {
+  var _url       = opts.url;
+  var _cache     = null;
+  var _callbacks = [];
+  var _parse     = opts.parseData || function (d) { return d; };
+  var _logLabel  = opts.logLabel || opts.statusElId;
+
+  function _setStatus(state) {
+    var el = document.getElementById(opts.statusElId);
+    if (!el) return;
+    if (state === 'ready') {
+      el.classList.add('hidden');
+      el.innerHTML = '';
+      return;
+    }
+    el.classList.remove('hidden');
+    if (state === 'loading') {
+      el.innerHTML = '<span class="cache-status-text">' + opts.loadingMsg + '</span>';
+    } else if (state === 'error') {
+      el.innerHTML =
+        '<span class="cache-status-text cache-status-error">' + opts.errorMsg + '</span>' +
+        '<button type="button" class="cache-status-retry">Retry</button>';
+      el.querySelector('.cache-status-retry').addEventListener('click', function () {
+        ensure();
+      });
+    }
+  }
+
+  function ensure(onReady, onError) {
+    if (_cache && _cache !== 'loading') {
+      if (onReady) onReady(_cache);
+      return;
+    }
+    if (_cache === 'loading') {
+      if (onReady || onError) _callbacks.push({ onReady: onReady, onError: onError });
+      return;
+    }
+    _cache = 'loading';
+    if (onReady || onError) _callbacks.push({ onReady: onReady, onError: onError });
+    _setStatus('loading');
+    fetch(_url)
+      .then(function (resp) {
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        return resp.json();
+      })
+      .then(function (data) {
+        _cache = _parse(data);
+        _setStatus('ready');
+        var cbs = _callbacks.splice(0);
+        cbs.forEach(function (cb) { if (cb.onReady) cb.onReady(_cache); });
+      })
+      .catch(function (err) {
+        console.error(_logLabel + ' fetch failed:', err);
+        _cache = null;
+        _setStatus('error');
+        var cbs = _callbacks.splice(0);
+        cbs.forEach(function (cb) { if (cb.onError) cb.onError(err); });
+      });
+  }
+
+  function lookup(surahNum, ayahNum) {
+    if (!_cache || _cache === 'loading') return null;
+    return _cache[surahNum + ':' + ayahNum] || null;
+  }
+
+  function loadEdition(url, onReady, onError) {
+    if (url === _url && _cache && _cache !== 'loading') {
+      if (onReady) onReady(_cache);
+      return;
+    }
+    _cache = null;
+    _callbacks = [];
+    _url = url;
+    ensure(onReady, onError);
+  }
+
+  return { ensure: ensure, lookup: lookup, loadEdition: loadEdition };
+}
