@@ -25,6 +25,8 @@
   var _translationCallbacks = [];
   var _translationEditionUrl = 'https://quranapi.pages.dev/api/english.json';
 
+  var _refreshDirectInsert = null;   // set by initDirectInsertTab, called by initFormatBar
+
   // ─── Format Bar ──────────────────────────────────────────────────────────────
 
   function debouncedSave() {
@@ -73,12 +75,14 @@
       fontSelect.addEventListener('change', function() {
         formatState.fontName = fontSelect.value;
         debouncedSave();
+        if (_activeTab === 'direct-insert' && _refreshDirectInsert) _refreshDirectInsert();
       });
     }
     if (sizeSelect) {
       sizeSelect.addEventListener('change', function() {
         formatState.fontSize = parseInt(sizeSelect.value, 10) || 18;
         debouncedSave();
+        if (_activeTab === 'direct-insert' && _refreshDirectInsert) _refreshDirectInsert();
       });
     }
     if (boldBtn) {
@@ -86,6 +90,7 @@
         formatState.bold = !formatState.bold;
         boldBtn.classList.toggle('active', formatState.bold);
         debouncedSave();
+        if (_activeTab === 'direct-insert' && _refreshDirectInsert) _refreshDirectInsert();
       });
     }
     if (colorTrigger && colorPicker) {
@@ -94,6 +99,7 @@
         formatState.textColor = colorPicker.value;
         colorTrigger.style.backgroundColor = colorPicker.value;
         debouncedSave();
+        if (_activeTab === 'direct-insert' && _refreshDirectInsert) _refreshDirectInsert();
       }
       colorPicker.addEventListener('input', onColorChange);
       colorPicker.addEventListener('change', onColorChange);
@@ -677,7 +683,6 @@
     var surahSelect = document.getElementById('surah-select');
     var ayahStart = document.getElementById('ayah-start');
     var ayahEnd = document.getElementById('ayah-end');
-    var btnInsert = document.getElementById('btn-direct-insert');
     var resultsEl = document.getElementById('direct-insert-results');
     var emptyEl = document.getElementById('direct-insert-empty');
 
@@ -724,13 +729,58 @@
       ayahEnd.disabled = true;
     }
 
+    function autoRenderPreview() {
+      var surahNum = parseInt(surahSelect.value, 10);
+      var startNum = parseInt(ayahStart.value, 10);
+      var endNum   = ayahEnd.value ? parseInt(ayahEnd.value, 10) : null;
+
+      resultsEl.innerHTML = '';
+      emptyEl.classList.add('hidden');
+
+      if (!surahNum || !startNum) return;
+
+      var end = endNum || startNum;
+      var rangeSize = end - startNum + 1;
+
+      if (rangeSize > 30) {
+        emptyEl.textContent = 'Range too large. Maximum is 30 ayahs.';
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+
+      var surahMeta = _surahList.find(function(s) { return s.number === surahNum; });
+      var nameArabic  = surahMeta ? surahMeta.nameArabic  : '';
+      var nameEnglish = surahMeta ? surahMeta.nameEnglish : '';
+
+      var results = [];
+      for (var i = startNum; i <= end; i++) {
+        var ayahData = lookupUthmaniAyah(surahNum, i);
+        if (!ayahData) {
+          emptyEl.textContent = 'Arabic text still loading\u2026';
+          emptyEl.classList.remove('hidden');
+          return;
+        }
+        results.push({
+          surah:            ayahData.surah,
+          ayah:             ayahData.ayah,
+          surahNameArabic:  nameArabic,
+          surahNameEnglish: nameEnglish,
+          arabicText:       ayahData.text,
+          translationText:  lookupTranslation(surahNum, i) || ''
+        });
+      }
+
+      renderResults(resultsEl, results, results.length > 1 ? 'range' : 'single');
+    }
+
     surahSelect.addEventListener('change', function() {
       var surahNum = parseInt(surahSelect.value, 10);
       var surah = _surahList.find(function(s) { return s.number === surahNum; });
-      if (!surah) { resetAyahSelects(); return; }
+      if (!surah) { resetAyahSelects(); resultsEl.innerHTML = ''; emptyEl.classList.add('hidden'); return; }
       populateAyahSelect(ayahStart, 1, surah.ayahCount, 'From');
       ayahEnd.innerHTML = '<option value="">To</option>';
       ayahEnd.disabled = true;
+      autoRenderPreview();
     });
 
     ayahStart.addEventListener('change', function() {
@@ -740,6 +790,7 @@
       if (!surah || !startVal) {
         ayahEnd.innerHTML = '<option value="">To</option>';
         ayahEnd.disabled = true;
+        autoRenderPreview();
         return;
       }
       var currentEnd = parseInt(ayahEnd.value, 10);
@@ -747,64 +798,15 @@
       if (currentEnd && currentEnd >= startVal) {
         ayahEnd.value = String(currentEnd);
       }
+      autoRenderPreview();
     });
 
-    function doDirectInsert() {
-      var surah = parseInt(surahSelect.value, 10);
-      var start = parseInt(ayahStart.value, 10);
-      var end = ayahEnd.value ? parseInt(ayahEnd.value, 10) : null;
+    ayahEnd.addEventListener('change', function() {
+      autoRenderPreview();
+    });
 
-      if (!surah) {
-        emptyEl.textContent = 'Please select a Surah.';
-        emptyEl.classList.remove('hidden');
-        return;
-      }
-      if (!start || start < 1) {
-        emptyEl.textContent = 'Please select an Ayah.';
-        emptyEl.classList.remove('hidden');
-        return;
-      }
+    _refreshDirectInsert = autoRenderPreview;
 
-      resultsEl.innerHTML = makeSkeleton(3);
-      emptyEl.classList.add('hidden');
-      btnInsert.disabled = true;
-
-      google.script.run
-        .withSuccessHandler(function(response) {
-          resultsEl.innerHTML = '';
-          btnInsert.disabled = false;
-          handleDirectInsertResponse(response);
-        })
-        .withFailureHandler(function(err) {
-          resultsEl.innerHTML = '';
-          btnInsert.disabled = false;
-          emptyEl.textContent = 'Something went wrong. Please try again.';
-          emptyEl.classList.remove('hidden');
-        })
-        .insertDirectAyah(surah, start, end);
-    }
-
-    function handleDirectInsertResponse(response) {
-      if (!response) {
-        emptyEl.textContent = 'No response received.';
-        emptyEl.classList.remove('hidden');
-        return;
-      }
-      if (response.type === 'error') {
-        emptyEl.textContent = response.error;
-        emptyEl.classList.remove('hidden');
-        return;
-      }
-      var results = response.results || [];
-      if (!results.length) {
-        emptyEl.textContent = 'No results found.';
-        emptyEl.classList.remove('hidden');
-        return;
-      }
-      renderResults(resultsEl, results, response.type);
-    }
-
-    if (btnInsert) btnInsert.addEventListener('click', doDirectInsert);
     if (resultsEl) resultsEl.addEventListener('click', onInsertClick);
   }
 
@@ -1023,7 +1025,7 @@
   // ─── Init ────────────────────────────────────────────────────────────────────
 
   function init() {
-    var pendingInit = 2;
+    var pendingInit = 4;
     function onInitDone() {
       if (--pendingInit <= 0) {
         var overlay = document.getElementById('startup-overlay');
@@ -1040,6 +1042,9 @@
       .withSuccessHandler(function(f) { onFontsLoaded(f); onInitDone(); })
       .withFailureHandler(function() { onInitDone(); })
       .getArabicFonts();
+
+    ensureUthmaniCache(onInitDone, onInitDone);
+    ensureTranslationCache(onInitDone, onInitDone);
 
     initFormatBar();
     initSettings();
