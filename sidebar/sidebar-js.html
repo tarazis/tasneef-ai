@@ -17,6 +17,7 @@
   // ─── Cache URLs ──────────────────────────────────────────────────────────────
 
   var UTHMANI_URL     = 'https://tarazis97.github.io/tasneef-data/quran/uthmani.json';
+  var IMLAEI_URL      = 'https://tarazis97.github.io/tasneef-data/quran/imlaei-simple.json';
   var TRANSLATION_URL = 'https://quranapi.pages.dev/api/english.json';
 
   // ─── Client-side Quran / translation caches (makeClientCache from sidebar/client-cache) ──
@@ -96,6 +97,36 @@
    */
   function lookupTranslation(surahNum, ayahNum) {
     return _translationCacheApi.lookup(surahNum, ayahNum);
+  }
+
+  // ─── Client-side Imlaei (simple) cache with pre-normalized index ──
+
+  function _parseImlaeiData(rawMap) {
+    var raw = {};
+    var normalized = {};
+    for (var key in rawMap) {
+      raw[key] = rawMap[key];
+      normalized[key] = normalizeArabic((rawMap[key].text || ''));
+    }
+    return { raw: raw, normalized: normalized };
+  }
+
+  var _imlaeiCacheApi = makeClientCache({
+    url: IMLAEI_URL,
+    statusElId: 'imlaei-cache-status',
+    loadingMsg: 'Loading search index\u2026',
+    errorMsg: 'Failed to load search index.',
+    parseData: _parseImlaeiData,
+    logLabel: 'Imlaei cache'
+  });
+
+  /**
+   * Ensures imlaei-simple.json is fetched, parsed, and the normalized index is built.
+   * @param {Function} [onReady]
+   * @param {Function} [onError]
+   */
+  function ensureImlaeiCache(onReady, onError) {
+    _imlaeiCacheApi.ensure(onReady, onError);
   }
 
   var _refreshDirectInsert = null;   // set by initDirectInsertTab, called by initFormatBar
@@ -342,6 +373,9 @@
     if (tabId === 'direct-insert') {
       ensureUthmaniCache();      // no-op if already loading or loaded
       ensureTranslationCache();  // fires in parallel with uthmani fetch
+    }
+    if (tabId === 'exact-search') {
+      ensureImlaeiCache();       // no-op if already loading or loaded
     }
   }
 
@@ -919,7 +953,7 @@
   // ─── Init ────────────────────────────────────────────────────────────────────
 
   function init() {
-    var pendingInit = 4;
+    var pendingInit = 5;
     function onInitDone() {
       if (--pendingInit <= 0) {
         var overlay = document.getElementById('startup-overlay');
@@ -939,6 +973,7 @@
 
     ensureUthmaniCache(onInitDone, onInitDone);
     ensureTranslationCache(onInitDone, onInitDone);
+    ensureImlaeiCache(onInitDone, onInitDone);
 
     initFormatBar();
     initSettings();

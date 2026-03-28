@@ -8,4 +8,4 @@ README.md
 .clasp.json
 sidebar/assets/**
 package.json
-tests/makeClientCache.test.js
+tests/*.test.js
