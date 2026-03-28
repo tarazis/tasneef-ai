@@ -10,6 +10,7 @@
   };
 
   var _settings = {};
+  var _currentRange = null;
   var saveDebounceTimer = null;
   var SAVE_DEBOUNCE_MS = 500;
 
@@ -294,6 +295,12 @@
 
   function renderResults(containerEl, results, type) {
     containerEl.innerHTML = '';
+
+    if (type === 'range' && results.length > 1) {
+      renderRangeBlock(containerEl, results);
+      return;
+    }
+
     var font = formatState.fontName || 'Amiri';
     var showTrans = _settings.showTranslation !== false;
 
@@ -301,7 +308,7 @@
       var card = document.createElement('div');
       card.className = 'result-card';
 
-      var arabicRef = 'سورة ' + escapeHtml(r.surahNameArabic || '') + ' ' + toArabicIndicClient(r.ayah);
+      var arabicRef = escapeHtml(r.surahNameArabic || '') + ' ' + toArabicIndicClient(r.ayah);
       var englishRef = escapeHtml((r.surahNameEnglish || 'Surah') + ' ' + r.surah + ':' + r.ayah);
       var arabicHtml = escapeHtml(r.arabicText);
 
@@ -329,9 +336,68 @@
     });
   }
 
+  function renderRangeBlock(containerEl, results) {
+    var font  = formatState.fontName || 'Amiri';
+    var first = results[0];
+    var last  = results[results.length - 1];
+    var showTrans = _settings.showTranslation !== false;
+
+    var concatenated = results.map(function(r) {
+      return r.arabicText + ' (' + toArabicIndicClient(r.ayah) + ')';
+    }).join(' ');
+
+    _currentRange = {
+      surah:            first.surah,
+      ayahStart:        first.ayah,
+      ayahEnd:          last.ayah,
+      arabicText:       concatenated,
+      translationText:  results.map(function(r) { return r.translationText || ''; }).join(' '),
+      surahNameArabic:  first.surahNameArabic  || '',
+      surahNameEnglish: first.surahNameEnglish || ''
+    };
+
+    var arabicRef = escapeHtml(first.surahNameArabic || '') +
+                    ' ' + toArabicIndicClient(first.ayah) +
+                    ' - ' + toArabicIndicClient(last.ayah);
+    var englishRef = escapeHtml(
+      (first.surahNameEnglish || 'Surah') + ' ' +
+      first.surah + ':' + first.ayah + '-' + last.ayah
+    );
+
+    var html =
+      '<div class="ref-arabic">' + arabicRef + '</div>' +
+      '<div class="arabic range-block" style="font-family:' + escapeHtml(font) + ',serif">' +
+        escapeHtml(concatenated) +
+      '</div>' +
+      '<div class="ref-english">' + englishRef + '</div>';
+
+    if (showTrans) {
+      var translationConcatenated = results.map(function(r) {
+        return escapeHtml(r.translationText || '');
+      }).join(' ');
+
+      if (translationConcatenated.trim()) {
+        html += '<div class="translation">' + translationConcatenated + '</div>';
+      }
+    }
+
+    html += '<button type="button" class="btn-primary btn-insert-result btn-insert-range">Insert</button>';
+
+    var card = document.createElement('div');
+    card.className = 'result-card';
+    card.innerHTML = html;
+    containerEl.appendChild(card);
+  }
+
   function onInsertClick(e) {
     var btn = e.target;
     if (btn.tagName !== 'BUTTON' || !btn.classList.contains('btn-insert-result')) return;
+
+    if (btn.classList.contains('btn-insert-range')) {
+      handleRangeInsertClick(btn);
+      return;
+    }
+
     var surah = parseInt(btn.getAttribute('data-surah'), 10);
     var ayah = parseInt(btn.getAttribute('data-ayah'), 10);
     if (!surah || !ayah) return;
@@ -368,6 +434,30 @@
         btn.classList.remove('btn-loading');
       })
       .getAyahForInsert(surah, ayah, style);
+  }
+
+  function handleRangeInsertClick(btn) {
+    if (!_currentRange) return;
+
+    btn.disabled = true;
+    btn.classList.add('btn-loading');
+
+    var fs = window.getFormatState ? window.getFormatState() : {};
+
+    google.script.run
+      .withSuccessHandler(function(result) {
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+        if (result && !result.success) {
+          console.warn('Range insert warning:', result.message);
+        }
+      })
+      .withFailureHandler(function(err) {
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+        console.error('Range insert failed:', err);
+      })
+      .insertAyahRange(_currentRange, fs, _settings);
   }
 
   function setupTextarea(el, onSubmit) {
@@ -534,6 +624,7 @@
     if (ayahEnd) { ayahEnd.innerHTML = '<option value="">To</option>'; ayahEnd.disabled = true; }
     if (resultsEl) resultsEl.innerHTML = '';
     if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
+    _currentRange = null;
   }
 
   // ─── Exact Search Tab ────────────────────────────────────────────────────────
