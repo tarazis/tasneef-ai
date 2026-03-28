@@ -58,6 +58,14 @@ function runClaudeAPITests() {
     expect(parsed.ayah).toBe(255);
   });
 
+  it('parses a fetch_ayah range JSON object with ayahStart/ayahEnd', function () {
+    var parsed = _parseClassificationResponse('{"action":"fetch_ayah","surah":3,"ayahStart":190,"ayahEnd":194}');
+    expect(parsed.action).toBe('fetch_ayah');
+    expect(parsed.surah).toBe(3);
+    expect(parsed.ayahStart).toBe(190);
+    expect(parsed.ayahEnd).toBe(194);
+  });
+
   it('parses a search JSON object with language arabic', function () {
     var parsed = _parseClassificationResponse('{"action":"search","query":"بسم الله","language":"arabic"}');
     expect(parsed.action).toBe('search');
@@ -342,6 +350,22 @@ function runClaudeAPITests() {
       if (result.type === 'clarify') return; // acceptable if Claude still needs more info
       if (result.type === 'error') throw new Error('Got error: ' + result.error);
       expect(result.results.length).toBeGreaterThan(0);
+    });
+
+    it('performAISearch("show me Al-Imran 190 to 194") returns range results (live API)', function () {
+      var result = performAISearch([{ role: 'user', content: 'show me Al-Imran 190 to 194' }]);
+      if (result.type === 'clarify') return; // acceptable
+      if (result.type === 'error') throw new Error('Got error: ' + result.error);
+      expect(result.results.length).toBeGreaterThan(0);
+      expect(result.results[0].surah).toBe(3);
+    });
+
+    it('performAISearch("give me the last 3 ayahs of surah Al-Baqarah") returns results (live API)', function () {
+      var result = performAISearch([{ role: 'user', content: 'give me the last 3 ayahs of surah Al-Baqarah' }]);
+      if (result.type === 'clarify') return; // acceptable
+      if (result.type === 'error') throw new Error('Got error: ' + result.error);
+      expect(result.results.length).toBeGreaterThan(0);
+      expect(result.results[0].surah).toBe(2);
     });
 
     it('processUnifiedQuery delegates to performAISearch (live API)', function () {

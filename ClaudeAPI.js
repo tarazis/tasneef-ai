@@ -20,8 +20,9 @@ var UNIFIED_SYSTEM_PROMPT =
   'Given a user request, determine the intent and return ONLY a raw JSON object. ' +
   'No markdown fences, no explanation, no extra text — just the JSON.\n\n' +
   'Actions:\n\n' +
-  '1. fetch_ayah — user wants a specific ayah by reference number, surah name, or well-known verse name:\n' +
-  '{"action":"fetch_ayah","surah":2,"ayah":255}\n\n' +
+  '1. fetch_ayah — user wants a specific ayah or consecutive range by reference:\n' +
+  'Single: {"action":"fetch_ayah","surah":2,"ayah":255}\n' +
+  'Range:  {"action":"fetch_ayah","surah":3,"ayahStart":190,"ayahEnd":194}\n\n' +
   '2. search — user wants to find verses (by Arabic text, topic, theme, or meaning):\n' +
   'For Arabic Quranic text to search in the corpus:\n' +
   '{"action":"search","query":"بسم الله الرحمن","language":"arabic"}\n' +
@@ -32,7 +33,8 @@ var UNIFIED_SYSTEM_PROMPT =
   '{"action":"clarify","message":"Your clarifying question here"}\n\n' +
   'Rules:\n' +
   '- Return ONLY the raw JSON object.\n' +
-  '- For fetch_ayah: you must know the exact surah (1-114) and ayah number.\n' +
+  '- For fetch_ayah: you must know the exact surah (1-114) and ayah number(s). ' +
+  'Use "ayah" for a single verse, or "ayahStart" and "ayahEnd" for a consecutive range.\n' +
   '- For Arabic input: determine if it is Quranic text to search for (use search with language "arabic") ' +
   'or a conversational question in Arabic (interpret the intent and respond accordingly). ' +
   'If genuinely unsure, use clarify.\n' +
@@ -178,7 +180,9 @@ function performAISearch(messages) {
   var response;
   switch (classified.action) {
     case 'fetch_ayah':
-      response = insertDirectAyah(classified.surah, classified.ayah, classified.ayah);
+      var ayahStart = classified.ayahStart || classified.ayah;
+      var ayahEnd = classified.ayahEnd || classified.ayah || ayahStart;
+      response = insertDirectAyah(classified.surah, ayahStart, ayahEnd);
       break;
     case 'search':
       response = _handleSearchRouting(classified);
