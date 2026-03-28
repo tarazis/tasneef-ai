@@ -294,6 +294,12 @@
 
   function renderResults(containerEl, results, type) {
     containerEl.innerHTML = '';
+
+    if (type === 'range' && results.length > 1) {
+      renderRangeBlock(containerEl, results);
+      return;
+    }
+
     var font = formatState.fontName || 'Amiri';
     var showTrans = _settings.showTranslation !== false;
 
@@ -301,7 +307,7 @@
       var card = document.createElement('div');
       card.className = 'result-card';
 
-      var arabicRef = 'سورة ' + escapeHtml(r.surahNameArabic || '') + ' ' + toArabicIndicClient(r.ayah);
+      var arabicRef = escapeHtml(r.surahNameArabic || '') + ' ' + toArabicIndicClient(r.ayah);
       var englishRef = escapeHtml((r.surahNameEnglish || 'Surah') + ' ' + r.surah + ':' + r.ayah);
       var arabicHtml = escapeHtml(r.arabicText);
 
@@ -327,6 +333,35 @@
       card.innerHTML = html;
       containerEl.appendChild(card);
     });
+  }
+
+  function renderRangeBlock(containerEl, results) {
+    var font  = formatState.fontName || 'Amiri';
+    var first = results[0];
+    var last  = results[results.length - 1];
+
+    var concatenated = results.map(function(r) {
+      return r.arabicText + ' (' + toArabicIndicClient(r.ayah) + ')';
+    }).join(' ');
+
+    var arabicRef = escapeHtml(first.surahNameArabic || '') +
+                    ' ' + toArabicIndicClient(first.ayah) +
+                    ' - ' + toArabicIndicClient(last.ayah);
+    var englishRef = escapeHtml(
+      (first.surahNameEnglish || 'Surah') + ' ' +
+      first.surah + ':' + first.ayah + '-' + last.ayah
+    );
+
+    var card = document.createElement('div');
+    card.className = 'result-card';
+    card.innerHTML =
+      '<div class="ref-arabic">' + arabicRef + '</div>' +
+      '<div class="arabic range-block" style="font-family:' + escapeHtml(font) + ',serif">' +
+        escapeHtml(concatenated) +
+      '</div>' +
+      '<div class="ref-english">' + englishRef + '</div>';
+
+    containerEl.appendChild(card);
   }
 
   function onInsertClick(e) {
