@@ -129,6 +129,53 @@
     _imlaeiCacheApi.ensure(onReady, onError);
   }
 
+  // ─── Client-side exact search against imlaei cache ──
+
+  var SEARCH_RESULT_CAP = 50;
+  var EXACT_PAGE_SIZE = 20;
+  var EXACT_DEBOUNCE_MS = 200;
+  var EXACT_MIN_CHARS = 2;
+
+  /**
+   * Synchronous client-side search against the pre-normalized imlaei corpus.
+   * Must be called after imlaei cache is loaded (ensure resolves synchronously post-load).
+   * @param {string} query - Raw Arabic search text
+   * @return {Array<{surah, ayah, surahNameArabic, surahNameEnglish, arabicText}>}
+   */
+  function searchImlaeiClient(query) {
+    if (!query || typeof query !== 'string') return [];
+    query = query.trim();
+    if (!query) return [];
+
+    var data = null;
+    _imlaeiCacheApi.ensure(function(d) { data = d; });
+    if (!data) return [];
+
+    var normalizedQuery = normalizeArabic(query);
+    if (!normalizedQuery) return [];
+
+    var results = [];
+    var raw = data.raw;
+    var normalized = data.normalized;
+
+    for (var key in normalized) {
+      if (results.length >= SEARCH_RESULT_CAP) break;
+      if (normalized[key].indexOf(normalizedQuery) < 0) continue;
+
+      var verse = raw[key];
+      var surahMeta = _surahList.find(function(s) { return s.number === verse.surah; });
+      results.push({
+        surah: verse.surah,
+        ayah: verse.ayah,
+        surahNameArabic: surahMeta ? surahMeta.nameArabic : '',
+        surahNameEnglish: surahMeta ? surahMeta.nameEnglish : '',
+        arabicText: verse.text || ''
+      });
+    }
+
+    return results;
+  }
+
   var _refreshDirectInsert = null;   // set by initDirectInsertTab, called by initFormatBar
 
   // ─── Format Bar ──────────────────────────────────────────────────────────────
@@ -754,66 +801,137 @@
 
   // ─── Exact Search Tab ────────────────────────────────────────────────────────
 
+  var _exactSearchAllResults = [];
+  var _exactSearchPage = 0;
+
   function initExactSearchTab() {
     var queryEl = document.getElementById('exact-search-query');
     var btnSearch = document.getElementById('btn-exact-search');
     var resultsEl = document.getElementById('exact-search-results');
     var emptyEl = document.getElementById('exact-search-empty');
-
-    function setEnabled(enabled) {
-      if (btnSearch) btnSearch.disabled = !enabled;
-      if (queryEl) queryEl.disabled = !enabled;
-    }
+    var debounceTimer = null;
 
     function doExactSearch() {
+      if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
+
       var query = queryEl ? queryEl.value.trim() : '';
-      if (!query) return;
-
-      resultsEl.innerHTML = makeSkeleton(3);
-      emptyEl.classList.add('hidden');
-      setEnabled(false);
-
-      google.script.run
-        .withSuccessHandler(function(response) {
-          resultsEl.innerHTML = '';
-          setEnabled(true);
-          handleExactSearchResponse(response);
-        })
-        .withFailureHandler(function() {
-          resultsEl.innerHTML = '';
-          setEnabled(true);
-          emptyEl.textContent = 'Something went wrong. Please try again.';
+      if (!query) {
+        _exactSearchAllResults = [];
+        _exactSearchPage = 0;
+        if (resultsEl) resultsEl.innerHTML = '';
+        if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
+        return;
+      }
+      if (query.length < EXACT_MIN_CHARS) {
+        _exactSearchAllResults = [];
+        _exactSearchPage = 0;
+        if (resultsEl) resultsEl.innerHTML = '';
+        if (emptyEl) {
+          emptyEl.textContent = 'Type at least ' + EXACT_MIN_CHARS + ' characters\u2026';
           emptyEl.classList.remove('hidden');
-        })
-        .performExactSearch(query);
+        }
+        return;
+      }
+
+      _exactSearchAllResults = searchImlaeiClient(query);
+      _exactSearchPage = 0;
+      renderExactPage(resultsEl, emptyEl);
     }
 
-    function handleExactSearchResponse(response) {
-      if (!response) {
-        emptyEl.textContent = 'No response received.';
-        emptyEl.classList.remove('hidden');
+    function renderExactPage(container, emptyState) {
+      if (_exactSearchPage === 0) {
+        container.innerHTML = '';
+      }
+
+      if (_exactSearchAllResults.length === 0 && _exactSearchPage === 0) {
+        emptyState.textContent = 'No exact matches found.';
+        emptyState.classList.remove('hidden');
         return;
       }
-      if (response.type === 'error') {
-        emptyEl.textContent = response.error;
-        emptyEl.classList.remove('hidden');
-        return;
+      emptyState.classList.add('hidden');
+
+      var oldBtn = container.querySelector('.btn-show-more');
+      if (oldBtn) oldBtn.remove();
+
+      var start = _exactSearchPage * EXACT_PAGE_SIZE;
+      var end = Math.min(start + EXACT_PAGE_SIZE, _exactSearchAllResults.length);
+      var font = formatState.fontName || 'Amiri';
+
+      for (var i = start; i < end; i++) {
+        var r = _exactSearchAllResults[i];
+        var card = document.createElement('div');
+        card.className = 'result-card';
+
+        var arabicRef = escapeHtml(r.surahNameArabic || '') + ' ' + toArabicIndicClient(r.ayah);
+        var englishRef = escapeHtml((r.surahNameEnglish || 'Surah') + ' ' + r.surah + ':' + r.ayah);
+
+        card.innerHTML =
+          '<div class="ref-arabic">' + arabicRef + '</div>' +
+          '<div class="arabic" style="font-family:' + escapeHtml(font) + ',serif">' + escapeHtml(r.arabicText) + '</div>' +
+          '<div class="ref-english">' + englishRef + '</div>' +
+          '<button type="button" class="btn-primary btn-insert-result" ' +
+            'data-surah="' + r.surah + '" data-ayah="' + r.ayah + '">Insert</button>';
+
+        container.appendChild(card);
       }
-      var results = response.results || [];
-      if (!results.length) {
-        emptyEl.textContent = response.message || 'No results found.';
-        emptyEl.classList.remove('hidden');
-        return;
+
+      _exactSearchPage++;
+
+      if (end < _exactSearchAllResults.length) {
+        var remaining = _exactSearchAllResults.length - end;
+        var showMore = document.createElement('button');
+        showMore.type = 'button';
+        showMore.className = 'btn-show-more';
+        showMore.textContent = 'Show more (' + remaining + ' remaining)';
+        showMore.addEventListener('click', function() {
+          renderExactPage(container, emptyState);
+        });
+        container.appendChild(showMore);
       }
-      renderResults(resultsEl, results, 'search');
     }
 
-    setupTextarea(queryEl, doExactSearch);
+    queryEl.addEventListener('input', function() {
+      queryEl.style.height = 'auto';
+      queryEl.style.height = Math.min(queryEl.scrollHeight, 120) + 'px';
+
+      var val = queryEl.value;
+      if (!val || !val.trim()) {
+        if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
+        _exactSearchAllResults = [];
+        _exactSearchPage = 0;
+        if (resultsEl) resultsEl.innerHTML = '';
+        if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
+        return;
+      }
+      if (val.trim().length < EXACT_MIN_CHARS) {
+        if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
+        _exactSearchAllResults = [];
+        _exactSearchPage = 0;
+        if (resultsEl) resultsEl.innerHTML = '';
+        if (emptyEl) {
+          emptyEl.textContent = 'Type at least ' + EXACT_MIN_CHARS + ' characters\u2026';
+          emptyEl.classList.remove('hidden');
+        }
+        return;
+      }
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(doExactSearch, EXACT_DEBOUNCE_MS);
+    });
+
+    queryEl.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        doExactSearch();
+      }
+    });
+
     if (btnSearch) btnSearch.addEventListener('click', doExactSearch);
     if (resultsEl) resultsEl.addEventListener('click', onInsertClick);
   }
 
   function clearExactSearch() {
+    _exactSearchAllResults = [];
+    _exactSearchPage = 0;
     var queryEl = document.getElementById('exact-search-query');
     var resultsEl = document.getElementById('exact-search-results');
     var emptyEl = document.getElementById('exact-search-empty');

@@ -165,6 +165,78 @@ function runTests() {
     assert.strictEqual(result.end, 3);   // one past ب
   });
 
+  // ─── searchImlaeiClient logic ───────────────────────────────────────────────
+  //
+  // searchImlaeiClient lives in sidebar-js.html's IIFE, so we test its core
+  // algorithm here: normalize query, indexOf against pre-normalized map.
+
+  it('finds matching verse by normalized query', function () {
+    const m = loadModule();
+    var raw = {
+      '1:1': { surah: 1, ayah: 1, text: '\u0628\u0650\u0633\u0652\u0645\u0650 \u0671\u0644\u0644\u064E\u0651\u0647\u0650' },
+      '1:2': { surah: 1, ayah: 2, text: '\u0627\u0644\u062D\u064E\u0645\u0652\u062F\u064F' }
+    };
+    var normalized = {};
+    for (var key in raw) {
+      normalized[key] = m.normalizeArabic(raw[key].text);
+    }
+
+    var query = '\u0628\u0633\u0645';
+    var normalizedQuery = m.normalizeArabic(query);
+    var results = [];
+    for (var k in normalized) {
+      if (normalized[k].indexOf(normalizedQuery) >= 0) {
+        results.push({ key: k, verse: raw[k] });
+      }
+    }
+    assert.strictEqual(results.length, 1);
+    assert.strictEqual(results[0].key, '1:1');
+  });
+
+  it('matches query with tashkeel against stripped corpus', function () {
+    const m = loadModule();
+    var raw = {
+      '2:255': { surah: 2, ayah: 255, text: '\u0627\u0644\u0644\u0647 \u0644\u0627 \u0625\u0644\u0647 \u0625\u0644\u0627 \u0647\u0648' }
+    };
+    var normalized = {};
+    for (var key in raw) {
+      normalized[key] = m.normalizeArabic(raw[key].text);
+    }
+
+    // Query with alef-hamza-below (U+0625) should match plain alef in normalized
+    var query = '\u0625\u0644\u0647';
+    var normalizedQuery = m.normalizeArabic(query);
+    assert.strictEqual(normalizedQuery, '\u0627\u0644\u0647');
+    assert.ok(normalized['2:255'].indexOf(normalizedQuery) >= 0);
+  });
+
+  it('returns no results when query does not match', function () {
+    const m = loadModule();
+    var normalized = { '1:1': m.normalizeArabic('\u0628\u0633\u0645') };
+    var normalizedQuery = m.normalizeArabic('\u0642\u0644');
+    var found = false;
+    for (var k in normalized) {
+      if (normalized[k].indexOf(normalizedQuery) >= 0) found = true;
+    }
+    assert.strictEqual(found, false);
+  });
+
+  it('respects result cap', function () {
+    const m = loadModule();
+    var normalized = {};
+    for (var i = 1; i <= 60; i++) {
+      normalized['1:' + i] = '\u0628\u0633\u0645';
+    }
+    var normalizedQuery = '\u0628\u0633\u0645';
+    var cap = 50;
+    var count = 0;
+    for (var k in normalized) {
+      if (count >= cap) break;
+      if (normalized[k].indexOf(normalizedQuery) >= 0) count++;
+    }
+    assert.strictEqual(count, 50);
+  });
+
   // ─── Parity with server-side normalizeArabic ───────────────────────────────
 
   it('matches server-side QuranData.js normalizeArabic output', function () {
