@@ -1,0 +1,85 @@
+/**
+ * Client-side Arabic normalization utilities.
+ * Exact port of the server-side functions in QuranData.js.
+ * Intended to be included once inside a <script> block (see sidebar/sidebar.html).
+ */
+
+var TASHKEEL_RANGES = [
+  [0x0610, 0x061A], // Arabic signs
+  [0x064B, 0x065F], // Fatha, Damma, Kasra, etc.
+  [0x0670],         // Superscript alif
+  [0x06D6, 0x06DC], // Small high signs
+  [0x06DF, 0x06E4], // Small high signs
+  [0x06E7, 0x06E8], // Small high Yeh, Hamza
+  [0x06EA, 0x06ED]  // Empty centre, etc.
+];
+
+/**
+ * @param {number} code - Unicode code point
+ * @return {boolean} true if the code point is a tashkeel/diacritic
+ */
+function _isInTashkeelRange(code) {
+  for (var r = 0; r < TASHKEEL_RANGES.length; r++) {
+    var range = TASHKEEL_RANGES[r];
+    if (range.length === 1) {
+      if (code === range[0]) return true;
+    } else if (code >= range[0] && code <= range[1]) return true;
+  }
+  return false;
+}
+
+/**
+ * Strips tashkeel and normalizes alef variants for search comparison.
+ * @param {string} text - Raw Arabic text
+ * @return {string} Normalized text
+ */
+function normalizeArabic(text) {
+  if (!text || typeof text !== 'string') return '';
+  var result = '';
+  for (var i = 0; i < text.length; i++) {
+    var code = text.charCodeAt(i);
+    if (_isInTashkeelRange(code)) continue;
+    var ch = text.charAt(i);
+    if (ch === '\u0622' || ch === '\u0623' || ch === '\u0625' || ch === '\u0671') ch = '\u0627'; // آ أ إ ٱ → ا
+    result += ch;
+  }
+  return result;
+}
+
+/**
+ * @param {string} str
+ * @return {boolean} true if the string contains Arabic characters (U+0600–U+06FF)
+ */
+function _hasArabicChars(str) {
+  for (var i = 0; i < str.length; i++) {
+    var c = str.charCodeAt(i);
+    if (c >= 0x0600 && c <= 0x06FF) return true;
+  }
+  return false;
+}
+
+/**
+ * Maps a match position in normalized text back to the original (with tashkeel).
+ * @param {string} original - Original Arabic text
+ * @param {number} normStart - Start index in normalized text
+ * @param {number} normLen - Length of match in normalized text
+ * @return {{start: number, end: number}} Indices in original text
+ */
+function _mapNormalizedToOriginal(original, normStart, normLen) {
+  if (!original || normStart < 0 || normLen <= 0) return { start: 0, end: 0 };
+  var normIdx = 0;
+  var origStart = -1;
+  var origEnd = -1;
+  for (var i = 0; i < original.length; i++) {
+    if (_isInTashkeelRange(original.charCodeAt(i))) continue;
+    if (normIdx === normStart) origStart = i;
+    normIdx++;
+    if (normIdx === normStart + normLen) {
+      origEnd = i + 1;
+      break;
+    }
+  }
+  if (origStart < 0) origStart = 0;
+  if (origEnd < 0) origEnd = original.length;
+  return { start: origStart, end: origEnd };
+}
