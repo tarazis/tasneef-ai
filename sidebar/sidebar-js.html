@@ -18,6 +18,7 @@
 
   var UTHMANI_URL     = 'https://tarazis.github.io/tasneef-data/quran/uthmani.json';
   var IMLAEI_URL      = 'https://tarazis.github.io/tasneef-data/quran/imlaei-simple.json';
+  var SURAH_META_URL  = 'https://tarazis.github.io/tasneef-data/quran/quran-metadata-surah-name.json';
   var TRANSLATION_URL = 'https://quranapi.pages.dev/api/english.json';
 
   // ─── Client-side Quran / translation caches (makeClientCache from sidebar/client-cache) ──
@@ -127,6 +128,36 @@
    */
   function ensureImlaeiCache(onReady, onError) {
     _imlaeiCacheApi.ensure(onReady, onError);
+  }
+
+  // ─── Client-side surah metadata cache ────────────────────────────────────────
+
+  function _parseSurahMetaData(rawObj) {
+    var list = [];
+    for (var i = 1; i <= 114; i++) {
+      var s = rawObj[String(i)];
+      if (!s) continue;
+      list.push({
+        number: s.id,
+        nameArabic: s.name_arabic || '',
+        nameEnglish: s.name_simple || s.name || '',
+        ayahCount: s.verses_count || 0
+      });
+    }
+    return list;
+  }
+
+  var _surahMetaCacheApi = makeClientCache({
+    url: SURAH_META_URL,
+    statusElId: 'surah-meta-cache-status',
+    loadingMsg: 'Loading surah list\u2026',
+    errorMsg: 'Failed to load surah list.',
+    parseData: _parseSurahMetaData,
+    logLabel: 'Surah meta cache'
+  });
+
+  function ensureSurahMetaCache(onReady, onError) {
+    _surahMetaCacheApi.ensure(onReady, onError);
   }
 
   // ─── Client-side exact search against imlaei cache ──
@@ -661,26 +692,23 @@
     var resultsEl = document.getElementById('direct-insert-results');
     var emptyEl = document.getElementById('direct-insert-empty');
 
-    // Load surah list
-    google.script.run
-      .withSuccessHandler(function(list) {
-        _surahList = list || [];
-        surahSelect.innerHTML = '';
-        var placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.textContent = 'Select a Surah…';
-        surahSelect.appendChild(placeholder);
-        _surahList.forEach(function(s) {
-          var opt = document.createElement('option');
-          opt.value = s.number;
-          opt.textContent = s.number + '. ' + s.nameEnglish + ' - ' + s.nameArabic;
-          surahSelect.appendChild(opt);
-        });
-      })
-      .withFailureHandler(function() {
-        surahSelect.innerHTML = '<option value="">Failed to load</option>';
-      })
-      .getSurahListFromQuranApi();
+    // Load surah list from client-side cache (tarazis.github.io)
+    ensureSurahMetaCache(function(list) {
+      _surahList = list || [];
+      surahSelect.innerHTML = '';
+      var placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select a Surah\u2026';
+      surahSelect.appendChild(placeholder);
+      _surahList.forEach(function(s) {
+        var opt = document.createElement('option');
+        opt.value = s.number;
+        opt.textContent = s.number + '. ' + s.nameEnglish + ' - ' + s.nameArabic;
+        surahSelect.appendChild(opt);
+      });
+    }, function() {
+      surahSelect.innerHTML = '<option value="">Failed to load</option>';
+    });
 
     function populateAyahSelect(selectEl, from, to, placeholder) {
       selectEl.innerHTML = '';
@@ -1071,7 +1099,7 @@
   // ─── Init ────────────────────────────────────────────────────────────────────
 
   function init() {
-    var pendingInit = 5;
+    var pendingInit = 6;
     function onInitDone() {
       if (--pendingInit <= 0) {
         var overlay = document.getElementById('startup-overlay');
@@ -1092,6 +1120,7 @@
     ensureUthmaniCache(onInitDone, onInitDone);
     ensureTranslationCache(onInitDone, onInitDone);
     ensureImlaeiCache(onInitDone, onInitDone);
+    ensureSurahMetaCache(onInitDone, onInitDone);
 
     initFormatBar();
     initSettings();
