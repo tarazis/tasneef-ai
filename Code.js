@@ -30,16 +30,3 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
-/**
- * Fetches a single ayah for insertion. Used after user clicks Insert on a result.
- * For exact_search results (which only have Arabic from GitHub), this fetches
- * the full data (Arabic + translation) from quranapi.
- * @param {number} surahNum - Surah number (1-114)
- * @param {number} ayahNum - Ayah number
- * @param {string} style - "uthmani" or "simple"
- * @return {Object|null} Full ayah data for insertion
- */
-function getAyahForInsert(surahNum, ayahNum, style) {
-  if (!surahNum || !ayahNum) return null;
-  return getAyahFromQuranApi(surahNum, ayahNum, style || 'uthmani');
-}

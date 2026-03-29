@@ -19,7 +19,7 @@
   var UTHMANI_URL     = 'https://tarazis.github.io/tasneef-data/quran/uthmani.json';
   var IMLAEI_URL      = 'https://tarazis.github.io/tasneef-data/quran/imlaei-simple.json';
   var SURAH_META_URL  = 'https://tarazis.github.io/tasneef-data/quran/quran-metadata-surah-name.json';
-  var TRANSLATION_URL = 'https://quranapi.pages.dev/api/english.json';
+  var TRANSLATION_URL = 'https://tarazis.github.io/tasneef-data/quran/en-sahih-international-simple.json';
 
   // ─── Client-side Quran / translation caches (makeClientCache from sidebar/client-cache) ──
 
@@ -31,15 +31,11 @@
     logLabel: 'Uthmani cache'
   });
 
-  function _parseTranslationData(arr) {
+  function _parseTranslationData(obj) {
     var map = {};
-    for (var i = 0; i < arr.length; i++) {
-      var s = arr[i];
-      var surahNo = s.surahNo;
-      var translations = s.translation || [];
-      for (var j = 0; j < translations.length; j++) {
-        var text = translations[j];
-        if (text) map[surahNo + ':' + (j + 1)] = text;
+    for (var key in obj) {
+      if (obj.hasOwnProperty(key) && obj[key] && obj[key].t) {
+        map[key] = obj[key].t;
       }
     }
     return map;

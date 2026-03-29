@@ -1,7 +1,6 @@
 /**
  * ClaudeAPI.gs
- * Three modular backend functions for Quran lookup:
- *   - insertDirectAyah(surah, ayahStart, ayahEnd) — direct ayah/range fetch
+ * Backend functions for Quran lookup:
  *   - performExactSearch(query) — Arabic exact text search (local data)
  *   - performAISearch(messages) — Claude-powered semantic search
  *
@@ -46,71 +45,6 @@ var UNIFIED_SYSTEM_PROMPT =
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
- * Fetches one or more ayahs directly from quranapi by surah/ayah reference.
- * No Claude call. Supports single ayah or range.
- * @param {number} surah - Surah number (1–114)
- * @param {number} ayahStart - First ayah number
- * @param {number} [ayahEnd] - Last ayah number (defaults to ayahStart)
- * @return {Object} { type, results, error? }
- */
-function insertDirectAyah(surah, ayahStart, ayahEnd) {
-  surah = parseInt(surah, 10);
-  ayahStart = parseInt(ayahStart, 10);
-  ayahEnd = ayahEnd != null ? parseInt(ayahEnd, 10) : ayahStart;
-
-  if (!surah || surah < 1 || surah > 114) {
-    return { type: 'error', error: 'Invalid surah number. Must be 1–114.' };
-  }
-  if (!ayahStart || ayahStart < 1) {
-    return { type: 'error', error: 'Invalid ayah number.' };
-  }
-  if (ayahEnd < ayahStart) {
-    return { type: 'error', error: 'End ayah must be greater than or equal to start ayah.' };
-  }
-  if (ayahEnd - ayahStart + 1 > DIRECT_AYAH_RANGE_CAP) {
-    return { type: 'error', error: 'Range too large. Maximum ' + DIRECT_AYAH_RANGE_CAP + ' ayahs at once.' };
-  }
-
-  var settings = getSettings();
-  var style = settings.arabicStyle || 'uthmani';
-
-  if (ayahStart === ayahEnd) {
-    var result = getAyahFromQuranApi(surah, ayahStart, style);
-    if (!result) {
-      return { type: 'error', error: 'Ayah ' + surah + ':' + ayahStart + ' not found.' };
-    }
-    return { type: 'single', results: [result] };
-  }
-
-  var requests = [];
-  for (var i = ayahStart; i <= ayahEnd; i++) {
-    requests.push({
-      url: QURAN_API_BASE + '/' + surah + '/' + i + '.json',
-      muteHttpExceptions: true
-    });
-  }
-
-  var responses = UrlFetchApp.fetchAll(requests);
-  var results = [];
-  for (var j = 0; j < responses.length; j++) {
-    if (responses[j].getResponseCode() !== 200) continue;
-    try {
-      var json = JSON.parse(responses[j].getContentText());
-      var parsed = _parseQuranApiResponse(json, surah, ayahStart + j, style);
-      if (parsed) results.push(parsed);
-    } catch (e) {
-      // Skip malformed responses
-    }
-  }
-
-  if (!results.length) {
-    return { type: 'error', error: 'No ayahs found in range ' + surah + ':' + ayahStart + '-' + ayahEnd + '.' };
-  }
-
-  return { type: 'range', results: results };
-}
-
-/**
  * Performs exact Arabic text search against locally cached Quran data.
  * No Claude call. Uses normalized matching (strips diacritics, normalizes alef).
  * @param {string} query - Arabic text to search for
@@ -134,7 +68,7 @@ function performExactSearch(query) {
 /**
  * Performs AI-powered search using Claude for intent classification.
  * Handles conversation context for multi-turn clarification.
- * Delegates to insertDirectAyah/performExactSearch when appropriate.
+ * Delegates to performExactSearch when appropriate.
  * @param {Array<{role: string, content: string}>} messages - Conversation messages
  * @return {Object} { type, results?, message?, error?, rawResponse? }
  */
@@ -373,42 +307,3 @@ function _parseClassificationResponse(text) {
   }
 }
 
-/**
- * Validates references by fetching each from quranapi.pages.dev in parallel.
- * Silently discards any reference that returns non-200 (hallucination guard).
- * @param {Array<{surah: number, ayah: number}>} references
- * @param {string} style - "uthmani" or "simple"
- * @return {Array<Object>} Validated results with full ayah data
- */
-function _validateAndFetchReferences(references, style) {
-  if (!references || !references.length) return [];
-
-  var requests = [];
-  var refMap = [];
-
-  for (var i = 0; i < references.length; i++) {
-    var ref = references[i];
-    var url = QURAN_API_BASE + '/' + ref.surah + '/' + ref.ayah + '.json';
-    requests.push({ url: url, muteHttpExceptions: true });
-    refMap.push(ref);
-  }
-
-  if (!requests.length) return [];
-
-  var responses = UrlFetchApp.fetchAll(requests);
-  var validated = [];
-
-  for (var j = 0; j < responses.length; j++) {
-    if (responses[j].getResponseCode() !== 200) continue;
-
-    try {
-      var json = JSON.parse(responses[j].getContentText());
-      var result = _parseQuranApiResponse(json, refMap[j].surah, refMap[j].ayah, style);
-      if (result) validated.push(result);
-    } catch (e) {
-      // Silently discard — hallucination guard
-    }
-  }
-
-  return validated;
-}
