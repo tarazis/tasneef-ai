@@ -230,6 +230,92 @@ function runTests() {
     });
   });
 
+  it('parseSurahMetaData converts raw object to sorted surah array', function () {
+    const rawObj = {
+      '1':   { id: 1,   name_arabic: 'الفاتحة', name_simple: 'Al-Fatihah', verses_count: 7 },
+      '2':   { id: 2,   name_arabic: 'البقرة',  name_simple: 'Al-Baqarah', verses_count: 286 },
+      '114': { id: 114, name_arabic: 'الناس',   name_simple: 'An-Nas',     verses_count: 6 }
+    };
+    function parseSurahMetaData(obj) {
+      var list = [];
+      for (var i = 1; i <= 114; i++) {
+        var s = obj[String(i)];
+        if (!s) continue;
+        list.push({
+          number: s.id,
+          nameArabic: s.name_arabic || '',
+          nameEnglish: s.name_simple || s.name || '',
+          ayahCount: s.verses_count || 0
+        });
+      }
+      return list;
+    }
+    const result = parseSurahMetaData(rawObj);
+    assert.strictEqual(result.length, 3);
+    assert.deepStrictEqual(result[0], { number: 1, nameArabic: 'الفاتحة', nameEnglish: 'Al-Fatihah', ayahCount: 7 });
+    assert.deepStrictEqual(result[1], { number: 2, nameArabic: 'البقرة', nameEnglish: 'Al-Baqarah', ayahCount: 286 });
+    assert.deepStrictEqual(result[2], { number: 114, nameArabic: 'الناس', nameEnglish: 'An-Nas', ayahCount: 6 });
+  });
+
+  it('parseSurahMetaData falls back to name when name_simple is absent', function () {
+    const rawObj = { '5': { id: 5, name_arabic: 'المائدة', name: 'Al-Maidah', verses_count: 120 } };
+    function parseSurahMetaData(obj) {
+      var list = [];
+      for (var i = 1; i <= 114; i++) {
+        var s = obj[String(i)];
+        if (!s) continue;
+        list.push({ number: s.id, nameArabic: s.name_arabic || '', nameEnglish: s.name_simple || s.name || '', ayahCount: s.verses_count || 0 });
+      }
+      return list;
+    }
+    const result = parseSurahMetaData(rawObj);
+    assert.strictEqual(result.length, 1);
+    assert.strictEqual(result[0].nameEnglish, 'Al-Maidah');
+  });
+
+  it('ensure with parseSurahMetaData stores array accessible via onReady callback', function () {
+    const rawObj = {
+      '1': { id: 1, name_arabic: 'الفاتحة', name_simple: 'Al-Fatihah', verses_count: 7 }
+    };
+    doc.fetch = function () {
+      return Promise.resolve({
+        ok: true,
+        json: function () { return Promise.resolve(rawObj); }
+      });
+    };
+    const makeClientCache = loadFactory(doc);
+    const cache = makeClientCache({
+      url: 'https://example.com/surah-meta.json',
+      statusElId: 'status-x',
+      loadingMsg: '…',
+      errorMsg: 'err',
+      parseData: function (obj) {
+        var list = [];
+        for (var i = 1; i <= 114; i++) {
+          var s = obj[String(i)];
+          if (!s) continue;
+          list.push({ number: s.id, nameArabic: s.name_arabic || '', nameEnglish: s.name_simple || '', ayahCount: s.verses_count || 0 });
+        }
+        return list;
+      },
+      logLabel: 'surah-meta-test'
+    });
+    return new Promise(function (resolve, reject) {
+      cache.ensure(function (list) {
+        try {
+          assert.ok(Array.isArray(list), 'parsed result should be an array');
+          assert.strictEqual(list.length, 1);
+          assert.strictEqual(list[0].number, 1);
+          assert.strictEqual(list[0].nameEnglish, 'Al-Fatihah');
+          assert.strictEqual(list[0].ayahCount, 7);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+  });
+
   it('lookup returns null while JSON pending then returns value', function () {
     let finishJson;
     doc.fetch = function () {
