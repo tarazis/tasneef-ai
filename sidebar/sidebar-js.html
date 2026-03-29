@@ -500,6 +500,83 @@
     });
   }
 
+  // ─── Build results from server-returned references using client caches ─────
+
+  /**
+   * Validates and assembles full result objects from raw {surah, ayah} references
+   * using in-memory caches (uthmani, imlaei, translation, surah metadata).
+   * Acts as a hallucination guard — skips references that don't exist in cached data.
+   * @param {Array<{surah: number, ayah: number}>} references
+   * @return {Array<Object>} Result objects matching renderResults() shape
+   */
+  function _buildResultsFromReferences(references) {
+    var style = _settings.arabicStyle || 'uthmani';
+    var imlaeiData = null;
+    if (style === 'simple') {
+      _imlaeiCacheApi.ensure(function(d) { imlaeiData = d; });
+    }
+    var results = [];
+    for (var i = 0; i < references.length; i++) {
+      var ref = references[i];
+      var surahMeta = _surahList.find(function(s) { return s.number === ref.surah; });
+      if (!surahMeta || ref.ayah > surahMeta.ayahCount) continue;
+
+      var uthmaniData = lookupUthmaniAyah(ref.surah, ref.ayah);
+      if (!uthmaniData) continue;
+
+      var arabicText = uthmaniData.text;
+      if (style === 'simple' && imlaeiData && imlaeiData.raw) {
+        var entry = imlaeiData.raw[ref.surah + ':' + ref.ayah];
+        if (entry && entry.text) arabicText = entry.text;
+      }
+
+      results.push({
+        surah:            ref.surah,
+        ayah:             ref.ayah,
+        surahNameArabic:  surahMeta.nameArabic,
+        surahNameEnglish: surahMeta.nameEnglish,
+        arabicText:       arabicText,
+        translationText:  lookupTranslation(ref.surah, ref.ayah) || ''
+      });
+    }
+    return results;
+  }
+
+  /**
+   * Builds a full ayah data object for insertion from client-side caches.
+   * Returns the same shape that insertAyah() expects.
+   * @param {number} surahNum
+   * @param {number} ayahNum
+   * @param {string} style - "uthmani" or "simple"
+   * @return {Object|null}
+   */
+  function _buildAyahDataForInsert(surahNum, ayahNum, style) {
+    var surahMeta = _surahList.find(function(s) { return s.number === surahNum; });
+    var uthmaniData = lookupUthmaniAyah(surahNum, ayahNum);
+    if (!uthmaniData) return null;
+
+    var simpleText = '';
+    var imlaeiData = null;
+    _imlaeiCacheApi.ensure(function(d) { imlaeiData = d; });
+    if (imlaeiData && imlaeiData.raw) {
+      var entry = imlaeiData.raw[surahNum + ':' + ayahNum];
+      if (entry) simpleText = entry.text || '';
+    }
+
+    var arabicText = (style === 'simple' && simpleText) ? simpleText : uthmaniData.text;
+
+    return {
+      surah: surahNum,
+      ayah: ayahNum,
+      surahNameArabic: surahMeta ? surahMeta.nameArabic : '',
+      surahNameEnglish: surahMeta ? surahMeta.nameEnglish : '',
+      arabicText: arabicText,
+      textUthmani: uthmaniData.text,
+      textSimple: simpleText,
+      translationText: lookupTranslation(surahNum, ayahNum) || ''
+    };
+  }
+
   function renderResults(containerEl, results, type) {
     containerEl.innerHTML = '';
 
@@ -613,34 +690,28 @@
     btn.classList.add('btn-loading');
     var style = _settings.arabicStyle || 'uthmani';
 
+    var ayahData = _buildAyahDataForInsert(surah, ayah, style);
+    if (!ayahData) {
+      btn.disabled = false;
+      btn.classList.remove('btn-loading');
+      return;
+    }
+
+    var fs = window.getFormatState ? window.getFormatState() : {};
     google.script.run
-      .withSuccessHandler(function(ayahData) {
-        if (!ayahData) {
-          btn.disabled = false;
-          btn.classList.remove('btn-loading');
-          return;
-        }
-        var fs = window.getFormatState ? window.getFormatState() : {};
-        google.script.run
-          .withSuccessHandler(function(result) {
-            btn.disabled = false;
-            btn.classList.remove('btn-loading');
-            if (result && !result.success) {
-              console.warn('Insert warning:', result.message);
-            }
-          })
-          .withFailureHandler(function(err) {
-            btn.disabled = false;
-            btn.classList.remove('btn-loading');
-            console.error('Insert failed:', err);
-          })
-          .insertAyah(ayahData, fs, _settings);
-      })
-      .withFailureHandler(function() {
+      .withSuccessHandler(function(result) {
         btn.disabled = false;
         btn.classList.remove('btn-loading');
+        if (result && !result.success) {
+          console.warn('Insert warning:', result.message);
+        }
       })
-      .getAyahForInsert(surah, ayah, style);
+      .withFailureHandler(function(err) {
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+        console.error('Insert failed:', err);
+      })
+      .insertAyah(ayahData, fs, _settings);
   }
 
   function handleRangeInsertClick(btn) {
@@ -1061,6 +1132,23 @@
 
       // Non-clarify response breaks the conversation chain
       _conversationMessages = [];
+
+      // References type: resolve against client-side caches
+      if (response.type === 'references') {
+        var refs = response.references || [];
+        var resolved = _buildResultsFromReferences(refs);
+        if (!resolved.length) {
+          emptyEl.textContent = 'No verified results found. Try a different query.';
+          emptyEl.classList.remove('hidden');
+          return;
+        }
+        var isConsecutiveRange = refs.length > 1
+          && refs[0].surah === refs[refs.length - 1].surah
+          && refs[refs.length - 1].ayah - refs[0].ayah === refs.length - 1;
+        var renderType = isConsecutiveRange ? 'range' : 'search';
+        renderResults(resultsEl, resolved, renderType);
+        return;
+      }
 
       var results = response.results || [];
       if (response.message && results.length === 0) {

@@ -180,9 +180,7 @@ function performAISearch(messages) {
   var response;
   switch (classified.action) {
     case 'fetch_ayah':
-      var ayahStart = classified.ayahStart || classified.ayah;
-      var ayahEnd = classified.ayahEnd || classified.ayah || ayahStart;
-      response = insertDirectAyah(classified.surah, ayahStart, ayahEnd);
+      response = _handleFetchAyahAsReferences(classified);
       break;
     case 'search':
       response = _handleSearchRouting(classified);
@@ -225,13 +223,12 @@ function _handleSearchRouting(classified) {
 }
 
 /**
- * Handles English/semantic search: validates Claude's references against quranapi.
+ * Handles English/semantic search: returns Claude's validated references for
+ * client-side resolution against in-memory caches.
  * @param {Object} classified - { query, references: [{surah, ayah}] }
- * @return {Object} Unified result object
+ * @return {Object} { type: 'references', references: [{surah, ayah}] } or error
  */
 function _handleEnglishSearch(classified) {
-  var settings = getSettings();
-  var style = settings.arabicStyle || 'uthmani';
   var refs = classified.references;
 
   if (!refs || !Array.isArray(refs) || !refs.length) {
@@ -251,12 +248,35 @@ function _handleEnglishSearch(classified) {
     return { type: 'error', error: 'No valid results found. Try a different query.' };
   }
 
-  var validated = _validateAndFetchReferences(validRefs, style);
-  if (!validated.length) {
-    return { type: 'error', error: 'No verified results found. Try a different query.' };
+  return { type: 'references', references: validRefs };
+}
+
+/**
+ * Converts a fetch_ayah classification into raw references for client-side resolution.
+ * @param {Object} classified - { surah, ayah?, ayahStart?, ayahEnd? }
+ * @return {Object} { type: 'references', references: [{surah, ayah}] } or error
+ */
+function _handleFetchAyahAsReferences(classified) {
+  var ayahStart = parseInt(classified.ayahStart || classified.ayah, 10);
+  var ayahEnd = parseInt(classified.ayahEnd || classified.ayah || ayahStart, 10);
+  var s = parseInt(classified.surah, 10);
+
+  if (!s || s < 1 || s > 114) {
+    return { type: 'error', error: 'Invalid surah number. Must be 1\u2013114.' };
+  }
+  if (!ayahStart || ayahStart < 1) {
+    return { type: 'error', error: 'Invalid ayah number.' };
+  }
+  if (ayahEnd < ayahStart) ayahEnd = ayahStart;
+  if (ayahEnd - ayahStart + 1 > DIRECT_AYAH_RANGE_CAP) {
+    return { type: 'error', error: 'Range too large. Maximum ' + DIRECT_AYAH_RANGE_CAP + ' ayahs at once.' };
   }
 
-  return { type: 'search', results: validated };
+  var refs = [];
+  for (var i = ayahStart; i <= ayahEnd; i++) {
+    refs.push({ surah: s, ayah: i });
+  }
+  return { type: 'references', references: refs };
 }
 
 /**

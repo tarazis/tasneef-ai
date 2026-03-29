@@ -244,36 +244,86 @@ function runClaudeAPITests() {
     expect(r.matchEnd != null).toBe(true);
   });
 
-  // ── _handleEnglishSearch (integration) ─────────────────────────────────────
+  // ── _handleEnglishSearch (unit — returns raw references) ──────────────────
 
   results.push('\n_handleEnglishSearch()');
 
-  it('validates good references for English search', function () {
+  it('returns references type with valid surah/ayah pairs', function () {
     var classified = {
       query: 'patience',
       language: 'english',
       references: [{ surah: 1, ayah: 1 }, { surah: 2, ayah: 255 }]
     };
     var result = _handleEnglishSearch(classified);
-    expect(result.type).toBe('search');
-    expect(result.results.length).toBe(2);
-    expect(result.results[0].arabicText).toBeTruthy();
+    expect(result.type).toBe('references');
+    expect(result.references.length).toBe(2);
+    expect(result.references[0].surah).toBe(1);
+    expect(result.references[0].ayah).toBe(1);
+    expect(result.references[1].surah).toBe(2);
+    expect(result.references[1].ayah).toBe(255);
   });
 
-  it('discards hallucinated references', function () {
+  it('discards references with invalid surah (> 114)', function () {
     var classified = {
       query: 'test',
       language: 'english',
       references: [{ surah: 1, ayah: 1 }, { surah: 999, ayah: 1 }]
     };
     var result = _handleEnglishSearch(classified);
-    expect(result.type).toBe('search');
-    expect(result.results.length).toBe(1);
+    expect(result.type).toBe('references');
+    expect(result.references.length).toBe(1);
+    expect(result.references[0].surah).toBe(1);
   });
 
   it('returns error when no references provided for English search', function () {
     var result = _handleEnglishSearch({ query: 'patience', language: 'english' });
     expect(result.type).toBe('error');
+  });
+
+  it('caps references at AI_MAX_REFERENCES', function () {
+    var refs = [];
+    for (var r = 0; r < 15; r++) { refs.push({ surah: 1, ayah: r + 1 }); }
+    var classified = { query: 'test', language: 'english', references: refs };
+    var result = _handleEnglishSearch(classified);
+    expect(result.type).toBe('references');
+    expect(result.references.length).toBe(AI_MAX_REFERENCES);
+  });
+
+  // ── _handleFetchAyahAsReferences (unit) ───────────────────────────────────
+
+  results.push('\n_handleFetchAyahAsReferences()');
+
+  it('returns single reference for fetch_ayah', function () {
+    var result = _handleFetchAyahAsReferences({ surah: 2, ayah: 255 });
+    expect(result.type).toBe('references');
+    expect(result.references.length).toBe(1);
+    expect(result.references[0].surah).toBe(2);
+    expect(result.references[0].ayah).toBe(255);
+  });
+
+  it('returns range of references for ayahStart/ayahEnd', function () {
+    var result = _handleFetchAyahAsReferences({ surah: 3, ayahStart: 190, ayahEnd: 194 });
+    expect(result.type).toBe('references');
+    expect(result.references.length).toBe(5);
+    expect(result.references[0].ayah).toBe(190);
+    expect(result.references[4].ayah).toBe(194);
+  });
+
+  it('returns error for invalid surah (0)', function () {
+    var result = _handleFetchAyahAsReferences({ surah: 0, ayah: 1 });
+    expect(result.type).toBe('error');
+  });
+
+  it('returns error for range exceeding cap', function () {
+    var result = _handleFetchAyahAsReferences({ surah: 2, ayahStart: 1, ayahEnd: 50 });
+    expect(result.type).toBe('error');
+  });
+
+  it('defaults ayahEnd to ayahStart when not provided', function () {
+    var result = _handleFetchAyahAsReferences({ surah: 1, ayah: 5 });
+    expect(result.type).toBe('references');
+    expect(result.references.length).toBe(1);
+    expect(result.references[0].ayah).toBe(5);
   });
 
   // ── performAISearch (integration) ──────────────────────────────────────────
@@ -326,18 +376,20 @@ function runClaudeAPITests() {
   // Full integration tests — only run if API key is present
   var apiKey = getClaudeApiKey();
   if (apiKey) {
-    it('performAISearch("show me ayat al kursi") returns results (live API)', function () {
+    it('performAISearch("show me ayat al kursi") returns references (live API)', function () {
       var result = performAISearch([{ role: 'user', content: 'show me ayat al kursi' }]);
       if (result.type === 'error') throw new Error('Got error: ' + result.error);
-      expect(result.results.length).toBeGreaterThan(0);
-      expect(result.results[0].arabicText).toBeTruthy();
+      expect(result.type).toBe('references');
+      expect(result.references.length).toBeGreaterThan(0);
+      expect(result.references[0].surah).toBeGreaterThan(0);
       expect(result.rawResponse).toBeTruthy();
     });
 
-    it('performAISearch("verses about patience") returns search results (live API)', function () {
+    it('performAISearch("verses about patience") returns references (live API)', function () {
       var result = performAISearch([{ role: 'user', content: 'verses about patience' }]);
       if (result.type === 'error') throw new Error('Got error: ' + result.error);
-      expect(result.results.length).toBeGreaterThan(0);
+      expect(result.type).toBe('references');
+      expect(result.references.length).toBeGreaterThan(0);
     });
 
     it('handles conversation context for clarification (live API)', function () {
@@ -349,29 +401,33 @@ function runClaudeAPITests() {
       var result = performAISearch(messages);
       if (result.type === 'clarify') return; // acceptable if Claude still needs more info
       if (result.type === 'error') throw new Error('Got error: ' + result.error);
-      expect(result.results.length).toBeGreaterThan(0);
+      expect(result.type).toBe('references');
+      expect(result.references.length).toBeGreaterThan(0);
     });
 
-    it('performAISearch("show me Al-Imran 190 to 194") returns range results (live API)', function () {
+    it('performAISearch("show me Al-Imran 190 to 194") returns references (live API)', function () {
       var result = performAISearch([{ role: 'user', content: 'show me Al-Imran 190 to 194' }]);
       if (result.type === 'clarify') return; // acceptable
       if (result.type === 'error') throw new Error('Got error: ' + result.error);
-      expect(result.results.length).toBeGreaterThan(0);
-      expect(result.results[0].surah).toBe(3);
+      expect(result.type).toBe('references');
+      expect(result.references.length).toBeGreaterThan(0);
+      expect(result.references[0].surah).toBe(3);
     });
 
-    it('performAISearch("give me the last 3 ayahs of surah Al-Baqarah") returns results (live API)', function () {
+    it('performAISearch("give me the last 3 ayahs of surah Al-Baqarah") returns references (live API)', function () {
       var result = performAISearch([{ role: 'user', content: 'give me the last 3 ayahs of surah Al-Baqarah' }]);
       if (result.type === 'clarify') return; // acceptable
       if (result.type === 'error') throw new Error('Got error: ' + result.error);
-      expect(result.results.length).toBeGreaterThan(0);
-      expect(result.results[0].surah).toBe(2);
+      expect(result.type).toBe('references');
+      expect(result.references.length).toBeGreaterThan(0);
+      expect(result.references[0].surah).toBe(2);
     });
 
     it('processUnifiedQuery delegates to performAISearch (live API)', function () {
       var result = processUnifiedQuery([{ role: 'user', content: 'show me ayat al kursi' }]);
       if (result.type === 'error') throw new Error('Got error: ' + result.error);
-      expect(result.results.length).toBeGreaterThan(0);
+      expect(result.type).toBe('references');
+      expect(result.references.length).toBeGreaterThan(0);
       expect(result.rawResponse).toBeTruthy();
     });
   } else {
