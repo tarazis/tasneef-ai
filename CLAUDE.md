@@ -10,28 +10,25 @@ A Google Docs sidebar add-on for Islamic scholars to search and insert Quranic a
 
 ## Data Architecture (Critical)
 
-### Arabic text — GitHub Pages (loaded once into client memory per session)
+### Arabic text + English translation — GitHub Pages (loaded once into client memory per session)
 ```
-UTHMANI:     https://tarazis.github.io/tasneef-data/quran/uthmani.json
-SIMPLE:      https://tarazis.github.io/tasneef-data/quran/imlaei-simple.json
-SURAH META:  https://tarazis.github.io/tasneef-data/quran/quran-metadata-surah-name.json
-FONTS:       https://tarazis.github.io/tasneef-data/fonts.json
+UTHMANI:      https://tarazis.github.io/tasneef-data/quran/uthmani.json
+SIMPLE:       https://tarazis.github.io/tasneef-data/quran/imlaei-simple.json
+SURAH META:   https://tarazis.github.io/tasneef-data/quran/quran-metadata-surah-name.json
+TRANSLATION:  https://tarazis.github.io/tasneef-data/quran/en-sahih-international-simple.json
+FONTS:        https://tarazis.github.io/tasneef-data/fonts.json
 ```
 - INSPECT the actual JSON structure before writing code against it
-
-### English translations — quranapi.pages.dev (fetched on demand per ayah)
-- Docs: https://quranapi.pages.dev/introduction
-- Used by: Browse preview, Search insert, AI Search results
-- This API has NO text search endpoint — do not attempt to search with it
+- Translation JSON is a flat object keyed by `"surah:ayah"` with `{t: "text"}` values
 
 ### Claude API — semantic search only
 - Model: claude-sonnet-4-20250514, temperature: 0
 - Claude returns surah/ayah references as JSON — NEVER Quranic text
-- Every reference from Claude MUST be validated against local or api data before display
+- Every reference from Claude MUST be validated against local data before display
 - API key stored in User Properties
 
 ## Hard Rules
-1. **All Quranic Arabic text and English Translations comes from GitHub Pages JSON or quranapi.pages.dev. Never from Claude. Never generated.**
+1. **All Quranic Arabic text and English translations come from GitHub Pages JSON. Never from Claude. Never generated.**
 3. **Claude is a reference finder only.** It returns {surah, ayah} pairs. We look up the real text ourselves.
 5. **Arabic search must normalize.** Strip tashkeel/diacritics for comparison. Normalize alef variants.
 6. **Font fallback is Amiri.** If selected font fails, use Amiri and show a toast.

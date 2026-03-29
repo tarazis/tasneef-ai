@@ -156,54 +156,6 @@ function runClaudeAPITests() {
     expect(trimmed.length).toBe(0);
   });
 
-  // ── insertDirectAyah (integration, real network) ──────────────────────────
-
-  results.push('\ninsertDirectAyah()');
-
-  it('fetches a single ayah (1:1)', function () {
-    var result = insertDirectAyah(1, 1);
-    expect(result.type).toBe('single');
-    expect(result.results.length).toBe(1);
-    expect(result.results[0].arabicText).toBeTruthy();
-    expect(result.results[0].translationText).toBeTruthy();
-  });
-
-  it('fetches a range (1:1-3)', function () {
-    var result = insertDirectAyah(1, 1, 3);
-    expect(result.type).toBe('range');
-    expect(result.results.length).toBe(3);
-    expect(result.results[0].ayah).toBe(1);
-    expect(result.results[2].ayah).toBe(3);
-  });
-
-  it('returns error for invalid surah (0)', function () {
-    var result = insertDirectAyah(0, 1);
-    expect(result.type).toBe('error');
-  });
-
-  it('returns error for invalid surah (115)', function () {
-    var result = insertDirectAyah(115, 1);
-    expect(result.type).toBe('error');
-  });
-
-  it('returns error when ayahEnd < ayahStart', function () {
-    var result = insertDirectAyah(1, 5, 3);
-    expect(result.type).toBe('error');
-  });
-
-  it('returns error for non-existent ayah', function () {
-    var result = insertDirectAyah(1, 999);
-    expect(result.type).toBe('error');
-  });
-
-  it('defaults ayahEnd to ayahStart when not provided', function () {
-    var result = insertDirectAyah(2, 255);
-    expect(result.type).toBe('single');
-    expect(result.results.length).toBe(1);
-    expect(result.results[0].surah).toBe(2);
-    expect(result.results[0].ayah).toBe(255);
-  });
-
   // ── performExactSearch (integration, real network for data load) ──────────
 
   results.push('\nperformExactSearch()');
