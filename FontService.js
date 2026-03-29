@@ -6,7 +6,7 @@
 
 var FALLBACK_FONT = 'Amiri';
 
-var FONTS_JSON_URL = 'https://tarazis97.github.io/tasneef-data/fonts.json';
+var FONTS_JSON_URL = 'https://tarazis.github.io/tasneef-data/fonts.json';
 var CACHE_KEY_FONTS = 'arabic_fonts';
 var CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 hours
 

@@ -5,9 +5,9 @@
  * Provides lookup and in-memory search.
  */
 
-var UTHMANI_JSON_URL = 'https://tarazis97.github.io/tasneef-data/quran/uthmani.json';
-var IMLAEI_JSON_URL = 'https://tarazis97.github.io/tasneef-data/quran/imlaei-simple.json';
-var SURAHS_META_JSON_URL = 'https://tarazis97.github.io/tasneef-data/quran/quran-metadata-surah-name.json';
+var UTHMANI_JSON_URL = 'https://tarazis.github.io/tasneef-data/quran/uthmani.json';
+var IMLAEI_JSON_URL = 'https://tarazis.github.io/tasneef-data/quran/imlaei-simple.json';
+var SURAHS_META_JSON_URL = 'https://tarazis.github.io/tasneef-data/quran/quran-metadata-surah-name.json';
 
 var CACHE_TTL_SECONDS = 6 * 60 * 60; // 6 hours
 var CACHE_KEY_SURAHS = 'quran_surahs';

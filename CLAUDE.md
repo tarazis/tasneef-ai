@@ -12,10 +12,10 @@ A Google Docs sidebar add-on for Islamic scholars to search and insert Quranic a
 
 ### Arabic text — GitHub Pages (loaded once into client memory per session)
 ```
-UTHMANI:     https://tarazis97.github.io/tasneef-data/quran/uthmani.json
-SIMPLE:      https://tarazis97.github.io/tasneef-data/quran/imlaei-simple.json
-SURAH META:  https://tarazis97.github.io/tasneef-data/quran/quran-metadata-surah-name.json
-FONTS:       https://tarazis97.github.io/tasneef-data/fonts.json
+UTHMANI:     https://tarazis.github.io/tasneef-data/quran/uthmani.json
+SIMPLE:      https://tarazis.github.io/tasneef-data/quran/imlaei-simple.json
+SURAH META:  https://tarazis.github.io/tasneef-data/quran/quran-metadata-surah-name.json
+FONTS:       https://tarazis.github.io/tasneef-data/fonts.json
 ```
 - INSPECT the actual JSON structure before writing code against it
 
