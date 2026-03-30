@@ -4,6 +4,38 @@
  */
 
 /**
+ * Body child index where the trailing empty Normal paragraph should be inserted,
+ * immediately after a block that starts at insertIndex with insertedParagraphCount paragraphs.
+ * @param {number} insertIndex
+ * @param {number} insertedParagraphCount
+ * @return {number}
+ */
+function trailingNormalParagraphInsertIndex(insertIndex, insertedParagraphCount) {
+  return insertIndex + insertedParagraphCount;
+}
+
+/**
+ * Inserts an empty Normal-text paragraph below the ayah block and moves the cursor there.
+ * @param {GoogleAppsScript.Document.Body} body
+ * @param {number} insertIndex - body index of the first ayah paragraph inserted
+ * @param {number} insertedParagraphCount - number of ayah paragraphs just inserted
+ */
+function _finishInsertWithNormalLineBelow(body, insertIndex, insertedParagraphCount) {
+  var doc = DocumentApp.getActiveDocument();
+  var nextIdx = trailingNormalParagraphInsertIndex(insertIndex, insertedParagraphCount);
+  var p = body.insertParagraph(nextIdx, '');
+  p.setHeading(DocumentApp.ParagraphHeading.NORMAL);
+  p.setAlignment(DocumentApp.HorizontalAlignment.LEFT);
+  p.setLeftToRight(true);
+  try {
+    var t = p.editAsText();
+    doc.setCursor(doc.newPosition(t, 0));
+  } catch (e) {
+    // Cursor may fail in edge cases; ayah insert still succeeded.
+  }
+}
+
+/**
  * Inserts an ayah into the document at the cursor position.
  * @param {Object} ayahData - { surah, ayah, surahNameArabic, surahNameEnglish, textUthmani, textSimple, translationText }
  * @param {Object} formatState - { fontName, fontSize, bold, textColor }
@@ -67,6 +99,8 @@ function insertAyah(ayahData, formatState, settings) {
     if (paragraphsToInsert[i].rtl) p.setLeftToRight(false);
     fontWarning = applyFormat(p.editAsText(), formatState) || fontWarning;
   }
+
+  _finishInsertWithNormalLineBelow(body, insertIndex, paragraphsToInsert.length);
 
   var message = fontWarning ? 'Ayah inserted. ' + fontWarning : 'Ayah inserted.';
   return { success: true, message: message };
@@ -139,6 +173,8 @@ function insertAyahRange(rangeData, formatState, settings) {
     if (paragraphsToInsert[i].rtl) p.setLeftToRight(false);
     fontWarning = applyFormat(p.editAsText(), formatState) || fontWarning;
   }
+
+  _finishInsertWithNormalLineBelow(body, insertIndex, paragraphsToInsert.length);
 
   return { success: true, message: fontWarning ? 'Range inserted. ' + fontWarning : 'Range inserted.' };
 }
