@@ -2,88 +2,7 @@
 (function() {
   'use strict';
 
-  var saveDebounceTimer = null;
-
-  var _refreshDirectInsert = null;   // set by initDirectInsertTab, called by initFormatBar
-
-  // ─── Format Bar ──────────────────────────────────────────────────────────────
-
-  function debouncedSave() {
-    if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
-    saveDebounceTimer = setTimeout(function() {
-      google.script.run
-        .withFailureHandler(function(err) { console.error('Save settings failed:', err); })
-        .saveSettings({
-          fontName: formatState.fontName,
-          fontSize: formatState.fontSize,
-          bold: formatState.bold,
-          textColor: formatState.textColor
-        });
-      saveDebounceTimer = null;
-    }, SAVE_DEBOUNCE_MS);
-  }
-
-  function applyFormatStateToUI() {
-    var fontSelect = document.getElementById('font-select');
-    var sizeSelect = document.getElementById('size-select');
-    var boldBtn = document.getElementById('btn-bold');
-    var colorPicker = document.getElementById('color-picker');
-    var colorTrigger = document.getElementById('color-trigger');
-    if (fontSelect) fontSelect.value = formatState.fontName;
-    if (sizeSelect) {
-      var sizeVal = String(formatState.fontSize);
-      if (sizeSelect.querySelector('option[value="' + sizeVal + '"]')) {
-        sizeSelect.value = sizeVal;
-      } else {
-        sizeSelect.value = '18';
-      }
-    }
-    if (boldBtn) boldBtn.classList.toggle('active', formatState.bold);
-    if (colorPicker) colorPicker.value = formatState.textColor;
-    if (colorTrigger) colorTrigger.style.backgroundColor = formatState.textColor;
-  }
-
-  function initFormatBar() {
-    var fontSelect = document.getElementById('font-select');
-    var sizeSelect = document.getElementById('size-select');
-    var boldBtn = document.getElementById('btn-bold');
-    var colorTrigger = document.getElementById('color-trigger');
-    var colorPicker = document.getElementById('color-picker');
-
-    if (fontSelect) {
-      fontSelect.addEventListener('change', function() {
-        formatState.fontName = fontSelect.value;
-        debouncedSave();
-        if (_activeTab === 'direct-insert' && _refreshDirectInsert) _refreshDirectInsert();
-      });
-    }
-    if (sizeSelect) {
-      sizeSelect.addEventListener('change', function() {
-        formatState.fontSize = parseInt(sizeSelect.value, 10) || 18;
-        debouncedSave();
-        if (_activeTab === 'direct-insert' && _refreshDirectInsert) _refreshDirectInsert();
-      });
-    }
-    if (boldBtn) {
-      boldBtn.addEventListener('click', function() {
-        formatState.bold = !formatState.bold;
-        boldBtn.classList.toggle('active', formatState.bold);
-        debouncedSave();
-        if (_activeTab === 'direct-insert' && _refreshDirectInsert) _refreshDirectInsert();
-      });
-    }
-    if (colorTrigger && colorPicker) {
-      colorTrigger.addEventListener('click', function() { colorPicker.click(); });
-      function onColorChange() {
-        formatState.textColor = colorPicker.value;
-        colorTrigger.style.backgroundColor = colorPicker.value;
-        debouncedSave();
-        if (_activeTab === 'direct-insert' && _refreshDirectInsert) _refreshDirectInsert();
-      }
-      colorPicker.addEventListener('input', onColorChange);
-      colorPicker.addEventListener('change', onColorChange);
-    }
-  }
+  window._refreshDirectInsert = null;  // set by initDirectInsertTab, read by format-bar.html
 
   // ─── Settings ────────────────────────────────────────────────────────────────
 
@@ -220,7 +139,7 @@
 
   // ─── Tab Navigation ──────────────────────────────────────────────────────────
 
-  var _activeTab = 'direct-insert';
+  window._activeTab = 'direct-insert';
 
   function initTabNav() {
     var tabBtns = document.querySelectorAll('.tab-btn');
@@ -233,7 +152,7 @@
   }
 
   function switchTab(tabId) {
-    _activeTab = tabId;
+    window._activeTab = tabId;
 
     var tabBtns = document.querySelectorAll('.tab-btn');
     tabBtns.forEach(function(btn) {
@@ -255,7 +174,7 @@
   }
 
   function clearActiveTab() {
-    switch (_activeTab) {
+    switch (window._activeTab) {
       case 'direct-insert':
         clearDirectInsert();
         break;
@@ -407,7 +326,7 @@
       autoRenderPreview();
     });
 
-    _refreshDirectInsert = autoRenderPreview;
+    window._refreshDirectInsert = autoRenderPreview;
 
     if (resultsEl) resultsEl.addEventListener('click', onInsertClick);
   }
