@@ -13,7 +13,7 @@ const vm = require('vm');
 const NORMALIZE_SRC = fs.readFileSync(
   path.join(__dirname, '..', 'client', 'normalizeArabic.html'),
   'utf8'
-);
+).replace(/<script[^>]*>/gi, '').replace(/<\/script>/gi, '');
 
 function loadModule() {
   const sandbox = { console };

@@ -1,7 +1,7 @@
+<script>
 /**
  * Client-side Arabic normalization utilities.
  * Exact port of the server-side functions in NormalizeArabic.js.
- * Intended to be included once inside a <script> block (see sidebar/sidebar.html).
  */
 
 var TASHKEEL_RANGES = [
@@ -83,3 +83,4 @@ function _mapNormalizedToOriginal(original, normStart, normLen) {
   if (origEnd < 0) origEnd = original.length;
   return { start: origStart, end: origEnd };
 }
+</script>

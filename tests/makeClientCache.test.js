@@ -13,7 +13,7 @@ const vm = require('vm');
 const CACHE_SRC = fs.readFileSync(
   path.join(__dirname, '..', 'client', 'makeClientCache.html'),
   'utf8'
-);
+).replace(/<script[^>]*>/gi, '').replace(/<\/script>/gi, '');
 
 function mockStatusElement() {
   return {
