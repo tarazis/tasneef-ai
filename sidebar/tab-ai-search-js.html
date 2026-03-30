@@ -1,0 +1,157 @@
+<script>
+// Depends on globals: makeSkeleton, renderPreview, onInsertClick (render-helpers.html),
+//   searchImlaeiClient, _buildResultsFromReferences (search-utils.html),
+//   isConsecutiveRange (card-builder.html),
+//   pagClear, pagReset, pagRenderPage (pagination.html),
+//   window.setupTextarea (sidebar-js.html IIFE)
+
+var _conversationMessages = [];
+
+function initAISearchTab() {
+  var queryEl = document.getElementById('ai-search-query');
+  var btnSend = document.getElementById('btn-ai-search');
+  var resultsEl = document.getElementById('ai-search-results');
+  var clarifyEl = document.getElementById('ai-search-clarify');
+  var emptyEl = document.getElementById('ai-search-empty');
+  var noKeyEl = document.getElementById('ai-no-key');
+
+  function setEnabled(enabled) {
+    if (btnSend) btnSend.disabled = !enabled;
+    if (queryEl) queryEl.disabled = !enabled;
+  }
+
+  function clearAIResults() {
+    pagClear('ai-search');
+    resultsEl.innerHTML = '';
+    clarifyEl.classList.add('hidden');
+    clarifyEl.textContent = '';
+    emptyEl.classList.add('hidden');
+    emptyEl.textContent = '';
+    if (noKeyEl) noKeyEl.classList.add('hidden');
+  }
+
+  function getLastMessages(limit) {
+    if (_conversationMessages.length <= limit) return _conversationMessages.slice();
+    return _conversationMessages.slice(_conversationMessages.length - limit);
+  }
+
+  function doAISearch() {
+    var query = queryEl ? queryEl.value.trim() : '';
+    if (!query) return;
+
+    queryEl.value = '';
+    queryEl.style.height = 'auto';
+
+    _conversationMessages.push({ role: 'user', content: query });
+
+    clearAIResults();
+    resultsEl.innerHTML = makeSkeleton(3);
+    setEnabled(false);
+
+    var messagesToSend = getLastMessages(3);
+
+    google.script.run
+      .withSuccessHandler(function(response) {
+        resultsEl.innerHTML = '';
+        setEnabled(true);
+
+        if (response && response.rawResponse) {
+          _conversationMessages.push({ role: 'assistant', content: response.rawResponse });
+        }
+
+        handleAIResponse(response);
+      })
+      .withFailureHandler(function() {
+        resultsEl.innerHTML = '';
+        setEnabled(true);
+        _conversationMessages.pop();
+        emptyEl.textContent = 'Something went wrong. Please try again.';
+        emptyEl.classList.remove('hidden');
+      })
+      .performAISearch(messagesToSend);
+  }
+
+  function handleAIResponse(response) {
+    if (!response) {
+      emptyEl.textContent = 'No response received. Please try again.';
+      emptyEl.classList.remove('hidden');
+      return;
+    }
+
+    if (response.type === 'error') {
+      if (response.error === 'NO_API_KEY') {
+        if (noKeyEl) noKeyEl.classList.remove('hidden');
+        return;
+      }
+      emptyEl.textContent = response.error;
+      emptyEl.classList.remove('hidden');
+      return;
+    }
+
+    if (response.type === 'clarify') {
+      clarifyEl.textContent = response.message || 'Could you be more specific?';
+      clarifyEl.classList.remove('hidden');
+      if (queryEl) queryEl.focus();
+      return;
+    }
+
+    // Non-clarify response breaks the conversation chain
+    _conversationMessages = [];
+
+    // Arabic corpus search: run client-side against imlaei cache, show paginated results
+    if (response.type === 'arabic_search') {
+      var searchResults = searchImlaeiClient(response.query);
+      if (!searchResults.length) {
+        emptyEl.textContent = 'No exact matches found for that text.';
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      pagReset('ai-search', searchResults);
+      pagRenderPage('ai-search', resultsEl, emptyEl, 'No exact matches found for that text.');
+      return;
+    }
+
+    // References type: resolve against client-side caches
+    // Consecutive range in one surah → preview mode (one card)
+    // Non-consecutive or multi-surah → paginated search results mode
+    if (response.type === 'references') {
+      var refs = response.references || [];
+      var resolved = _buildResultsFromReferences(refs);
+      if (!resolved.length) {
+        emptyEl.textContent = 'No verified results found. Try a different query.';
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      if (isConsecutiveRange(resolved)) {
+        renderPreview(resultsEl, resolved);
+      } else {
+        pagReset('ai-search', resolved);
+        pagRenderPage('ai-search', resultsEl, emptyEl, 'No verified results found. Try a different query.');
+      }
+      return;
+    }
+
+    emptyEl.textContent = 'Unexpected response. Please try again.';
+    emptyEl.classList.remove('hidden');
+  }
+
+  window.setupTextarea(queryEl, doAISearch);
+  if (btnSend) btnSend.addEventListener('click', doAISearch);
+  if (resultsEl) resultsEl.addEventListener('click', onInsertClick);
+}
+
+function clearAISearch() {
+  _conversationMessages = [];
+  pagClear('ai-search');
+  var queryEl = document.getElementById('ai-search-query');
+  var resultsEl = document.getElementById('ai-search-results');
+  var clarifyEl = document.getElementById('ai-search-clarify');
+  var emptyEl = document.getElementById('ai-search-empty');
+  var noKeyEl = document.getElementById('ai-no-key');
+  if (queryEl) { queryEl.value = ''; queryEl.style.height = 'auto'; queryEl.focus(); }
+  if (resultsEl) resultsEl.innerHTML = '';
+  if (clarifyEl) { clarifyEl.classList.add('hidden'); clarifyEl.textContent = ''; }
+  if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
+  if (noKeyEl) noKeyEl.classList.add('hidden');
+}
+</script>

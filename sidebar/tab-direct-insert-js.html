@@ -1,0 +1,147 @@
+<script>
+// Depends on globals: _surahList, MAX_RESULTS (shared-state.html),
+//   ensureSurahMetaCache, lookupUthmaniAyah, lookupTranslation (quran-caches.html),
+//   renderPreview, onInsertClick (render-helpers.html)
+// Sets window._refreshDirectInsert (read by format-bar.html)
+
+function initDirectInsertTab() {
+  var surahSelect = document.getElementById('surah-select');
+  var ayahStart = document.getElementById('ayah-start');
+  var ayahEnd = document.getElementById('ayah-end');
+  var resultsEl = document.getElementById('direct-insert-results');
+  var emptyEl = document.getElementById('direct-insert-empty');
+
+  // Load surah list from client-side cache (tarazis.github.io)
+  ensureSurahMetaCache(function(list) {
+    _surahList = list || [];
+    surahSelect.innerHTML = '';
+    var placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Select a Surah\u2026';
+    surahSelect.appendChild(placeholder);
+    _surahList.forEach(function(s) {
+      var opt = document.createElement('option');
+      opt.value = s.number;
+      opt.textContent = s.number + '. ' + s.nameEnglish + ' - ' + s.nameArabic;
+      surahSelect.appendChild(opt);
+    });
+  }, function() {
+    surahSelect.innerHTML = '<option value="">Failed to load</option>';
+  });
+
+  function populateAyahSelect(selectEl, from, to, placeholder) {
+    selectEl.innerHTML = '';
+    var ph = document.createElement('option');
+    ph.value = '';
+    ph.textContent = placeholder;
+    selectEl.appendChild(ph);
+    for (var i = from; i <= to; i++) {
+      var opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = i;
+      selectEl.appendChild(opt);
+    }
+    selectEl.disabled = false;
+  }
+
+  function resetAyahSelects() {
+    ayahStart.innerHTML = '<option value="">From</option>';
+    ayahEnd.innerHTML = '<option value="">To</option>';
+    ayahStart.disabled = true;
+    ayahEnd.disabled = true;
+  }
+
+  function autoRenderPreview() {
+    var surahNum = parseInt(surahSelect.value, 10);
+    var startNum = parseInt(ayahStart.value, 10);
+    var endNum   = ayahEnd.value ? parseInt(ayahEnd.value, 10) : null;
+
+    resultsEl.innerHTML = '';
+    emptyEl.classList.add('hidden');
+
+    if (!surahNum || !startNum) return;
+
+    var end = endNum || startNum;
+    var rangeSize = end - startNum + 1;
+
+    if (rangeSize > MAX_RESULTS) {
+      emptyEl.textContent = 'Range too large. Maximum is ' + MAX_RESULTS + ' ayahs.';
+      emptyEl.classList.remove('hidden');
+      return;
+    }
+
+    var surahMeta = _surahList.find(function(s) { return s.number === surahNum; });
+    var nameArabic  = surahMeta ? surahMeta.nameArabic  : '';
+    var nameEnglish = surahMeta ? surahMeta.nameEnglish : '';
+
+    var results = [];
+    for (var i = startNum; i <= end; i++) {
+      var ayahData = lookupUthmaniAyah(surahNum, i);
+      if (!ayahData) {
+        emptyEl.textContent = 'Arabic text still loading\u2026';
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      results.push({
+        surah:            ayahData.surah,
+        ayah:             ayahData.ayah,
+        surahNameArabic:  nameArabic,
+        surahNameEnglish: nameEnglish,
+        arabicText:       ayahData.text,
+        translationText:  lookupTranslation(surahNum, i) || ''
+      });
+    }
+
+    renderPreview(resultsEl, results);
+  }
+
+  surahSelect.addEventListener('change', function() {
+    var surahNum = parseInt(surahSelect.value, 10);
+    var surah = _surahList.find(function(s) { return s.number === surahNum; });
+    if (!surah) { resetAyahSelects(); resultsEl.innerHTML = ''; emptyEl.classList.add('hidden'); return; }
+    populateAyahSelect(ayahStart, 1, surah.ayahCount, 'From');
+    ayahEnd.innerHTML = '<option value="">To</option>';
+    ayahEnd.disabled = true;
+    autoRenderPreview();
+  });
+
+  ayahStart.addEventListener('change', function() {
+    var surahNum = parseInt(surahSelect.value, 10);
+    var surah = _surahList.find(function(s) { return s.number === surahNum; });
+    var startVal = parseInt(ayahStart.value, 10);
+    if (!surah || !startVal) {
+      ayahEnd.innerHTML = '<option value="">To</option>';
+      ayahEnd.disabled = true;
+      autoRenderPreview();
+      return;
+    }
+    var currentEnd = parseInt(ayahEnd.value, 10);
+    populateAyahSelect(ayahEnd, startVal, surah.ayahCount, 'To');
+    if (currentEnd && currentEnd >= startVal) {
+      ayahEnd.value = String(currentEnd);
+    }
+    autoRenderPreview();
+  });
+
+  ayahEnd.addEventListener('change', function() {
+    autoRenderPreview();
+  });
+
+  window._refreshDirectInsert = autoRenderPreview;
+
+  if (resultsEl) resultsEl.addEventListener('click', onInsertClick);
+}
+
+function clearDirectInsert() {
+  var surahSelect = document.getElementById('surah-select');
+  var ayahStart = document.getElementById('ayah-start');
+  var ayahEnd = document.getElementById('ayah-end');
+  var resultsEl = document.getElementById('direct-insert-results');
+  var emptyEl = document.getElementById('direct-insert-empty');
+  if (surahSelect) surahSelect.value = '';
+  if (ayahStart) { ayahStart.innerHTML = '<option value="">From</option>'; ayahStart.disabled = true; }
+  if (ayahEnd) { ayahEnd.innerHTML = '<option value="">To</option>'; ayahEnd.disabled = true; }
+  if (resultsEl) resultsEl.innerHTML = '';
+  if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
+}
+</script>
