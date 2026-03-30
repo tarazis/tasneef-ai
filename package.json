@@ -2,8 +2,9 @@
   "name": "tasneef-ai",
   "private": true,
   "scripts": {
-    "test": "npm run test:client && npm run test:normalize",
+    "test": "npm run test:client && npm run test:normalize && npm run test:card",
     "test:client": "node tests/makeClientCache.test.js",
-    "test:normalize": "node tests/normalizeArabic.test.js"
+    "test:normalize": "node tests/normalizeArabic.test.js",
+    "test:card": "node tests/buildResultCardHtml.test.js"
   }
 }
