@@ -10,7 +10,6 @@
   };
 
   var _settings = {};
-  var _currentRange = null;
   var saveDebounceTimer = null;
   var SAVE_DEBOUNCE_MS = 500;
 
@@ -158,8 +157,8 @@
 
   // ─── Client-side exact search against imlaei cache ──
 
-  var SEARCH_RESULT_CAP = 50;
-  var EXACT_PAGE_SIZE = 20;
+  var MAX_RESULTS = 50;
+  var PAGE_SIZE = 10;
   var EXACT_DEBOUNCE_MS = 200;
   var EXACT_MIN_CHARS = 2;
 
@@ -186,7 +185,7 @@
     var normalized = data.normalized;
 
     for (var key in normalized) {
-      if (results.length >= SEARCH_RESULT_CAP) break;
+      if (results.length >= MAX_RESULTS) break;
       var matchIdx = normalized[key].indexOf(normalizedQuery);
       if (matchIdx < 0) continue;
 
@@ -507,7 +506,7 @@
    * using in-memory caches (uthmani, imlaei, translation, surah metadata).
    * Acts as a hallucination guard — skips references that don't exist in cached data.
    * @param {Array<{surah: number, ayah: number}>} references
-   * @return {Array<Object>} Result objects matching renderResults() shape
+   * @return {Array<Object>} Result objects suitable for renderPreview() or pagReset()
    */
   function _buildResultsFromReferences(references) {
     var style = _settings.arabicStyle || 'uthmani';
@@ -577,22 +576,94 @@
     };
   }
 
+  // ─── Shared Range Utilities ──────────────────────────────────────────────────
+
+  /**
+   * Returns true if results form a consecutive ayah range within one surah.
+   * Requires length > 1, all same surah, and ayahs form an unbroken +1 sequence.
+   * @param {Array<{surah: number, ayah: number}>} results
+   * @return {boolean}
+   */
+  function isConsecutiveRange(results) {
+    if (!results || results.length < 2) return false;
+    var first = results[0];
+    for (var i = 1; i < results.length; i++) {
+      if (results[i].surah !== first.surah) return false;
+      if (results[i].ayah !== first.ayah + i) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Builds a range data object from an array of consecutive result objects.
+   * Concatenates Arabic text with per-ayah markers for display and insert.
+   * @param {Array<Object>} results - Ordered ayah result objects
+   * @return {Object} Range data: { surah, ayahStart, ayahEnd, surahNameArabic, surahNameEnglish, arabicText, translationText }
+   */
+  function buildRangeData(results) {
+    var first = results[0];
+    var last  = results[results.length - 1];
+    var concatenated = results.map(function(r) {
+      return r.arabicText + ' (' + toArabicIndicClient(r.ayah) + ')';
+    }).join(' ');
+    return {
+      surah:            first.surah,
+      ayahStart:        first.ayah,
+      ayahEnd:          last.ayah,
+      surahNameArabic:  first.surahNameArabic  || '',
+      surahNameEnglish: first.surahNameEnglish || '',
+      arabicText:       concatenated,
+      translationText:  results.map(function(r) { return r.translationText || ''; }).join(' ')
+    };
+  }
+
+  // ─── Shared Card Builder ─────────────────────────────────────────────────────
+
   /**
    * Build the innerHTML for a single .result-card element.
-   * Highlights matched substring when matchStart/matchEnd are present.
-   * @param {{surah, ayah, surahNameArabic, surahNameEnglish, arabicText, matchStart?, matchEnd?}} r
+   * Handles both single-ayah and range cards via cardData.isRange.
+   * Highlights matched substring via matchStart/matchEnd (single cards only).
+   * No translation is ever rendered on a card; it remains in the data for insert-time use.
+   *
+   * Card structure (stable for future per-card translation toggle):
+   *   .ref-arabic | .arabic[.range-block] | .ref-english | button.btn-insert-result
+   *
+   * @param {Object} cardData
+   *   Single: { surah, ayah, surahNameArabic, surahNameEnglish, arabicText, matchStart?, matchEnd? }
+   *   Range:  { surah, ayahStart, ayahEnd, surahNameArabic, surahNameEnglish, arabicText, isRange: true }
    * @param {string} font - CSS font-family name
    * @return {string} innerHTML for the card
    */
-  function _buildResultCardHtml(r, font) {
-    var arabicRef = escapeHtml(r.surahNameArabic || '') + ' ' + toArabicIndicClient(r.ayah);
-    var englishRef = escapeHtml((r.surahNameEnglish || 'Surah') + ' ' + r.surah + ':' + r.ayah);
-    var arabicHtml = escapeHtml(r.arabicText);
+  function buildCardHtml(cardData, font) {
+    var arabicRef, englishRef, arabicHtml;
 
-    if (r.matchStart != null && r.matchEnd != null && r.matchEnd > r.matchStart) {
-      var before = escapeHtml(r.arabicText.substring(0, r.matchStart));
-      var match  = escapeHtml(r.arabicText.substring(r.matchStart, r.matchEnd));
-      var after  = escapeHtml(r.arabicText.substring(r.matchEnd));
+    if (cardData.isRange) {
+      arabicRef = escapeHtml(cardData.surahNameArabic || '') +
+                  ' ' + toArabicIndicClient(cardData.ayahStart) +
+                  ' - ' + toArabicIndicClient(cardData.ayahEnd);
+      englishRef = escapeHtml(
+        (cardData.surahNameEnglish || 'Surah') + ' ' +
+        cardData.surah + ':' + cardData.ayahStart + '-' + cardData.ayahEnd
+      );
+      arabicHtml = escapeHtml(cardData.arabicText);
+
+      return '<div class="ref-arabic">' + arabicRef + '</div>' +
+        '<div class="arabic range-block" style="font-family:' + escapeHtml(font) + ',serif">' + arabicHtml + '</div>' +
+        '<div class="ref-english">' + englishRef + '</div>' +
+        '<button type="button" class="btn-primary btn-insert-result" ' +
+          'data-surah="' + cardData.surah + '" ' +
+          'data-ayah-start="' + cardData.ayahStart + '" ' +
+          'data-ayah-end="' + cardData.ayahEnd + '">Insert</button>';
+    }
+
+    arabicRef = escapeHtml(cardData.surahNameArabic || '') + ' ' + toArabicIndicClient(cardData.ayah);
+    englishRef = escapeHtml((cardData.surahNameEnglish || 'Surah') + ' ' + cardData.surah + ':' + cardData.ayah);
+    arabicHtml = escapeHtml(cardData.arabicText);
+
+    if (cardData.matchStart != null && cardData.matchEnd != null && cardData.matchEnd > cardData.matchStart) {
+      var before = escapeHtml(cardData.arabicText.substring(0, cardData.matchStart));
+      var match  = escapeHtml(cardData.arabicText.substring(cardData.matchStart, cardData.matchEnd));
+      var after  = escapeHtml(cardData.arabicText.substring(cardData.matchEnd));
       arabicHtml = before + '<mark>' + match + '</mark>' + after;
     }
 
@@ -600,105 +671,185 @@
       '<div class="arabic" style="font-family:' + escapeHtml(font) + ',serif">' + arabicHtml + '</div>' +
       '<div class="ref-english">' + englishRef + '</div>' +
       '<button type="button" class="btn-primary btn-insert-result" ' +
-        'data-surah="' + r.surah + '" data-ayah="' + r.ayah + '">Insert</button>';
+        'data-surah="' + cardData.surah + '" data-ayah="' + cardData.ayah + '">Insert</button>';
   }
 
-  function renderResults(containerEl, results, type) {
-    containerEl.innerHTML = '';
+  // ─── Rendering Modes ─────────────────────────────────────────────────────────
 
-    if (type === 'range' && results.length > 1) {
-      renderRangeBlock(containerEl, results);
-      return;
-    }
+  /**
+   * Preview mode: renders exactly one card into containerEl.
+   * Single ayah → one card. Multiple ayahs → one combined range card.
+   * Used by Insert tab always, and by AI Search for consecutive references.
+   * @param {Element} containerEl
+   * @param {Array<Object>} results
+   */
+  function renderPreview(containerEl, results) {
+    containerEl.innerHTML = '';
+    if (!results || results.length === 0) return;
 
     var font = formatState.fontName || 'Amiri';
-
-    results.forEach(function(r) {
-      var card = document.createElement('div');
-      card.className = 'result-card';
-      card.innerHTML = _buildResultCardHtml(r, font);
-      containerEl.appendChild(card);
-    });
-  }
-
-  function renderRangeBlock(containerEl, results) {
-    var font  = formatState.fontName || 'Amiri';
-    var first = results[0];
-    var last  = results[results.length - 1];
-    var showTrans = _settings.showTranslation !== false;
-
-    var concatenated = results.map(function(r) {
-      return r.arabicText + ' (' + toArabicIndicClient(r.ayah) + ')';
-    }).join(' ');
-
-    _currentRange = {
-      surah:            first.surah,
-      ayahStart:        first.ayah,
-      ayahEnd:          last.ayah,
-      arabicText:       concatenated,
-      translationText:  results.map(function(r) { return r.translationText || ''; }).join(' '),
-      surahNameArabic:  first.surahNameArabic  || '',
-      surahNameEnglish: first.surahNameEnglish || ''
-    };
-
-    var arabicRef = escapeHtml(first.surahNameArabic || '') +
-                    ' ' + toArabicIndicClient(first.ayah) +
-                    ' - ' + toArabicIndicClient(last.ayah);
-    var englishRef = escapeHtml(
-      (first.surahNameEnglish || 'Surah') + ' ' +
-      first.surah + ':' + first.ayah + '-' + last.ayah
-    );
-
-    var html =
-      '<div class="ref-arabic">' + arabicRef + '</div>' +
-      '<div class="arabic range-block" style="font-family:' + escapeHtml(font) + ',serif">' +
-        escapeHtml(concatenated) +
-      '</div>' +
-      '<div class="ref-english">' + englishRef + '</div>';
-
-    if (showTrans) {
-      var translationConcatenated = results.map(function(r) {
-        return escapeHtml(r.translationText || '');
-      }).join(' ');
-
-      if (translationConcatenated.trim()) {
-        html += '<div class="translation">' + translationConcatenated + '</div>';
-      }
-    }
-
-    html += '<button type="button" class="btn-primary btn-insert-result btn-insert-range">Insert</button>';
-
     var card = document.createElement('div');
     card.className = 'result-card';
-    card.innerHTML = html;
+
+    if (results.length === 1) {
+      card.innerHTML = buildCardHtml(results[0], font);
+    } else {
+      var rangeData = buildRangeData(results);
+      rangeData.isRange = true;
+      card.innerHTML = buildCardHtml(rangeData, font);
+    }
+
     containerEl.appendChild(card);
   }
 
+  // ─── Shared Pagination Module ─────────────────────────────────────────────────
+
+  var _pagState = {};
+
+  /**
+   * Initialize or reset pagination state for a tab with a new results array.
+   * @param {string} tabId
+   * @param {Array<Object>} results
+   */
+  function pagReset(tabId, results) {
+    _pagState[tabId] = { results: results || [], page: 0 };
+  }
+
+  /**
+   * Render the next page of results for a tab.
+   * Clears the container on page 0. Appends a "Show more" button if more results remain.
+   * Tab switching does NOT reset state; only pagClear or pagReset do.
+   * @param {string} tabId
+   * @param {Element} containerEl
+   * @param {Element} emptyEl
+   * @param {string} emptyMsg - Message shown when results array is empty
+   */
+  function pagRenderPage(tabId, containerEl, emptyEl, emptyMsg) {
+    var state = _pagState[tabId];
+    if (!state) { state = { results: [], page: 0 }; _pagState[tabId] = state; }
+
+    if (state.page === 0) {
+      containerEl.innerHTML = '';
+    }
+
+    if (state.results.length === 0 && state.page === 0) {
+      emptyEl.textContent = emptyMsg;
+      emptyEl.classList.remove('hidden');
+      return;
+    }
+    emptyEl.classList.add('hidden');
+
+    var oldBtn = containerEl.querySelector('.btn-show-more');
+    if (oldBtn) oldBtn.remove();
+
+    var start = state.page * PAGE_SIZE;
+    var end = Math.min(start + PAGE_SIZE, state.results.length);
+    var font = formatState.fontName || 'Amiri';
+
+    for (var i = start; i < end; i++) {
+      var card = document.createElement('div');
+      card.className = 'result-card';
+      card.innerHTML = buildCardHtml(state.results[i], font);
+      containerEl.appendChild(card);
+    }
+
+    state.page++;
+
+    if (end < state.results.length) {
+      var remaining = state.results.length - end;
+      var showMore = document.createElement('button');
+      showMore.type = 'button';
+      showMore.className = 'btn-show-more';
+      showMore.textContent = 'Show more (' + remaining + ' remaining)';
+      (function(tid, cEl, eEl, msg) {
+        showMore.addEventListener('click', function() {
+          pagRenderPage(tid, cEl, eEl, msg);
+        });
+      }(tabId, containerEl, emptyEl, emptyMsg));
+      containerEl.appendChild(showMore);
+    }
+  }
+
+  /**
+   * Clear pagination state for a tab. Called on new search or explicit clear actions.
+   * @param {string} tabId
+   */
+  function pagClear(tabId) {
+    _pagState[tabId] = { results: [], page: 0 };
+  }
+
+  /**
+   * Shared insert handler for all tabs and all card types.
+   * Detects range cards by the presence of data-ayah-start; rebuilds range data from
+   * client caches at click time so no global state is needed and arabic-style is respected.
+   */
   function onInsertClick(e) {
     var btn = e.target;
     if (btn.tagName !== 'BUTTON' || !btn.classList.contains('btn-insert-result')) return;
 
-    if (btn.classList.contains('btn-insert-range')) {
-      handleRangeInsertClick(btn);
+    btn.disabled = true;
+    btn.classList.add('btn-loading');
+
+    var fs = window.getFormatState ? window.getFormatState() : {};
+
+    if (btn.getAttribute('data-ayah-start')) {
+      var surah     = parseInt(btn.getAttribute('data-surah'), 10);
+      var ayahStart = parseInt(btn.getAttribute('data-ayah-start'), 10);
+      var ayahEnd   = parseInt(btn.getAttribute('data-ayah-end'), 10);
+      if (!surah || !ayahStart || !ayahEnd) {
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+        return;
+      }
+
+      var style = _settings.arabicStyle || 'uthmani';
+      var rangeItems = [];
+      for (var i = ayahStart; i <= ayahEnd; i++) {
+        var d = _buildAyahDataForInsert(surah, i, style);
+        if (d) rangeItems.push(d);
+      }
+
+      if (!rangeItems.length) {
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+        return;
+      }
+
+      var rangeData = buildRangeData(rangeItems);
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          btn.disabled = false;
+          btn.classList.remove('btn-loading');
+          if (result && !result.success) {
+            console.warn('Range insert warning:', result.message);
+          }
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          btn.classList.remove('btn-loading');
+          console.error('Range insert failed:', err);
+        })
+        .insertAyahRange(rangeData, fs, _settings);
       return;
     }
 
-    var surah = parseInt(btn.getAttribute('data-surah'), 10);
-    var ayah = parseInt(btn.getAttribute('data-ayah'), 10);
-    if (!surah || !ayah) return;
+    var surahNum = parseInt(btn.getAttribute('data-surah'), 10);
+    var ayahNum  = parseInt(btn.getAttribute('data-ayah'), 10);
+    if (!surahNum || !ayahNum) {
+      btn.disabled = false;
+      btn.classList.remove('btn-loading');
+      return;
+    }
 
-    btn.disabled = true;
-    btn.classList.add('btn-loading');
-    var style = _settings.arabicStyle || 'uthmani';
-
-    var ayahData = _buildAyahDataForInsert(surah, ayah, style);
+    var insertStyle = _settings.arabicStyle || 'uthmani';
+    var ayahData = _buildAyahDataForInsert(surahNum, ayahNum, insertStyle);
     if (!ayahData) {
       btn.disabled = false;
       btn.classList.remove('btn-loading');
       return;
     }
 
-    var fs = window.getFormatState ? window.getFormatState() : {};
     google.script.run
       .withSuccessHandler(function(result) {
         btn.disabled = false;
@@ -713,30 +864,6 @@
         console.error('Insert failed:', err);
       })
       .insertAyah(ayahData, fs, _settings);
-  }
-
-  function handleRangeInsertClick(btn) {
-    if (!_currentRange) return;
-
-    btn.disabled = true;
-    btn.classList.add('btn-loading');
-
-    var fs = window.getFormatState ? window.getFormatState() : {};
-
-    google.script.run
-      .withSuccessHandler(function(result) {
-        btn.disabled = false;
-        btn.classList.remove('btn-loading');
-        if (result && !result.success) {
-          console.warn('Range insert warning:', result.message);
-        }
-      })
-      .withFailureHandler(function(err) {
-        btn.disabled = false;
-        btn.classList.remove('btn-loading');
-        console.error('Range insert failed:', err);
-      })
-      .insertAyahRange(_currentRange, fs, _settings);
   }
 
   function setupTextarea(el, onSubmit) {
@@ -817,8 +944,8 @@
       var end = endNum || startNum;
       var rangeSize = end - startNum + 1;
 
-      if (rangeSize > 30) {
-        emptyEl.textContent = 'Range too large. Maximum is 30 ayahs.';
+      if (rangeSize > MAX_RESULTS) {
+        emptyEl.textContent = 'Range too large. Maximum is ' + MAX_RESULTS + ' ayahs.';
         emptyEl.classList.remove('hidden');
         return;
       }
@@ -845,7 +972,7 @@
         });
       }
 
-      renderResults(resultsEl, results, results.length > 1 ? 'range' : 'single');
+      renderPreview(resultsEl, results);
     }
 
     surahSelect.addEventListener('change', function() {
@@ -896,13 +1023,9 @@
     if (ayahEnd) { ayahEnd.innerHTML = '<option value="">To</option>'; ayahEnd.disabled = true; }
     if (resultsEl) resultsEl.innerHTML = '';
     if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
-    _currentRange = null;
   }
 
   // ─── Exact Search Tab ────────────────────────────────────────────────────────
-
-  var _exactSearchAllResults = [];
-  var _exactSearchPage = 0;
 
   function initExactSearchTab() {
     var queryEl = document.getElementById('exact-search-query');
@@ -916,15 +1039,13 @@
 
       var query = queryEl ? queryEl.value.trim() : '';
       if (!query) {
-        _exactSearchAllResults = [];
-        _exactSearchPage = 0;
+        pagClear('exact-search');
         if (resultsEl) resultsEl.innerHTML = '';
         if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
         return;
       }
       if (query.length < EXACT_MIN_CHARS) {
-        _exactSearchAllResults = [];
-        _exactSearchPage = 0;
+        pagClear('exact-search');
         if (resultsEl) resultsEl.innerHTML = '';
         if (emptyEl) {
           emptyEl.textContent = 'Type at least ' + EXACT_MIN_CHARS + ' characters\u2026';
@@ -933,51 +1054,8 @@
         return;
       }
 
-      _exactSearchAllResults = searchImlaeiClient(query);
-      _exactSearchPage = 0;
-      renderExactPage(resultsEl, emptyEl);
-    }
-
-    function renderExactPage(container, emptyState) {
-      if (_exactSearchPage === 0) {
-        container.innerHTML = '';
-      }
-
-      if (_exactSearchAllResults.length === 0 && _exactSearchPage === 0) {
-        emptyState.textContent = 'No exact matches found.';
-        emptyState.classList.remove('hidden');
-        return;
-      }
-      emptyState.classList.add('hidden');
-
-      var oldBtn = container.querySelector('.btn-show-more');
-      if (oldBtn) oldBtn.remove();
-
-      var start = _exactSearchPage * EXACT_PAGE_SIZE;
-      var end = Math.min(start + EXACT_PAGE_SIZE, _exactSearchAllResults.length);
-      var font = formatState.fontName || 'Amiri';
-
-      for (var i = start; i < end; i++) {
-        var r = _exactSearchAllResults[i];
-        var card = document.createElement('div');
-        card.className = 'result-card';
-        card.innerHTML = _buildResultCardHtml(r, font);
-        container.appendChild(card);
-      }
-
-      _exactSearchPage++;
-
-      if (end < _exactSearchAllResults.length) {
-        var remaining = _exactSearchAllResults.length - end;
-        var showMore = document.createElement('button');
-        showMore.type = 'button';
-        showMore.className = 'btn-show-more';
-        showMore.textContent = 'Show more (' + remaining + ' remaining)';
-        showMore.addEventListener('click', function() {
-          renderExactPage(container, emptyState);
-        });
-        container.appendChild(showMore);
-      }
+      pagReset('exact-search', searchImlaeiClient(query));
+      pagRenderPage('exact-search', resultsEl, emptyEl, 'No exact matches found.');
     }
 
     queryEl.addEventListener('input', function() {
@@ -987,16 +1065,14 @@
       var val = queryEl.value;
       if (!val || !val.trim()) {
         if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
-        _exactSearchAllResults = [];
-        _exactSearchPage = 0;
+        pagClear('exact-search');
         if (resultsEl) resultsEl.innerHTML = '';
         if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
         return;
       }
       if (val.trim().length < EXACT_MIN_CHARS) {
         if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
-        _exactSearchAllResults = [];
-        _exactSearchPage = 0;
+        pagClear('exact-search');
         if (resultsEl) resultsEl.innerHTML = '';
         if (emptyEl) {
           emptyEl.textContent = 'Type at least ' + EXACT_MIN_CHARS + ' characters\u2026';
@@ -1020,8 +1096,7 @@
   }
 
   function clearExactSearch() {
-    _exactSearchAllResults = [];
-    _exactSearchPage = 0;
+    pagClear('exact-search');
     var queryEl = document.getElementById('exact-search-query');
     var resultsEl = document.getElementById('exact-search-results');
     var emptyEl = document.getElementById('exact-search-empty');
@@ -1048,6 +1123,7 @@
     }
 
     function clearAIResults() {
+      pagClear('ai-search');
       resultsEl.innerHTML = '';
       clarifyEl.classList.add('hidden');
       clarifyEl.textContent = '';
@@ -1124,7 +1200,7 @@
       // Non-clarify response breaks the conversation chain
       _conversationMessages = [];
 
-      // Arabic corpus search: run client-side against imlaei cache
+      // Arabic corpus search: run client-side against imlaei cache, show paginated results
       if (response.type === 'arabic_search') {
         var searchResults = searchImlaeiClient(response.query);
         if (!searchResults.length) {
@@ -1132,11 +1208,14 @@
           emptyEl.classList.remove('hidden');
           return;
         }
-        renderResults(resultsEl, searchResults, 'search');
+        pagReset('ai-search', searchResults);
+        pagRenderPage('ai-search', resultsEl, emptyEl, 'No exact matches found for that text.');
         return;
       }
 
       // References type: resolve against client-side caches
+      // Consecutive range in one surah → preview mode (one card)
+      // Non-consecutive or multi-surah → paginated search results mode
       if (response.type === 'references') {
         var refs = response.references || [];
         var resolved = _buildResultsFromReferences(refs);
@@ -1145,11 +1224,12 @@
           emptyEl.classList.remove('hidden');
           return;
         }
-        var isConsecutiveRange = refs.length > 1
-          && refs[0].surah === refs[refs.length - 1].surah
-          && refs[refs.length - 1].ayah - refs[0].ayah === refs.length - 1;
-        var renderType = isConsecutiveRange ? 'range' : 'search';
-        renderResults(resultsEl, resolved, renderType);
+        if (isConsecutiveRange(resolved)) {
+          renderPreview(resultsEl, resolved);
+        } else {
+          pagReset('ai-search', resolved);
+          pagRenderPage('ai-search', resultsEl, emptyEl, 'No verified results found. Try a different query.');
+        }
         return;
       }
 
@@ -1164,6 +1244,7 @@
 
   function clearAISearch() {
     _conversationMessages = [];
+    pagClear('ai-search');
     var queryEl = document.getElementById('ai-search-query');
     var resultsEl = document.getElementById('ai-search-results');
     var clarifyEl = document.getElementById('ai-search-clarify');
