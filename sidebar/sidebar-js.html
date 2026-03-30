@@ -4,52 +4,6 @@
 
   var saveDebounceTimer = null;
 
-  // ─── Client-side exact search against imlaei cache ──
-
-  /**
-   * Synchronous client-side search against the pre-normalized imlaei corpus.
-   * Must be called after imlaei cache is loaded (ensure resolves synchronously post-load).
-   * @param {string} query - Raw Arabic search text
-   * @return {Array<{surah, ayah, surahNameArabic, surahNameEnglish, arabicText, matchStart, matchEnd}>}
-   */
-  function searchImlaeiClient(query) {
-    if (!query || typeof query !== 'string') return [];
-    query = query.trim();
-    if (!query) return [];
-
-    var data = null;
-    _imlaeiCacheApi.ensure(function(d) { data = d; });
-    if (!data) return [];
-
-    var normalizedQuery = normalizeArabic(query);
-    if (!normalizedQuery) return [];
-
-    var results = [];
-    var raw = data.raw;
-    var normalized = data.normalized;
-
-    for (var key in normalized) {
-      if (results.length >= MAX_RESULTS) break;
-      var matchIdx = normalized[key].indexOf(normalizedQuery);
-      if (matchIdx < 0) continue;
-
-      var verse = raw[key];
-      var mapped = _mapNormalizedToOriginal(verse.text, matchIdx, normalizedQuery.length);
-      var surahMeta = _surahList.find(function(s) { return s.number === verse.surah; });
-      results.push({
-        surah: verse.surah,
-        ayah: verse.ayah,
-        surahNameArabic: surahMeta ? surahMeta.nameArabic : '',
-        surahNameEnglish: surahMeta ? surahMeta.nameEnglish : '',
-        arabicText: verse.text || '',
-        matchStart: mapped.start,
-        matchEnd: mapped.end
-      });
-    }
-
-    return results;
-  }
-
   var _refreshDirectInsert = null;   // set by initDirectInsertTab, called by initFormatBar
 
   // ─── Format Bar ──────────────────────────────────────────────────────────────
@@ -327,83 +281,6 @@
         '</div>';
     }
     return html;
-  }
-
-  // ─── Build results from server-returned references using client caches ─────
-
-  /**
-   * Validates and assembles full result objects from raw {surah, ayah} references
-   * using in-memory caches (uthmani, imlaei, translation, surah metadata).
-   * Acts as a hallucination guard — skips references that don't exist in cached data.
-   * @param {Array<{surah: number, ayah: number}>} references
-   * @return {Array<Object>} Result objects suitable for renderPreview() or pagReset()
-   */
-  function _buildResultsFromReferences(references) {
-    var style = _settings.arabicStyle || 'uthmani';
-    var imlaeiData = null;
-    if (style === 'simple') {
-      _imlaeiCacheApi.ensure(function(d) { imlaeiData = d; });
-    }
-    var results = [];
-    for (var i = 0; i < references.length; i++) {
-      var ref = references[i];
-      var surahMeta = _surahList.find(function(s) { return s.number === ref.surah; });
-      if (!surahMeta || ref.ayah > surahMeta.ayahCount) continue;
-
-      var uthmaniData = lookupUthmaniAyah(ref.surah, ref.ayah);
-      if (!uthmaniData) continue;
-
-      var arabicText = uthmaniData.text;
-      if (style === 'simple' && imlaeiData && imlaeiData.raw) {
-        var entry = imlaeiData.raw[ref.surah + ':' + ref.ayah];
-        if (entry && entry.text) arabicText = entry.text;
-      }
-
-      results.push({
-        surah:            ref.surah,
-        ayah:             ref.ayah,
-        surahNameArabic:  surahMeta.nameArabic,
-        surahNameEnglish: surahMeta.nameEnglish,
-        arabicText:       arabicText,
-        translationText:  lookupTranslation(ref.surah, ref.ayah) || ''
-      });
-    }
-    return results;
-  }
-
-  /**
-   * Builds a full ayah data object for insertion from client-side caches.
-   * Returns the same shape that insertAyah() expects.
-   * @param {number} surahNum
-   * @param {number} ayahNum
-   * @param {string} style - "uthmani" or "simple"
-   * @return {Object|null}
-   */
-  function _buildAyahDataForInsert(surahNum, ayahNum, style) {
-    var surahMeta = _surahList.find(function(s) { return s.number === surahNum; });
-    var uthmaniData = lookupUthmaniAyah(surahNum, ayahNum);
-    if (!uthmaniData) return null;
-
-    var simpleText = '';
-    var imlaeiData = null;
-    _imlaeiCacheApi.ensure(function(d) { imlaeiData = d; });
-    if (imlaeiData && imlaeiData.raw) {
-      var entry = imlaeiData.raw[surahNum + ':' + ayahNum];
-      if (entry) simpleText = entry.text || '';
-    }
-
-    var arabicText = (style === 'simple' && simpleText) ? simpleText : uthmaniData.text;
-
-    return {
-      surah: surahNum,
-      ayah: ayahNum,
-      surahNameArabic: surahMeta ? surahMeta.nameArabic : '',
-      surahNameEnglish: surahMeta ? surahMeta.nameEnglish : '',
-      arabicText: arabicText,
-      textUthmani: uthmaniData.text,
-      textSimple: simpleText,
-      translationText: lookupTranslation(surahNum, ayahNum) || ''
-    };
   }
 
   // ─── Rendering Modes ─────────────────────────────────────────────────────────
