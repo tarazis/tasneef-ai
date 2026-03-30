@@ -158,7 +158,6 @@
   // ─── Client-side exact search against imlaei cache ──
 
   var MAX_RESULTS = 50;
-  var PAGE_SIZE = 10;
   var EXACT_DEBOUNCE_MS = 200;
   var EXACT_MIN_CHARS = 2;
 
@@ -588,82 +587,6 @@
     }
 
     containerEl.appendChild(card);
-  }
-
-  // ─── Shared Pagination Module ─────────────────────────────────────────────────
-
-  var _pagState = {};
-
-  /**
-   * Initialize or reset pagination state for a tab with a new results array.
-   * @param {string} tabId
-   * @param {Array<Object>} results
-   */
-  function pagReset(tabId, results) {
-    _pagState[tabId] = { results: results || [], page: 0 };
-  }
-
-  /**
-   * Render the next page of results for a tab.
-   * Clears the container on page 0. Appends a "Show more" button if more results remain.
-   * Tab switching does NOT reset state; only pagClear or pagReset do.
-   * @param {string} tabId
-   * @param {Element} containerEl
-   * @param {Element} emptyEl
-   * @param {string} emptyMsg - Message shown when results array is empty
-   */
-  function pagRenderPage(tabId, containerEl, emptyEl, emptyMsg) {
-    var state = _pagState[tabId];
-    if (!state) { state = { results: [], page: 0 }; _pagState[tabId] = state; }
-
-    if (state.page === 0) {
-      containerEl.innerHTML = '';
-    }
-
-    if (state.results.length === 0 && state.page === 0) {
-      emptyEl.textContent = emptyMsg;
-      emptyEl.classList.remove('hidden');
-      return;
-    }
-    emptyEl.classList.add('hidden');
-
-    var oldBtn = containerEl.querySelector('.btn-show-more');
-    if (oldBtn) oldBtn.remove();
-
-    var start = state.page * PAGE_SIZE;
-    var end = Math.min(start + PAGE_SIZE, state.results.length);
-    var font = formatState.fontName || 'Amiri';
-
-    for (var i = start; i < end; i++) {
-      var card = document.createElement('div');
-      card.className = 'result-card';
-      card.innerHTML = buildCardHtml(state.results[i], font);
-      containerEl.appendChild(card);
-    }
-
-    state.page++;
-
-    if (end < state.results.length) {
-      var remaining = state.results.length - end;
-      var showMore = document.createElement('button');
-      showMore.type = 'button';
-      showMore.className = 'btn-show-more';
-      showMore.textContent = 'Show more (' + remaining + ' remaining)';
-      (function(tid, cEl, eEl, msg) {
-        showMore.addEventListener('click', function() {
-          pagRenderPage(tid, cEl, eEl, msg);
-        });
-      }(tabId, containerEl, emptyEl, emptyMsg));
-      containerEl.appendChild(showMore);
-    }
-  }
-
-  /**
-   * Clear pagination state for a tab. Called on new search or explicit clear actions.
-   * @param {string} tabId
-   */
-  function pagClear(tabId) {
-    _pagState[tabId] = { results: [], page: 0 };
   }
 
   /**
