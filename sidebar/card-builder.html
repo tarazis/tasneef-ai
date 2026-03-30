@@ -1,0 +1,113 @@
+<script>
+// ─── Card Builder Utilities ──────────────────────────────────────────────────
+// Extracted from sidebar-js.html to keep file size manageable.
+// These are global so the sidebar-js IIFE can call them directly.
+
+function escapeHtml(s) {
+  if (!s) return '';
+  var d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+var _ARABIC_INDIC = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+function toArabicIndicClient(num) {
+  return String(Math.floor(Number(num) || 0)).replace(/[0-9]/g, function(d) {
+    return _ARABIC_INDIC[+d];
+  });
+}
+
+/**
+ * Returns true if results form a consecutive ayah range within one surah.
+ * Requires length > 1, all same surah, and ayahs form an unbroken +1 sequence.
+ * @param {Array<{surah: number, ayah: number}>} results
+ * @return {boolean}
+ */
+function isConsecutiveRange(results) {
+  if (!results || results.length < 2) return false;
+  var first = results[0];
+  for (var i = 1; i < results.length; i++) {
+    if (results[i].surah !== first.surah) return false;
+    if (results[i].ayah !== first.ayah + i) return false;
+  }
+  return true;
+}
+
+/**
+ * Builds a range data object from an array of consecutive result objects.
+ * Concatenates Arabic text with per-ayah markers for display and insert.
+ * @param {Array<Object>} results - Ordered ayah result objects
+ * @return {Object} Range data: { surah, ayahStart, ayahEnd, surahNameArabic, surahNameEnglish, arabicText, translationText }
+ */
+function buildRangeData(results) {
+  var first = results[0];
+  var last  = results[results.length - 1];
+  var concatenated = results.map(function(r) {
+    return r.arabicText + ' (' + toArabicIndicClient(r.ayah) + ')';
+  }).join(' ');
+  return {
+    surah:            first.surah,
+    ayahStart:        first.ayah,
+    ayahEnd:          last.ayah,
+    surahNameArabic:  first.surahNameArabic  || '',
+    surahNameEnglish: first.surahNameEnglish || '',
+    arabicText:       concatenated,
+    translationText:  results.map(function(r) { return r.translationText || ''; }).join(' ')
+  };
+}
+
+/**
+ * Build the innerHTML for a single .result-card element.
+ * Handles both single-ayah and range cards via cardData.isRange.
+ * Highlights matched substring via matchStart/matchEnd (single cards only).
+ * No translation is ever rendered on a card; it remains in the data for insert-time use.
+ *
+ * Card structure (stable for future per-card translation toggle):
+ *   .ref-arabic | .arabic[.range-block] | .ref-english | button.btn-insert-result
+ *
+ * @param {Object} cardData
+ *   Single: { surah, ayah, surahNameArabic, surahNameEnglish, arabicText, matchStart?, matchEnd? }
+ *   Range:  { surah, ayahStart, ayahEnd, surahNameArabic, surahNameEnglish, arabicText, isRange: true }
+ * @param {string} font - CSS font-family name
+ * @return {string} innerHTML for the card
+ */
+function buildCardHtml(cardData, font) {
+  var arabicRef, englishRef, arabicHtml;
+
+  if (cardData.isRange) {
+    arabicRef = escapeHtml(cardData.surahNameArabic || '') +
+                ' ' + toArabicIndicClient(cardData.ayahStart) +
+                ' - ' + toArabicIndicClient(cardData.ayahEnd);
+    englishRef = escapeHtml(
+      (cardData.surahNameEnglish || 'Surah') + ' ' +
+      cardData.surah + ':' + cardData.ayahStart + '-' + cardData.ayahEnd
+    );
+    arabicHtml = escapeHtml(cardData.arabicText);
+
+    return '<div class="ref-arabic">' + arabicRef + '</div>' +
+      '<div class="arabic range-block" style="font-family:' + escapeHtml(font) + ',serif">' + arabicHtml + '</div>' +
+      '<div class="ref-english">' + englishRef + '</div>' +
+      '<button type="button" class="btn-primary btn-insert-result" ' +
+        'data-surah="' + cardData.surah + '" ' +
+        'data-ayah-start="' + cardData.ayahStart + '" ' +
+        'data-ayah-end="' + cardData.ayahEnd + '">Insert</button>';
+  }
+
+  arabicRef = escapeHtml(cardData.surahNameArabic || '') + ' ' + toArabicIndicClient(cardData.ayah);
+  englishRef = escapeHtml((cardData.surahNameEnglish || 'Surah') + ' ' + cardData.surah + ':' + cardData.ayah);
+  arabicHtml = escapeHtml(cardData.arabicText);
+
+  if (cardData.matchStart != null && cardData.matchEnd != null && cardData.matchEnd > cardData.matchStart) {
+    var before = escapeHtml(cardData.arabicText.substring(0, cardData.matchStart));
+    var match  = escapeHtml(cardData.arabicText.substring(cardData.matchStart, cardData.matchEnd));
+    var after  = escapeHtml(cardData.arabicText.substring(cardData.matchEnd));
+    arabicHtml = before + '<mark>' + match + '</mark>' + after;
+  }
+
+  return '<div class="ref-arabic">' + arabicRef + '</div>' +
+    '<div class="arabic" style="font-family:' + escapeHtml(font) + ',serif">' + arabicHtml + '</div>' +
+    '<div class="ref-english">' + englishRef + '</div>' +
+    '<button type="button" class="btn-primary btn-insert-result" ' +
+      'data-surah="' + cardData.surah + '" data-ayah="' + cardData.ayah + '">Insert</button>';
+}
+</script>
