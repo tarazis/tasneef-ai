@@ -1,10 +1,12 @@
 /**
  * ClaudeAPI.gs
  * Backend functions for Quran lookup:
- *   - performExactSearch(query) — Arabic exact text search (local data)
- *   - performAISearch(messages) — Claude-powered semantic search
+ *   - performAISearch(messages) — Claude-powered intent classification + search routing
  *
  * processUnifiedQuery is kept as a thin wrapper for frontend compatibility.
+ *
+ * Arabic corpus search is handled entirely client-side (searchImlaeiClient);
+ * the server only extracts the query via Claude and returns it for the client.
  */
 
 var CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
@@ -45,30 +47,8 @@ var UNIFIED_SYSTEM_PROMPT =
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
- * Performs exact Arabic text search against locally cached Quran data.
- * No Claude call. Uses normalized matching (strips diacritics, normalizes alef).
- * @param {string} query - Arabic text to search for
- * @return {Object} { type, results, message? }
- */
-function performExactSearch(query) {
-  if (!query || typeof query !== 'string' || !query.trim()) {
-    return { type: 'error', error: 'Please enter a search query.' };
-  }
-
-  var data = loadQuranData();
-  var results = searchQuran(data, query.trim(), 'simple');
-
-  if (!results || !results.length) {
-    return { type: 'search', results: [], message: 'No exact matches found for that text.' };
-  }
-
-  return { type: 'search', results: results };
-}
-
-/**
  * Performs AI-powered search using Claude for intent classification.
  * Handles conversation context for multi-turn clarification.
- * Delegates to performExactSearch when appropriate.
  * @param {Array<{role: string, content: string}>} messages - Conversation messages
  * @return {Object} { type, results?, message?, error?, rawResponse? }
  */
@@ -144,6 +124,8 @@ function processUnifiedQuery(messages) {
 
 /**
  * Routes search based on language classification from Claude.
+ * Arabic queries return {type: 'arabic_search', query} for client-side corpus search.
+ * English queries return validated {surah, ayah} references for client-side resolution.
  * @param {Object} classified - { query, language, references? }
  * @return {Object} Unified result object
  */
@@ -151,7 +133,9 @@ function _handleSearchRouting(classified) {
   var language = (classified.language || '').toLowerCase();
 
   if (language === 'arabic') {
-    return performExactSearch(classified.query);
+    var q = (classified.query || '').trim();
+    if (!q) return { type: 'error', error: 'Please enter a search query.' };
+    return { type: 'arabic_search', query: q };
   }
   return _handleEnglishSearch(classified);
 }
