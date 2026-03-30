@@ -1,0 +1,141 @@
+<script>
+// ─── Cache URLs ──────────────────────────────────────────────────────────────
+
+var UTHMANI_URL     = 'https://tarazis.github.io/tasneef-data/quran/uthmani.json';
+var IMLAEI_URL      = 'https://tarazis.github.io/tasneef-data/quran/imlaei-simple.json';
+var SURAH_META_URL  = 'https://tarazis.github.io/tasneef-data/quran/quran-metadata-surah-name.json';
+var TRANSLATION_URL = 'https://tarazis.github.io/tasneef-data/quran/en-sahih-international-simple.json';
+
+// ─── Cache instances ─────────────────────────────────────────────────────────
+
+var _uthmaniCacheApi = makeClientCache({
+  url: UTHMANI_URL,
+  statusElId: 'uthmani-cache-status',
+  loadingMsg: 'Loading Quran text\u2026',
+  errorMsg: 'Failed to load Quran text.',
+  logLabel: 'Uthmani cache'
+});
+
+function _parseTranslationData(obj) {
+  var map = {};
+  for (var key in obj) {
+    if (obj.hasOwnProperty(key) && obj[key] && obj[key].t) {
+      map[key] = obj[key].t;
+    }
+  }
+  return map;
+}
+
+var _translationCacheApi = makeClientCache({
+  url: TRANSLATION_URL,
+  statusElId: 'translation-cache-status',
+  loadingMsg: 'Loading translations\u2026',
+  errorMsg: 'Failed to load translations.',
+  parseData: _parseTranslationData,
+  logLabel: 'Translation cache'
+});
+
+function _parseImlaeiData(rawMap) {
+  var raw = {};
+  var normalized = {};
+  for (var key in rawMap) {
+    raw[key] = rawMap[key];
+    normalized[key] = normalizeArabic((rawMap[key].text || ''));
+  }
+  return { raw: raw, normalized: normalized };
+}
+
+var _imlaeiCacheApi = makeClientCache({
+  url: IMLAEI_URL,
+  statusElId: 'imlaei-cache-status',
+  loadingMsg: 'Loading search index\u2026',
+  errorMsg: 'Failed to load search index.',
+  parseData: _parseImlaeiData,
+  logLabel: 'Imlaei cache'
+});
+
+function _parseSurahMetaData(rawObj) {
+  var list = [];
+  for (var i = 1; i <= 114; i++) {
+    var s = rawObj[String(i)];
+    if (!s) continue;
+    list.push({
+      number: s.id,
+      nameArabic: s.name_arabic || '',
+      nameEnglish: s.name_simple || s.name || '',
+      ayahCount: s.verses_count || 0
+    });
+  }
+  return list;
+}
+
+var _surahMetaCacheApi = makeClientCache({
+  url: SURAH_META_URL,
+  statusElId: 'surah-meta-cache-status',
+  loadingMsg: 'Loading surah list\u2026',
+  errorMsg: 'Failed to load surah list.',
+  parseData: _parseSurahMetaData,
+  logLabel: 'Surah meta cache'
+});
+
+// ─── Public accessors ─────────────────────────────────────────────────────────
+
+/**
+ * Ensures uthmani.json is fetched and cached. Fetches at most once; subsequent calls queue callbacks.
+ * @param {Function} [onReady]
+ * @param {Function} [onError]
+ */
+function ensureUthmaniCache(onReady, onError) {
+  _uthmaniCacheApi.ensure(onReady, onError);
+}
+
+/**
+ * @param {number} surahNum
+ * @param {number} ayahNum
+ * @return {{surah, ayah, text}|null}
+ */
+function lookupUthmaniAyah(surahNum, ayahNum) {
+  return _uthmaniCacheApi.lookup(surahNum, ayahNum);
+}
+
+/**
+ * Ensures the current translation edition JSON is fetched and parsed. At most once per URL.
+ * @param {Function} [onReady]
+ * @param {Function} [onError]
+ */
+function ensureTranslationCache(onReady, onError) {
+  _translationCacheApi.ensure(onReady, onError);
+}
+
+/**
+ * Loads a different translation edition by URL, replacing the current cache.
+ * @param {string} url
+ * @param {Function} [onReady]
+ * @param {Function} [onError]
+ */
+function loadTranslationEdition(url, onReady, onError) {
+  _translationCacheApi.loadEdition(url, onReady, onError);
+}
+
+/**
+ * @param {number} surahNum
+ * @param {number} ayahNum
+ * @return {string|null}
+ */
+function lookupTranslation(surahNum, ayahNum) {
+  return _translationCacheApi.lookup(surahNum, ayahNum);
+}
+
+/**
+ * Ensures imlaei-simple.json is fetched, parsed, and the normalized index is built.
+ * @param {Function} [onReady]
+ * @param {Function} [onError]
+ */
+function ensureImlaeiCache(onReady, onError) {
+  _imlaeiCacheApi.ensure(onReady, onError);
+}
+
+function ensureSurahMetaCache(onReady, onError) {
+  _surahMetaCacheApi.ensure(onReady, onError);
+}
+</script>
