@@ -1,0 +1,132 @@
+<script>
+// Depends on globals: formatState, _settings (shared-state.html),
+//   buildCardHtml, buildRangeData (card-builder.html),
+//   _buildAyahDataForInsert (search-utils.html)
+
+function makeSkeleton(count) {
+  var html = '';
+  for (var i = 0; i < count; i++) {
+    html += '<div class="skeleton-card">' +
+      '<div class="skeleton-line sk-short"></div>' +
+      '<div class="skeleton-line sk-arabic"></div>' +
+      '<div class="skeleton-line sk-medium"></div>' +
+      '<div class="skeleton-line sk-long"></div>' +
+      '</div>';
+  }
+  return html;
+}
+
+/**
+ * Preview mode: renders exactly one card into containerEl.
+ * Single ayah → one card. Multiple ayahs → one combined range card.
+ * Used by Insert tab always, and by AI Search for consecutive references.
+ * @param {Element} containerEl
+ * @param {Array<Object>} results
+ */
+function renderPreview(containerEl, results) {
+  containerEl.innerHTML = '';
+  if (!results || results.length === 0) return;
+
+  var font = formatState.fontName || 'Amiri';
+  var card = document.createElement('div');
+  card.className = 'result-card';
+
+  if (results.length === 1) {
+    card.innerHTML = buildCardHtml(results[0], font);
+  } else {
+    var rangeData = buildRangeData(results);
+    rangeData.isRange = true;
+    card.innerHTML = buildCardHtml(rangeData, font);
+  }
+
+  containerEl.appendChild(card);
+}
+
+/**
+ * Shared insert handler for all tabs and all card types.
+ * Detects range cards by the presence of data-ayah-start; rebuilds range data from
+ * client caches at click time so no global state is needed and arabic-style is respected.
+ */
+function onInsertClick(e) {
+  var btn = e.target;
+  if (btn.tagName !== 'BUTTON' || !btn.classList.contains('btn-insert-result')) return;
+
+  btn.disabled = true;
+  btn.classList.add('btn-loading');
+
+  var fs = window.getFormatState ? window.getFormatState() : {};
+
+  if (btn.getAttribute('data-ayah-start')) {
+    var surah     = parseInt(btn.getAttribute('data-surah'), 10);
+    var ayahStart = parseInt(btn.getAttribute('data-ayah-start'), 10);
+    var ayahEnd   = parseInt(btn.getAttribute('data-ayah-end'), 10);
+    if (!surah || !ayahStart || !ayahEnd) {
+      btn.disabled = false;
+      btn.classList.remove('btn-loading');
+      return;
+    }
+
+    var style = _settings.arabicStyle || 'uthmani';
+    var rangeItems = [];
+    for (var i = ayahStart; i <= ayahEnd; i++) {
+      var d = _buildAyahDataForInsert(surah, i, style);
+      if (d) rangeItems.push(d);
+    }
+
+    if (!rangeItems.length) {
+      btn.disabled = false;
+      btn.classList.remove('btn-loading');
+      return;
+    }
+
+    var rangeData = buildRangeData(rangeItems);
+
+    google.script.run
+      .withSuccessHandler(function(result) {
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+        if (result && !result.success) {
+          console.warn('Range insert warning:', result.message);
+        }
+      })
+      .withFailureHandler(function(err) {
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+        console.error('Range insert failed:', err);
+      })
+      .insertAyahRange(rangeData, fs, _settings);
+    return;
+  }
+
+  var surahNum = parseInt(btn.getAttribute('data-surah'), 10);
+  var ayahNum  = parseInt(btn.getAttribute('data-ayah'), 10);
+  if (!surahNum || !ayahNum) {
+    btn.disabled = false;
+    btn.classList.remove('btn-loading');
+    return;
+  }
+
+  var insertStyle = _settings.arabicStyle || 'uthmani';
+  var ayahData = _buildAyahDataForInsert(surahNum, ayahNum, insertStyle);
+  if (!ayahData) {
+    btn.disabled = false;
+    btn.classList.remove('btn-loading');
+    return;
+  }
+
+  google.script.run
+    .withSuccessHandler(function(result) {
+      btn.disabled = false;
+      btn.classList.remove('btn-loading');
+      if (result && !result.success) {
+        console.warn('Insert warning:', result.message);
+      }
+    })
+    .withFailureHandler(function(err) {
+      btn.disabled = false;
+      btn.classList.remove('btn-loading');
+      console.error('Insert failed:', err);
+    })
+    .insertAyah(ayahData, fs, _settings);
+}
+</script>
