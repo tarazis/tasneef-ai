@@ -2,16 +2,7 @@
 (function() {
   'use strict';
 
-  var formatState = {
-    fontName: 'Amiri',
-    fontSize: 18,
-    bold: false,
-    textColor: '#000000'
-  };
-
-  var _settings = {};
   var saveDebounceTimer = null;
-  var SAVE_DEBOUNCE_MS = 500;
 
   // ─── Cache URLs ──────────────────────────────────────────────────────────────
 
@@ -156,10 +147,6 @@
   }
 
   // ─── Client-side exact search against imlaei cache ──
-
-  var MAX_RESULTS = 50;
-  var EXACT_DEBOUNCE_MS = 200;
-  var EXACT_MIN_CHARS = 2;
 
   /**
    * Synchronous client-side search against the pre-normalized imlaei corpus.
@@ -693,8 +680,6 @@
 
   // ─── Direct Insert Tab ───────────────────────────────────────────────────────
 
-  var _surahList = [];
-
   function initDirectInsertTab() {
     var surahSelect = document.getElementById('surah-select');
     var ayahStart = document.getElementById('ayah-start');
@@ -1109,6 +1094,5 @@
     init();
   }
 
-  window.getFormatState = function() { return Object.assign({}, formatState); };
 })();
 </script>

@@ -1,0 +1,18 @@
+<script>
+var formatState = {
+  fontName: 'Amiri',
+  fontSize: 18,
+  bold: false,
+  textColor: '#000000'
+};
+
+var _settings = {};
+var _surahList = [];
+
+var MAX_RESULTS      = 50;
+var EXACT_DEBOUNCE_MS = 200;
+var EXACT_MIN_CHARS  = 2;
+var SAVE_DEBOUNCE_MS = 500;
+
+window.getFormatState = function() { return Object.assign({}, formatState); };
+</script>
