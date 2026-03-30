@@ -10,26 +10,39 @@ A Google Docs sidebar add-on for Islamic scholars to search and insert Quranic a
 
 ## Data Architecture (Critical)
 
-### Arabic text + English translation — GitHub Pages (loaded once into client memory per session)
+### Quran data — client-only, loaded from GitHub Pages into browser memory
+All Quran text, metadata, and translations are fetched **client-side** via `makeClientCache` (browser `fetch()`). The server never loads or caches Quran data.
+
+**Canonical URL constants** live in `sidebar/sidebar-js.html`:
 ```
 UTHMANI:      https://tarazis.github.io/tasneef-data/quran/uthmani.json
 SIMPLE:       https://tarazis.github.io/tasneef-data/quran/imlaei-simple.json
 SURAH META:   https://tarazis.github.io/tasneef-data/quran/quran-metadata-surah-name.json
 TRANSLATION:  https://tarazis.github.io/tasneef-data/quran/en-sahih-international-simple.json
+```
+Font URLs live in `FontService.js`:
+```
 FONTS:        https://tarazis.github.io/tasneef-data/fonts.json
 ```
 - INSPECT the actual JSON structure before writing code against it
 - Translation JSON is a flat object keyed by `"surah:ayah"` with `{t: "text"}` values
 
-### Claude API — semantic search only
+### Arabic normalization — `NormalizeArabic.js` (server) + `client/normalizeArabic.html` (client)
+- Both files MUST stay in sync — parity enforced by `tests/normalizeArabic.test.js`
+- Strips tashkeel/diacritics, normalizes alef variants (آ أ إ ٱ → ا)
+- Server copy exists solely for parity testing; all production search runs client-side
+
+### Claude API — intent classification only
 - Model: claude-sonnet-4-20250514, temperature: 0
-- Claude returns surah/ayah references as JSON — NEVER Quranic text
+- Claude classifies user intent and returns JSON actions — NEVER Quranic text
+- For Arabic corpus search: Claude extracts the query text, client runs the search locally
+- For English/semantic search: Claude returns {surah, ayah} references, client resolves text
 - Every reference from Claude MUST be validated against local data before display
 - API key stored in User Properties
 
 ## Hard Rules
 1. **All Quranic Arabic text and English translations come from GitHub Pages JSON. Never from Claude. Never generated.**
-3. **Claude is a reference finder only.** It returns {surah, ayah} pairs. We look up the real text ourselves.
+3. **Claude is an intent classifier only.** It returns {surah, ayah} pairs or Arabic search queries. We look up/search the real text ourselves client-side.
 5. **Arabic search must normalize.** Strip tashkeel/diacritics for comparison. Normalize alef variants.
 6. **Font fallback is Amiri.** If selected font fails, use Amiri and show a toast.
 7. **Apps Script constraints:** No npm. No import/require. No ES modules. All server-side files are `.js` (clasp pushes them as `.gs`); they share global scope. HTML files served via HtmlService. Max project size ~2MB (code only, data is external).

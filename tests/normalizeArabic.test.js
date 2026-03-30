@@ -239,14 +239,14 @@ function runTests() {
 
   // ─── Parity with server-side normalizeArabic ───────────────────────────────
 
-  it('matches server-side QuranData.js normalizeArabic output', function () {
+  it('matches server-side NormalizeArabic.js normalizeArabic output', function () {
     const m = loadModule();
 
     const SERVER_SRC = fs.readFileSync(
-      path.join(__dirname, '..', 'QuranData.js'),
+      path.join(__dirname, '..', 'NormalizeArabic.js'),
       'utf8'
     );
-    const serverSandbox = { console, CacheService: null, UrlFetchApp: null };
+    const serverSandbox = { console };
     vm.createContext(serverSandbox);
     vm.runInContext(SERVER_SRC, serverSandbox);
 

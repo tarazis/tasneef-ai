@@ -167,7 +167,7 @@
    * Synchronous client-side search against the pre-normalized imlaei corpus.
    * Must be called after imlaei cache is loaded (ensure resolves synchronously post-load).
    * @param {string} query - Raw Arabic search text
-   * @return {Array<{surah, ayah, surahNameArabic, surahNameEnglish, arabicText}>}
+   * @return {Array<{surah, ayah, surahNameArabic, surahNameEnglish, arabicText, matchStart, matchEnd}>}
    */
   function searchImlaeiClient(query) {
     if (!query || typeof query !== 'string') return [];
@@ -187,16 +187,20 @@
 
     for (var key in normalized) {
       if (results.length >= SEARCH_RESULT_CAP) break;
-      if (normalized[key].indexOf(normalizedQuery) < 0) continue;
+      var matchIdx = normalized[key].indexOf(normalizedQuery);
+      if (matchIdx < 0) continue;
 
       var verse = raw[key];
+      var mapped = _mapNormalizedToOriginal(verse.text, matchIdx, normalizedQuery.length);
       var surahMeta = _surahList.find(function(s) { return s.number === verse.surah; });
       results.push({
         surah: verse.surah,
         ayah: verse.ayah,
         surahNameArabic: surahMeta ? surahMeta.nameArabic : '',
         surahNameEnglish: surahMeta ? surahMeta.nameEnglish : '',
-        arabicText: verse.text || ''
+        arabicText: verse.text || '',
+        matchStart: mapped.start,
+        matchEnd: mapped.end
       });
     }
 
@@ -1129,6 +1133,18 @@
       // Non-clarify response breaks the conversation chain
       _conversationMessages = [];
 
+      // Arabic corpus search: run client-side against imlaei cache
+      if (response.type === 'arabic_search') {
+        var searchResults = searchImlaeiClient(response.query);
+        if (!searchResults.length) {
+          emptyEl.textContent = 'No exact matches found for that text.';
+          emptyEl.classList.remove('hidden');
+          return;
+        }
+        renderResults(resultsEl, searchResults, 'search');
+        return;
+      }
+
       // References type: resolve against client-side caches
       if (response.type === 'references') {
         var refs = response.references || [];
@@ -1146,19 +1162,8 @@
         return;
       }
 
-      var results = response.results || [];
-      if (response.message && results.length === 0) {
-        emptyEl.textContent = response.message;
-        emptyEl.classList.remove('hidden');
-        return;
-      }
-      if (results.length === 0) {
-        emptyEl.textContent = 'No results found. Try a different query.';
-        emptyEl.classList.remove('hidden');
-        return;
-      }
-
-      renderResults(resultsEl, results, response.type);
+      emptyEl.textContent = 'Unexpected response. Please try again.';
+      emptyEl.classList.remove('hidden');
     }
 
     setupTextarea(queryEl, doAISearch);

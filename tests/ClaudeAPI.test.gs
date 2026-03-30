@@ -156,44 +156,43 @@ function runClaudeAPITests() {
     expect(trimmed.length).toBe(0);
   });
 
-  // ── performExactSearch (integration, real network for data load) ──────────
+  // ── _handleSearchRouting (unit — Arabic delegates to client) ────────────
 
-  results.push('\nperformExactSearch()');
+  results.push('\n_handleSearchRouting()');
 
-  it('finds Arabic text results for "الكرسي"', function () {
-    var result = performExactSearch('الكرسي');
-    expect(result.type).toBe('search');
-    expect(result.results.length).toBeGreaterThan(0);
-    var found = false;
-    for (var i = 0; i < result.results.length; i++) {
-      if (result.results[i].surah === 2 && result.results[i].ayah === 255) found = true;
-    }
-    if (!found) throw new Error('Expected 2:255 in results');
+  it('returns arabic_search type with query for Arabic language', function () {
+    var classified = { query: 'بسم الله', language: 'arabic' };
+    var result = _handleSearchRouting(classified);
+    expect(result.type).toBe('arabic_search');
+    expect(result.query).toBe('بسم الله');
   });
 
-  it('returns empty results for nonsense query', function () {
-    var result = performExactSearch('xyznonexistent');
-    expect(result.type).toBe('search');
-    expect(result.results.length).toBe(0);
+  it('trims whitespace from Arabic query', function () {
+    var classified = { query: '  الكرسي  ', language: 'arabic' };
+    var result = _handleSearchRouting(classified);
+    expect(result.type).toBe('arabic_search');
+    expect(result.query).toBe('الكرسي');
   });
 
-  it('returns error for empty query', function () {
-    var result = performExactSearch('');
+  it('returns error for empty Arabic query', function () {
+    var result = _handleSearchRouting({ query: '', language: 'arabic' });
     expect(result.type).toBe('error');
   });
 
-  it('returns error for whitespace-only query', function () {
-    var result = performExactSearch('   ');
+  it('returns error for whitespace-only Arabic query', function () {
+    var result = _handleSearchRouting({ query: '   ', language: 'arabic' });
     expect(result.type).toBe('error');
   });
 
-  it('returns results with match positions', function () {
-    var result = performExactSearch('بسم الله');
-    expect(result.type).toBe('search');
-    expect(result.results.length).toBeGreaterThan(0);
-    var r = result.results[0];
-    expect(r.matchStart != null).toBe(true);
-    expect(r.matchEnd != null).toBe(true);
+  it('delegates English language to _handleEnglishSearch', function () {
+    var classified = {
+      query: 'patience',
+      language: 'english',
+      references: [{ surah: 2, ayah: 153 }]
+    };
+    var result = _handleSearchRouting(classified);
+    expect(result.type).toBe('references');
+    expect(result.references.length).toBe(1);
   });
 
   // ── _handleEnglishSearch (unit — returns raw references) ──────────────────
