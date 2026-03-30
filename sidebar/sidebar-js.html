@@ -577,6 +577,32 @@
     };
   }
 
+  /**
+   * Build the innerHTML for a single .result-card element.
+   * Highlights matched substring when matchStart/matchEnd are present.
+   * @param {{surah, ayah, surahNameArabic, surahNameEnglish, arabicText, matchStart?, matchEnd?}} r
+   * @param {string} font - CSS font-family name
+   * @return {string} innerHTML for the card
+   */
+  function _buildResultCardHtml(r, font) {
+    var arabicRef = escapeHtml(r.surahNameArabic || '') + ' ' + toArabicIndicClient(r.ayah);
+    var englishRef = escapeHtml((r.surahNameEnglish || 'Surah') + ' ' + r.surah + ':' + r.ayah);
+    var arabicHtml = escapeHtml(r.arabicText);
+
+    if (r.matchStart != null && r.matchEnd != null && r.matchEnd > r.matchStart) {
+      var before = escapeHtml(r.arabicText.substring(0, r.matchStart));
+      var match  = escapeHtml(r.arabicText.substring(r.matchStart, r.matchEnd));
+      var after  = escapeHtml(r.arabicText.substring(r.matchEnd));
+      arabicHtml = before + '<mark>' + match + '</mark>' + after;
+    }
+
+    return '<div class="ref-arabic">' + arabicRef + '</div>' +
+      '<div class="arabic" style="font-family:' + escapeHtml(font) + ',serif">' + arabicHtml + '</div>' +
+      '<div class="ref-english">' + englishRef + '</div>' +
+      '<button type="button" class="btn-primary btn-insert-result" ' +
+        'data-surah="' + r.surah + '" data-ayah="' + r.ayah + '">Insert</button>';
+  }
+
   function renderResults(containerEl, results, type) {
     containerEl.innerHTML = '';
 
@@ -586,36 +612,11 @@
     }
 
     var font = formatState.fontName || 'Amiri';
-    var showTrans = _settings.showTranslation !== false;
 
     results.forEach(function(r) {
       var card = document.createElement('div');
       card.className = 'result-card';
-
-      var arabicRef = escapeHtml(r.surahNameArabic || '') + ' ' + toArabicIndicClient(r.ayah);
-      var englishRef = escapeHtml((r.surahNameEnglish || 'Surah') + ' ' + r.surah + ':' + r.ayah);
-      var arabicHtml = escapeHtml(r.arabicText);
-
-      if (type === 'search' && r.matchStart != null && r.matchEnd != null && r.matchEnd > r.matchStart) {
-        var before = escapeHtml(r.arabicText.substring(0, r.matchStart));
-        var match = escapeHtml(r.arabicText.substring(r.matchStart, r.matchEnd));
-        var after = escapeHtml(r.arabicText.substring(r.matchEnd));
-        arabicHtml = before + '<mark>' + match + '</mark>' + after;
-      }
-
-      var html =
-        '<div class="ref-arabic">' + arabicRef + '</div>' +
-        '<div class="arabic" style="font-family:' + escapeHtml(font) + ',serif">' + arabicHtml + '</div>' +
-        '<div class="ref-english">' + englishRef + '</div>';
-
-      if (showTrans && r.translationText) {
-        html += '<div class="translation">' + escapeHtml(r.translationText) + '</div>';
-      }
-
-      html += '<button type="button" class="btn-primary btn-insert-result" ' +
-        'data-surah="' + r.surah + '" data-ayah="' + r.ayah + '">Insert</button>';
-
-      card.innerHTML = html;
+      card.innerHTML = _buildResultCardHtml(r, font);
       containerEl.appendChild(card);
     });
   }
@@ -960,17 +961,7 @@
         var r = _exactSearchAllResults[i];
         var card = document.createElement('div');
         card.className = 'result-card';
-
-        var arabicRef = escapeHtml(r.surahNameArabic || '') + ' ' + toArabicIndicClient(r.ayah);
-        var englishRef = escapeHtml((r.surahNameEnglish || 'Surah') + ' ' + r.surah + ':' + r.ayah);
-
-        card.innerHTML =
-          '<div class="ref-arabic">' + arabicRef + '</div>' +
-          '<div class="arabic" style="font-family:' + escapeHtml(font) + ',serif">' + escapeHtml(r.arabicText) + '</div>' +
-          '<div class="ref-english">' + englishRef + '</div>' +
-          '<button type="button" class="btn-primary btn-insert-result" ' +
-            'data-surah="' + r.surah + '" data-ayah="' + r.ayah + '">Insert</button>';
-
+        card.innerHTML = _buildResultCardHtml(r, font);
         container.appendChild(card);
       }
 
