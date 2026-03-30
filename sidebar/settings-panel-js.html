@@ -1,0 +1,138 @@
+<script>
+// Depends on globals: _settings, formatState (shared-state.html),
+//   applyFormatStateToUI (format-bar.html)
+// Reads window.clearActiveTab (set by sidebar-js.html IIFE)
+
+function initSettings() {
+  var btnSettings = document.getElementById('btn-settings');
+  var btnClear = document.getElementById('btn-clear');
+  var overlay = document.getElementById('settings-overlay');
+  var btnBack = document.getElementById('btn-settings-back');
+
+  if (btnSettings && overlay) {
+    btnSettings.addEventListener('click', function() {
+      overlay.classList.remove('hidden');
+      loadSettingsIntoPanel();
+    });
+  }
+  if (btnClear) {
+    btnClear.addEventListener('click', function() {
+      if (window.clearActiveTab) window.clearActiveTab();
+    });
+  }
+  if (btnBack && overlay) {
+    btnBack.addEventListener('click', function() {
+      overlay.classList.add('hidden');
+      refreshSettings();
+    });
+  }
+  if (overlay) {
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) {
+        overlay.classList.add('hidden');
+        refreshSettings();
+      }
+    });
+  }
+}
+
+function refreshSettings() {
+  google.script.run.withSuccessHandler(function(s) {
+    _settings = s;
+  }).getSettings();
+}
+
+function loadSettingsIntoPanel() {
+  google.script.run
+    .withSuccessHandler(function(s) {
+      var trans = document.getElementById('insert-translation');
+      var apiKey = document.getElementById('claude-api-key');
+      if (trans) trans.checked = s.showTranslation !== false;
+      if (apiKey) {
+        // Never populate the input with the actual key value — check existence only
+        google.script.run.withSuccessHandler(function(hasKey) {
+          apiKey.value = '';
+          apiKey.placeholder = hasKey ? '••••••••••' : 'sk-ant-...';
+        }).hasClaudeApiKey();
+      }
+    })
+    .withFailureHandler(function() {})
+    .getSettings();
+}
+
+function initSettingsPanelHandlers() {
+  var trans = document.getElementById('insert-translation');
+  var btnSave = document.getElementById('btn-save-settings');
+  var apiKeyInput = document.getElementById('claude-api-key');
+  var savedMsg = document.getElementById('settings-saved-msg');
+
+  function showSavedMessage(text, isError) {
+    if (!savedMsg) return;
+    savedMsg.textContent = text;
+    savedMsg.className = 'settings-saved-msg ' + (isError ? 'error' : 'success');
+    savedMsg.classList.remove('hidden');
+    setTimeout(function() { savedMsg.classList.add('hidden'); }, 3000);
+  }
+
+  if (btnSave) {
+    btnSave.addEventListener('click', function() {
+      var showTranslation = trans ? trans.checked : true;
+      var key = apiKeyInput ? apiKeyInput.value.trim() : '';
+
+      btnSave.disabled = true;
+      btnSave.textContent = 'Saving…';
+
+      google.script.run
+        .withSuccessHandler(function() {
+          btnSave.disabled = false;
+          btnSave.textContent = 'Save';
+          // Save API key only if the user typed something
+          if (key) {
+            google.script.run
+              .withSuccessHandler(function() {
+                if (apiKeyInput) { apiKeyInput.value = ''; apiKeyInput.placeholder = '••••••••••'; }
+              })
+              .withFailureHandler(function() {})
+              .setClaudeApiKey(key);
+          }
+          showSavedMessage('Settings saved!', false);
+        })
+        .withFailureHandler(function() {
+          btnSave.disabled = false;
+          btnSave.textContent = 'Save';
+          showSavedMessage('Failed to save settings.', true);
+        })
+        .saveSettings({ showTranslation: showTranslation });
+    });
+  }
+}
+
+function onSettingsLoaded(settings) {
+  _settings = settings;
+  formatState.fontName = settings.fontName || 'Amiri';
+  formatState.fontSize = settings.fontSize || 18;
+  formatState.bold = settings.bold || false;
+  formatState.textColor = settings.textColor || '#000000';
+  applyFormatStateToUI();
+}
+
+function onFontsLoaded(fonts) {
+  var fontSelect = document.getElementById('font-select');
+  if (!fontSelect || !fonts || !fonts.length) return;
+  fontSelect.innerHTML = '';
+  fonts.forEach(function(f) {
+    var opt = document.createElement('option');
+    opt.value = f;
+    opt.textContent = f;
+    if (f === formatState.fontName) opt.selected = true;
+    fontSelect.appendChild(opt);
+  });
+  if (formatState.fontName && !fonts.some(function(f){ return f === formatState.fontName; })) {
+    var fallback = document.createElement('option');
+    fallback.value = formatState.fontName;
+    fallback.textContent = formatState.fontName;
+    fallback.selected = true;
+    fontSelect.insertBefore(fallback, fontSelect.firstChild);
+  }
+}
+</script>
