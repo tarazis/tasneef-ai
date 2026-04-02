@@ -29,11 +29,48 @@ function refreshArabicPreviewFontFace() {
   }
 }
 
+function resetFontPickerFlyoutPositions() {
+  var nodes = document.querySelectorAll('.font-picker-flyout');
+  for (var i = 0; i < nodes.length; i++) {
+    nodes[i].style.left = '';
+    nodes[i].style.top = '';
+  }
+}
+
+function positionFontPickerFlyout(li, fly) {
+  if (!li || !fly) return;
+  var r = li.getBoundingClientRect();
+  var gap = 4;
+  fly.style.left = r.right + gap + 'px';
+  fly.style.top = r.top + 'px';
+  var fr = fly.getBoundingClientRect();
+  if (fr.width > 0 && fr.right > window.innerWidth - 8) {
+    fly.style.left = Math.max(8, r.left - fr.width - gap) + 'px';
+  }
+}
+
+function repositionHoveredFontFlyout() {
+  var drop = document.getElementById('font-picker-dropdown');
+  if (!drop || drop.classList.contains('hidden')) return;
+  var items = drop.querySelectorAll('.font-picker-family-item');
+  for (var j = 0; j < items.length; j++) {
+    var item = items[j];
+    if (item.matches && item.matches(':hover')) {
+      var fl = item.querySelector('.font-picker-flyout');
+      if (fl) {
+        positionFontPickerFlyout(item, fl);
+        return;
+      }
+    }
+  }
+}
+
 function closeFontPicker() {
   var drop = document.getElementById('font-picker-dropdown');
   var trig = document.getElementById('font-picker-trigger');
   if (drop) drop.classList.add('hidden');
   if (trig) trig.setAttribute('aria-expanded', 'false');
+  resetFontPickerFlyoutPositions();
   document.removeEventListener('click', onFontPickerDocClick, true);
 }
 
@@ -111,6 +148,11 @@ function buildFontPickerDom() {
           })(variants[v]);
         }
         li.appendChild(fly);
+        li.addEventListener('mouseenter', function () {
+          requestAnimationFrame(function () {
+            positionFontPickerFlyout(li, fly);
+          });
+        });
         li.addEventListener('click', function (e) {
           if (e.target && e.target.closest && e.target.closest('.font-picker-flyout')) return;
           e.stopPropagation();
@@ -222,6 +264,15 @@ function initFormatBar() {
       e.stopPropagation();
       toggleFontPicker();
     });
+  }
+  var fontDrop = document.getElementById('font-picker-dropdown');
+  if (fontDrop && !fontDrop._fontFlyoutScrollBound) {
+    fontDrop._fontFlyoutScrollBound = true;
+    fontDrop.addEventListener('scroll', repositionHoveredFontFlyout);
+  }
+  if (typeof window !== 'undefined' && !window._fontFlyoutResizeBound) {
+    window._fontFlyoutResizeBound = true;
+    window.addEventListener('resize', repositionHoveredFontFlyout);
   }
   if (sizeSelect) {
     sizeSelect.addEventListener('change', function () {
