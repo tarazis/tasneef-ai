@@ -1,38 +1,29 @@
 /**
  * FontService.gs
- * Fetches Arabic-capable fonts from tasneef-data (GitHub Pages).
- * No API key required. Caches result for 24 hours in ScriptCache.
+ * Fetches Arabic-capable fonts from the Google Fonts API (subset=arabic).
+ * API key from User Properties (SettingsService); fallback key if unset.
+ * Cached for 24 hours in ScriptCache.
  */
 
 var FALLBACK_FONT = 'Amiri';
 
-var FONTS_JSON_URL = 'https://tarazis.github.io/tasneef-data/fonts.json';
+var GOOGLE_FONTS_API_BASE = 'https://www.googleapis.com/webfonts/v1/webfonts?subset=arabic&key=';
 var CACHE_KEY_FONTS = 'arabic_fonts';
 var CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 hours
 
-var BAD_FONTS = [
-  'Blaka', 'Blaka Hollow', 'Blaka Ink', 'Aref Ruqaa Ink',
-  'El Messiri', 'Alexandria', 'Lalezar', 'Playpen Sans Arabic', 'Mada',
-  'Rubik', 'Cairo', 'Almarai', 'Cairo Play', 'Readex Pro', 'Changa',
-  'Baloo Bhaijaan 2', 'Lemonada', 'Markazi Text', 'Kufam',
-  'Badeen Display', 'Marhey', 'Handjet', 'Oi', 'Reem Kufi Fun',
-  'Vibes', 'Qahiri'
+/** Hardcoded fallback when no key is stored in User Properties. */
+var GOOGLE_FONTS_API_KEY_FALLBACK = 'AIzaSyAx8SG23WQKR38AZeBq0iiVXAIneckwmP8';
+
+/**
+ * Curated list used when fetch fails.
+ */
+var FALLBACK_FONT_LIST = [
+  'Amiri', 'IBM Plex Sans Arabic', 'Lateef', 'Noto Kufi Arabic',
+  'Noto Naskh Arabic', 'Noto Sans Arabic', 'Scheherazade New', 'Tajawal'
 ];
 
 /**
- * Curated list used when fetch fails. Excludes BAD_FONTS.
- */
-var FALLBACK_FONT_LIST = (function () {
-  var list = [
-    'Amiri', 'IBM Plex Sans Arabic', 'Lateef', 'Noto Kufi Arabic',
-    'Noto Naskh Arabic', 'Noto Sans Arabic', 'Scheherazade New', 'Tajawal'
-  ];
-  return list.filter(function (f) { return BAD_FONTS.indexOf(f) < 0; });
-})();
-
-/**
- * Fetches Arabic fonts from tasneef-data URL. No API key required.
- * Filters out BAD_FONTS, returns family names sorted alphabetically.
+ * Fetches Arabic fonts from Google Fonts API. Returns family names sorted alphabetically.
  * Cached for 24 hours. Falls back to FALLBACK_FONT_LIST on error.
  * @return {Array<string>} Sorted list of font family names.
  */
@@ -46,7 +37,9 @@ function getArabicFonts() {
   var fonts = [];
 
   try {
-    var response = UrlFetchApp.fetch(FONTS_JSON_URL);
+    var apiKey = getGoogleFontsApiKey() || GOOGLE_FONTS_API_KEY_FALLBACK;
+    var url = GOOGLE_FONTS_API_BASE + encodeURIComponent(apiKey);
+    var response = UrlFetchApp.fetch(url);
     var json = JSON.parse(response.getContentText());
 
     // Support both array of strings and { items: [{ family: "..." }] }
@@ -59,14 +52,9 @@ function getArabicFonts() {
       items = json.fonts.map(function (f) { return typeof f === 'string' ? { family: f } : f; });
     }
 
-    var badSet = {};
-    for (var b = 0; b < BAD_FONTS.length; b++) {
-      badSet[BAD_FONTS[b]] = true;
-    }
-
     for (var i = 0; i < items.length; i++) {
       var family = items[i].family || (typeof items[i] === 'string' ? items[i] : null);
-      if (family && !badSet[family]) {
+      if (family) {
         fonts.push(family);
       }
     }

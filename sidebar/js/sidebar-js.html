@@ -70,6 +70,17 @@
   }
   window.setupTextarea = setupTextarea;
 
+  function loadGoogleFontsCss(fonts) {
+    if (!fonts || !fonts.length) return;
+    var families = fonts.map(function(f) {
+      return 'family=' + encodeURIComponent(f);
+    }).join('&');
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?' + families + '&display=swap';
+    document.head.appendChild(link);
+  }
+
   // ─── Init ────────────────────────────────────────────────────────────────────
 
   function init() {
@@ -87,7 +98,7 @@
       .getSettings();
 
     google.script.run
-      .withSuccessHandler(function(f) { onFontsLoaded(f); onInitDone(); })
+      .withSuccessHandler(function(f) { onFontsLoaded(f); loadGoogleFontsCss(f); onInitDone(); })
       .withFailureHandler(function() { onInitDone(); })
       .getArabicFonts();
 

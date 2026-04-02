@@ -25,7 +25,12 @@ function applyFormatStateToUI() {
   var boldBtn = document.getElementById('btn-bold');
   var colorPicker = document.getElementById('color-picker');
   var colorTrigger = document.getElementById('color-trigger');
-  if (fontSelect) fontSelect.value = formatState.fontName;
+  if (fontSelect) {
+    fontSelect.value = formatState.fontName;
+    if (formatState.fontName) {
+      fontSelect.style.fontFamily = formatState.fontName + ', serif';
+    }
+  }
   if (sizeSelect) {
     var sizeVal = String(formatState.fontSize);
     if (sizeSelect.querySelector('option[value="' + sizeVal + '"]')) {
@@ -49,6 +54,7 @@ function initFormatBar() {
   if (fontSelect) {
     fontSelect.addEventListener('change', function() {
       formatState.fontName = fontSelect.value;
+      fontSelect.style.fontFamily = fontSelect.value + ', serif';
       debouncedSave();
       if (window._activeTab === 'direct-insert' && window._refreshDirectInsert) window._refreshDirectInsert();
     });

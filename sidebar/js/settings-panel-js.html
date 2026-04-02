@@ -124,6 +124,7 @@ function onFontsLoaded(fonts) {
     var opt = document.createElement('option');
     opt.value = f;
     opt.textContent = f;
+    opt.style.fontFamily = f + ', serif';
     if (f === formatState.fontName) opt.selected = true;
     fontSelect.appendChild(opt);
   });
@@ -131,8 +132,10 @@ function onFontsLoaded(fonts) {
     var fallback = document.createElement('option');
     fallback.value = formatState.fontName;
     fallback.textContent = formatState.fontName;
+    fallback.style.fontFamily = formatState.fontName + ', serif';
     fallback.selected = true;
     fontSelect.insertBefore(fallback, fontSelect.firstChild);
   }
+  fontSelect.style.fontFamily = formatState.fontName + ', serif';
 }
 </script>

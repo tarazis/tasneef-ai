@@ -4,7 +4,7 @@
  * Run from Apps Script editor: select runFontServiceTests, click Run.
  * View results in View → Logs.
  *
- * Fetches from tasneef-data/fonts.json (no API key). Falls back to curated list on error.
+ * Fetches from Google Fonts API (subset=arabic). Falls back to curated list on error.
  * No require/Node APIs.
  */
 
@@ -57,14 +57,9 @@ function runFontServiceTests() {
     expect(fonts).toContain('Amiri');
   });
 
-  it('excludes all BAD_FONTS from the list', function () {
+  it('returns more than 50 fonts from Google Fonts API', function () {
     var fonts = getArabicFonts();
-    var bad = ['Blaka', 'Cairo', 'Rubik', 'Markazi Text', 'Reem Kufi Fun'];
-    for (var i = 0; i < bad.length; i++) {
-      if (fonts.indexOf(bad[i]) >= 0) {
-        throw new Error('BAD_FONT ' + bad[i] + ' should not be in list');
-      }
-    }
+    expect(fonts.length).toBeGreaterThan(50);
   });
 
   it('returns list sorted alphabetically', function () {
