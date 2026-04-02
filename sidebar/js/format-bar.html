@@ -40,12 +40,12 @@ function resetFontPickerFlyoutPositions() {
 function positionFontPickerFlyout(li, fly) {
   if (!li || !fly) return;
   var r = li.getBoundingClientRect();
-  var gap = 4;
-  fly.style.left = r.right + gap + 'px';
+  var overlap = 1;
+  fly.style.left = r.right - overlap + 'px';
   fly.style.top = r.top + 'px';
   var fr = fly.getBoundingClientRect();
   if (fr.width > 0 && fr.right > window.innerWidth - 8) {
-    fly.style.left = Math.max(8, r.left - fr.width - gap) + 'px';
+    fly.style.left = Math.max(8, r.left - fr.width + overlap) + 'px';
   }
 }
 
