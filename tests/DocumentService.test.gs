@@ -44,7 +44,6 @@ function runDocumentServiceTests() {
       _align: null,
       _ltr: null,
       _heading: null,
-      _formatCalls: [],
       getText: function () { return this._text; },
       setAlignment: function (a) { this._align = a; },
       setLeftToRight: function (v) { this._ltr = v; },
@@ -139,16 +138,16 @@ function runDocumentServiceTests() {
 
   // ── Tests ───────────────────────────────────────────────────
 
-  results.push('\ninsertParagraphsAtPosition_()');
+  results.push('\ninsertParagraphsAtPosition_() — positioning');
 
-  it('cursor on empty paragraph — inserts at cursor index, removes empty, adds cleanup', function () {
+  it('cursor on empty paragraph (only child) — replaces empty, adds cleanup', function () {
     var body = createMockBody(['']);
     var cursorPara = body._children[0];
     var doc = createMockDoc(body, cursorPara);
 
     insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
 
-    // Should have: [content, cleanup]
+    // [content, cleanup]
     expect(body._children.length).toBe(2);
     expect(body._children[0]._text).toBe('\uFD3F test \uFD3E');
     expect(body._children[0]._ltr).toBe(false);
@@ -157,14 +156,14 @@ function runDocumentServiceTests() {
     expect(body._children[1]._ltr).toBe(true);
   });
 
-  it('cursor on non-empty paragraph — inserts below, adds cleanup', function () {
+  it('cursor on non-empty paragraph (last child) — inserts below, adds cleanup', function () {
     var body = createMockBody(['existing text']);
     var cursorPara = body._children[0];
     var doc = createMockDoc(body, cursorPara);
 
     insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
 
-    // Should have: [existing, content, cleanup]
+    // [existing, content, cleanup]
     expect(body._children.length).toBe(3);
     expect(body._children[0]._text).toBe('existing text');
     expect(body._children[1]._text).toBe('\uFD3F test \uFD3E');
@@ -173,44 +172,29 @@ function runDocumentServiceTests() {
     expect(body._children[2]._ltr).toBe(true);
   });
 
-  it('no cursor, last paragraph has text — inserts after it, adds cleanup', function () {
-    var body = createMockBody(['first', 'second', '']);
-    var doc = createMockDoc(body, null);
-
-    insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
-
-    // Should have: [first, second, content, cleanup, '']
-    expect(body._children.length).toBe(5);
-    expect(body._children[0]._text).toBe('first');
-    expect(body._children[1]._text).toBe('second');
-    expect(body._children[2]._text).toBe('\uFD3F test \uFD3E');
-    expect(body._children[3]._text).toBe('');
-    expect(body._children[3]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
-    expect(body._children[3]._ltr).toBe(true);
-    expect(body._children[4]._text).toBe('');
-  });
-
-  it('no cursor, all paragraphs empty — inserts at index 0, removes first empty, adds cleanup', function () {
+  it('no cursor, all paragraphs empty — replaces first, NO cleanup (empties remain after)', function () {
     var body = createMockBody(['', '', '']);
     var doc = createMockDoc(body, null);
 
     insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
 
-    // Should have: [content, cleanup, '', '']
-    expect(body._children.length).toBe(4);
+    // Insert at 0, remove original first → [content, '', '']
+    // Content is NOT last child → no cleanup
+    expect(body._children.length).toBe(3);
     expect(body._children[0]._text).toBe('\uFD3F test \uFD3E');
     expect(body._children[1]._text).toBe('');
-    expect(body._children[1]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
-    expect(body._children[1]._ltr).toBe(true);
+    expect(body._children[1]._heading).toBe(null);
+    expect(body._children[2]._text).toBe('');
   });
 
-  it('new doc (single empty paragraph, no cursor) — content + cleanup only', function () {
+  it('new doc (single empty paragraph, no cursor) — content + cleanup', function () {
     var body = createMockBody(['']);
     var doc = createMockDoc(body, null);
 
     insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
 
-    // Should have: [content, cleanup]
+    // Original empty removed, content is only child → cleanup added
+    // [content, cleanup]
     expect(body._children.length).toBe(2);
     expect(body._children[0]._text).toBe('\uFD3F test \uFD3E');
     expect(body._children[1]._text).toBe('');
@@ -224,13 +208,62 @@ function runDocumentServiceTests() {
 
     insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
 
-    // Should have: [first, last, content, cleanup]
+    // [first, last, content, cleanup]
     expect(body._children.length).toBe(4);
     expect(body._children[2]._text).toBe('\uFD3F test \uFD3E');
     expect(body._children[3]._text).toBe('');
     expect(body._children[3]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
     expect(body._children[3]._ltr).toBe(true);
   });
+
+  results.push('\ninsertParagraphsAtPosition_() — conditional cleanup');
+
+  it('no cursor, trailing empties after last non-empty — NO cleanup', function () {
+    var body = createMockBody(['first', 'second', '']);
+    var doc = createMockDoc(body, null);
+
+    insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
+
+    // Insert after 'second' (index 2), trailing '' pushed to index 3
+    // [first, second, content, ''] — content is NOT last → no cleanup
+    expect(body._children.length).toBe(4);
+    expect(body._children[0]._text).toBe('first');
+    expect(body._children[1]._text).toBe('second');
+    expect(body._children[2]._text).toBe('\uFD3F test \uFD3E');
+    expect(body._children[3]._text).toBe('');
+    expect(body._children[3]._heading).toBe(null);
+  });
+
+  it('cursor on non-empty paragraph with paragraphs below — NO cleanup', function () {
+    var body = createMockBody(['first', 'second', 'third']);
+    var cursorPara = body._children[0];
+    var doc = createMockDoc(body, cursorPara);
+
+    insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
+
+    // [first, content, second, third] — content is NOT last → no cleanup
+    expect(body._children.length).toBe(4);
+    expect(body._children[0]._text).toBe('first');
+    expect(body._children[1]._text).toBe('\uFD3F test \uFD3E');
+    expect(body._children[2]._text).toBe('second');
+    expect(body._children[3]._text).toBe('third');
+  });
+
+  it('cursor on non-empty paragraph with only spaces paragraph below — NO cleanup', function () {
+    var body = createMockBody(['first', '   ']);
+    var cursorPara = body._children[0];
+    var doc = createMockDoc(body, cursorPara);
+
+    insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
+
+    // [first, content, '   '] — spaces paragraph after → no cleanup
+    expect(body._children.length).toBe(3);
+    expect(body._children[1]._text).toBe('\uFD3F test \uFD3E');
+    expect(body._children[2]._text).toBe('   ');
+    expect(body._children[2]._heading).toBe(null);
+  });
+
+  results.push('\ninsertParagraphsAtPosition_() — multi-paragraph & font warning');
 
   it('font warning is propagated from applyFormat', function () {
     applyFormatReturnValue = 'Font "Custom" not found. Using Amiri.';
@@ -243,14 +276,14 @@ function runDocumentServiceTests() {
     applyFormatReturnValue = null;
   });
 
-  it('two content paragraphs (Arabic + translation) — both inserted in order, cleanup follows', function () {
+  it('two content paragraphs at end — both inserted, cleanup follows', function () {
     var body = createMockBody(['existing']);
     var cursorPara = body._children[0];
     var doc = createMockDoc(body, cursorPara);
 
     insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), {});
 
-    // Should have: [existing, arabic, translation, cleanup]
+    // [existing, arabic, translation, cleanup]
     expect(body._children.length).toBe(4);
     expect(body._children[1]._text).toBe('\uFD3F arabic \uFD3E');
     expect(body._children[1]._ltr).toBe(false);
@@ -259,6 +292,21 @@ function runDocumentServiceTests() {
     expect(body._children[3]._text).toBe('');
     expect(body._children[3]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
     expect(body._children[3]._ltr).toBe(true);
+  });
+
+  it('two content paragraphs with content after — NO cleanup', function () {
+    var body = createMockBody(['existing', 'after']);
+    var cursorPara = body._children[0];
+    var doc = createMockDoc(body, cursorPara);
+
+    insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), {});
+
+    // [existing, arabic, translation, after] — no cleanup
+    expect(body._children.length).toBe(4);
+    expect(body._children[1]._text).toBe('\uFD3F arabic \uFD3E');
+    expect(body._children[2]._text).toBe('"translation" (Al-Fatiha 1:1)');
+    expect(body._children[3]._text).toBe('after');
+    expect(body._children[3]._heading).toBe(null);
   });
 
   // ── Restore ─────────────────────────────────────────────────

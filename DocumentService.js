@@ -101,15 +101,22 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
     fontWarning = applyFormat(p.editAsText(), formatState) || fontWarning;
   }
 
-  var cleanupIndex = insertIndex + paragraphsToInsert.length;
-  Logger.log('[INSERT-DEBUG] cleanup paragraph at index: ' + cleanupIndex);
-  var cleanup = body.insertParagraph(cleanupIndex, '');
-  cleanup.setHeading(DocumentApp.ParagraphHeading.NORMAL);
-  cleanup.setLeftToRight(true);
-
   if (removeTarget) {
     Logger.log('[INSERT-DEBUG] removing empty paragraph target');
     body.removeChild(removeTarget);
+  }
+
+  var lastInsertedIndex = insertIndex + paragraphsToInsert.length - 1;
+  var isLastInDoc = (lastInsertedIndex >= body.getNumChildren() - 1);
+  Logger.log('[INSERT-DEBUG] lastInsertedIndex=' + lastInsertedIndex + ', numChildren=' + body.getNumChildren() + ', isLastInDoc=' + isLastInDoc);
+
+  if (isLastInDoc) {
+    Logger.log('[INSERT-DEBUG] cleanup paragraph at index: ' + (lastInsertedIndex + 1));
+    var cleanup = body.insertParagraph(lastInsertedIndex + 1, '');
+    cleanup.setHeading(DocumentApp.ParagraphHeading.NORMAL);
+    cleanup.setLeftToRight(true);
+  } else {
+    Logger.log('[INSERT-DEBUG] skipping cleanup — content exists after insertion');
   }
 
   // ── DEBUG: dump document state after insertion ──
