@@ -83,6 +83,7 @@ function openFontPicker() {
   var drop = document.getElementById('font-picker-dropdown');
   var trig = document.getElementById('font-picker-trigger');
   if (!drop || !trig) return;
+  syncFontPickerSelectionClasses();
   drop.classList.remove('hidden');
   trig.setAttribute('aria-expanded', 'true');
   setTimeout(function() {
@@ -97,11 +98,33 @@ function toggleFontPicker() {
   else closeFontPicker();
 }
 
+function syncFontPickerSelectionClasses() {
+  var fam = formatState.fontName || '';
+  var tok = formatState.fontVariant || 'regular';
+  var items = document.querySelectorAll('.font-picker-family-item');
+  for (var i = 0; i < items.length; i++) {
+    var li = items[i];
+    var liFam = li.getAttribute('data-font-family') || '';
+    var familySelected = liFam === fam;
+    li.classList.toggle('is-selected', familySelected);
+    li.setAttribute('aria-selected', familySelected ? 'true' : 'false');
+    var flyLis = li.querySelectorAll('.font-picker-flyout li');
+    for (var j = 0; j < flyLis.length; j++) {
+      var vli = flyLis[j];
+      var vtok = vli.getAttribute('data-variant-token') || '';
+      var variantSelected = familySelected && vtok === tok;
+      vli.classList.toggle('is-selected', variantSelected);
+      vli.setAttribute('aria-selected', variantSelected ? 'true' : 'false');
+    }
+  }
+}
+
 function selectFontAndVariant(family, variant, closeMenu) {
   formatState.fontName = family;
   formatState.fontVariant = variant || 'regular';
   updateFontPickerLabel();
   refreshArabicPreviewFontFace();
+  syncFontPickerSelectionClasses();
   debouncedSave();
   if (closeMenu) closeFontPicker();
   if (window._activeTab === 'direct-insert' && window._refreshDirectInsert) {
@@ -124,6 +147,8 @@ function buildFontPickerDom() {
     (function (entry) {
       var li = document.createElement('li');
       li.className = 'font-picker-family-item';
+      li.setAttribute('data-font-family', entry.family);
+      li.setAttribute('role', 'option');
       var nameSpan = document.createElement('span');
       nameSpan.className = 'font-picker-family-name';
       nameSpan.textContent = entry.family;
@@ -139,6 +164,8 @@ function buildFontPickerDom() {
         for (var v = 0; v < variants.length; v++) {
           (function (tok) {
             var vli = document.createElement('li');
+            vli.setAttribute('data-variant-token', tok);
+            vli.setAttribute('role', 'option');
             vli.textContent = googleFontVariantLabel(tok);
             vli.addEventListener('click', function (e) {
               e.stopPropagation();
@@ -166,6 +193,7 @@ function buildFontPickerDom() {
       ul.appendChild(li);
     })(window._fontCatalog[i]);
   }
+  syncFontPickerSelectionClasses();
 }
 
 /**
@@ -196,6 +224,7 @@ function reconcileFontCatalogState() {
   }
   updateFontPickerLabel();
   refreshArabicPreviewFontFace();
+  syncFontPickerSelectionClasses();
   if (changed) {
     google.script.run
       .withFailureHandler(function () {})
@@ -238,6 +267,7 @@ function applyFormatStateToUI() {
   var colorPicker = document.getElementById('color-picker');
   var colorTrigger = document.getElementById('color-trigger');
   updateFontPickerLabel();
+  syncFontPickerSelectionClasses();
   if (sizeSelect) {
     var sizeVal = String(formatState.fontSize);
     if (sizeSelect.querySelector('option[value="' + sizeVal + '"]')) {
