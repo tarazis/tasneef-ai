@@ -106,21 +106,22 @@ function setClaudeApiKey(key) {
 }
 
 /**
- * Returns the stored Google Fonts API key, or null if not set.
+ * Returns the Google Fonts Developer API key from Script Properties (shared by all users).
+ * Set once in Project settings → Script properties as google_fonts_api_key.
  * @return {string|null}
  */
 function getGoogleFontsApiKey() {
-  return PropertiesService.getUserProperties()
+  return PropertiesService.getScriptProperties()
     .getProperty(PROPERTY_KEYS.GOOGLE_FONTS_API_KEY) || null;
 }
 
 /**
- * Persists the Google Fonts API key to User Properties.
+ * Persists the Google Fonts API key to Script Properties (optional; prefer Script editor UI).
  * @param {string} key - The API key to store.
  */
 function setGoogleFontsApiKey(key) {
-  PropertiesService.getUserProperties()
-    .setProperty(PROPERTY_KEYS.GOOGLE_FONTS_API_KEY, key);
+  PropertiesService.getScriptProperties()
+    .setProperty(PROPERTY_KEYS.GOOGLE_FONTS_API_KEY, String(key || '').trim());
 }
 
 /**

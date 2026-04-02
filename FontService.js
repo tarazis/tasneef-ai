@@ -107,7 +107,7 @@ function getArabicFonts() {
 
 /**
  * Fetches Google Fonts metadata (arabic subset) intersected with quran-fonts approved_fonts.
- * Requires User Properties google_fonts_api_key via getGoogleFontsApiKey().
+ * Requires Script Properties google_fonts_api_key via getGoogleFontsApiKey().
  * @return {{ ok: boolean, error: string|null, catalog: Array<{family: string, variants: string[]}> }}
  */
 function getCuratedFontCatalog() {
