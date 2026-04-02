@@ -110,13 +110,23 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
   var isLastInDoc = (lastInsertedIndex >= body.getNumChildren() - 1);
   Logger.log('[INSERT-DEBUG] lastInsertedIndex=' + lastInsertedIndex + ', numChildren=' + body.getNumChildren() + ', isLastInDoc=' + isLastInDoc);
 
+  var cursorTarget;
   if (isLastInDoc) {
     Logger.log('[INSERT-DEBUG] cleanup paragraph at index: ' + (lastInsertedIndex + 1));
     var cleanup = body.insertParagraph(lastInsertedIndex + 1, '');
     cleanup.setHeading(DocumentApp.ParagraphHeading.NORMAL);
     cleanup.setLeftToRight(true);
+    cursorTarget = cleanup;
   } else {
     Logger.log('[INSERT-DEBUG] skipping cleanup — content exists after insertion');
+    cursorTarget = body.getChild(lastInsertedIndex).asParagraph();
+  }
+
+  try {
+    doc.setCursor(doc.newPosition(cursorTarget, 0));
+    Logger.log('[INSERT-DEBUG] cursor moved to target paragraph');
+  } catch (e) {
+    Logger.log('[INSERT-DEBUG] could not move cursor: ' + e.message);
   }
 
   // ── DEBUG: dump document state after insertion ──
