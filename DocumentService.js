@@ -21,7 +21,7 @@
  * @param {Body} body - The document body
  * @param {Document} doc - The active document
  * @param {Array<Object>} paragraphsToInsert - Array of { text, align, rtl? }
- * @param {Object} formatState - { fontName, fontSize, bold, textColor }
+ * @param {Object} formatState - { fontName, fontVariant, fontSize, bold, textColor }
  * @return {Object} { fontWarning: string|null }
  */
 function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState) {
@@ -105,7 +105,7 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
  * Inserts an ayah into the document at the cursor position.
  * If no cursor, inserts after the last non-empty paragraph.
  * @param {Object} ayahData - { surah, ayah, surahNameArabic, surahNameEnglish, textUthmani, textSimple, translationText }
- * @param {Object} formatState - { fontName, fontSize, bold, textColor }
+ * @param {Object} formatState - { fontName, fontVariant, fontSize, bold, textColor }
  * @param {Object} settings - { showTranslation, arabicStyle }
  * @return {Object} { success: boolean, message?: string }
  */
@@ -156,7 +156,7 @@ function insertAyah(ayahData, formatState, settings) {
  * Inserts a pre-assembled ayah range into the document.
  * If no cursor is set, inserts after the last non-empty paragraph.
  * @param {Object} rangeData - { surah, ayahStart, ayahEnd, arabicText, translationText, surahNameArabic, surahNameEnglish }
- * @param {Object} formatState - { fontName, fontSize, bold, textColor }
+ * @param {Object} formatState - { fontName, fontVariant, fontSize, bold, textColor }
  * @param {Object} settings - { showTranslation }
  * @return {Object} { success: boolean, message?: string }
  */

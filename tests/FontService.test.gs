@@ -61,6 +61,26 @@ function runFontServiceTests() {
     }
   }
 
+  results.push('\nparseGoogleFontVariant()');
+
+  it('regular is weight 400 not italic', function () {
+    var p = parseGoogleFontVariant('regular');
+    if (p.weight !== 400 || p.italic !== false) throw new Error(JSON.stringify(p));
+  });
+
+  it('700italic is weight 700 italic', function () {
+    var p = parseGoogleFontVariant('700italic');
+    if (p.weight !== 700 || p.italic !== true) throw new Error(JSON.stringify(p));
+  });
+
+  results.push('\ngetCuratedFontCatalog()');
+
+  it('getCuratedFontCatalog returns ok boolean and catalog array', function () {
+    var cur = getCuratedFontCatalog();
+    if (typeof cur.ok !== 'boolean') throw new Error('missing ok');
+    if (!(cur.catalog instanceof Array)) throw new Error('catalog must be array');
+  });
+
   results.push('\ngetArabicFonts()');
 
   it('returns an array', function () {

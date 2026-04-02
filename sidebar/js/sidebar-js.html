@@ -87,9 +87,9 @@
       .getSettings();
 
     google.script.run
-      .withSuccessHandler(function(f) { onFontsLoaded(f); onInitDone(); })
-      .withFailureHandler(function() { onInitDone(); })
-      .getArabicFonts();
+      .withSuccessHandler(function(res) { onFontCatalogLoaded(res); onInitDone(); })
+      .withFailureHandler(function() { onFontCatalogLoaded({ ok: false, error: 'RPC_FAIL', catalog: [] }); onInitDone(); })
+      .getCuratedFontCatalog();
 
     ensureUthmaniCache(onInitDone, onInitDone);
     ensureTranslationCache(onInitDone, onInitDone);

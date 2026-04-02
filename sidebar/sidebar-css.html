@@ -11,7 +11,21 @@
 
   .format-bar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #e0e0e0; flex-wrap: wrap; flex-shrink: 0; }
   .format-bar select, .format-bar input[type="number"] { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; min-width: 0; }
-  .format-bar .font-select { flex: 1; min-width: 80px; max-width: 140px; }
+  .format-bar .font-picker { position: relative; flex: 1; min-width: 80px; max-width: 200px; }
+  .format-bar .font-picker-trigger { width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; background: #fff; cursor: pointer; }
+  .format-bar .font-picker-trigger:hover { border-color: #999; }
+  .format-bar .font-picker-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .format-bar .font-picker-caret { flex-shrink: 0; color: #666; font-size: 10px; }
+  .format-bar .font-picker-dropdown { position: absolute; top: calc(100% + 2px); left: 0; min-width: 100%; max-width: 280px; max-height: 240px; overflow-y: auto; background: #fff; border: 1px solid #ccc; border-radius: 4px; z-index: 300; box-shadow: 0 2px 10px rgba(0,0,0,0.12); }
+  .format-bar .font-picker-families { list-style: none; margin: 0; padding: 4px 0; }
+  .format-bar .font-picker-family-item { position: relative; padding: 6px 10px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12px; }
+  .format-bar .font-picker-family-item:hover { background: #f0f0f0; }
+  .format-bar .font-picker-chevron { flex-shrink: 0; color: #999; font-size: 12px; line-height: 1; }
+  .format-bar .font-picker-flyout { display: none; position: absolute; left: 100%; top: 0; margin-left: 2px; min-width: 148px; max-height: 220px; overflow-y: auto; list-style: none; margin: 0; padding: 4px 0; background: #fff; border: 1px solid #ccc; border-radius: 4px; z-index: 301; box-shadow: 0 2px 10px rgba(0,0,0,0.12); }
+  .format-bar .font-picker-family-item:hover .font-picker-flyout { display: block; }
+  .format-bar .font-picker-flyout li { padding: 6px 10px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+  .format-bar .font-picker-flyout li:hover { background: #e8e8e8; }
+  .format-bar .font-picker-empty { padding: 8px 10px; font-size: 11px; color: #888; list-style: none; }
   .format-bar .size-select { width: 52px; }
   .format-bar .btn-format { padding: 6px 10px; border: 1px solid #ccc; background: #fafafa; border-radius: 4px; font-size: 12px; font-weight: 700; cursor: pointer; }
   .format-bar .btn-format.active { background: #e8e8e8; border-color: #999; }

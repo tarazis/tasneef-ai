@@ -11,6 +11,7 @@ var SETTINGS_DEFAULTS = {
   insertArabic: true,
   arabicStyle: 'uthmani',     // "uthmani" | "simple"
   fontName: 'Amiri',
+  fontVariant: 'regular',    // Google Fonts API variant token
   fontSize: 18,
   bold: false,
   textColor: '#000000'

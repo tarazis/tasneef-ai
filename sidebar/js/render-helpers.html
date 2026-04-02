@@ -27,16 +27,16 @@ function renderPreview(containerEl, results) {
   containerEl.innerHTML = '';
   if (!results || results.length === 0) return;
 
-  var font = formatState.fontName || 'Amiri';
+  var fs = window.getFormatState ? window.getFormatState() : formatState;
   var card = document.createElement('div');
   card.className = 'result-card';
 
   if (results.length === 1) {
-    card.innerHTML = buildCardHtml(results[0], font);
+    card.innerHTML = buildCardHtml(results[0], fs);
   } else {
     var rangeData = buildRangeData(results);
     rangeData.isRange = true;
-    card.innerHTML = buildCardHtml(rangeData, font);
+    card.innerHTML = buildCardHtml(rangeData, fs);
   }
 
   containerEl.appendChild(card);

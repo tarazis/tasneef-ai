@@ -68,11 +68,18 @@ function buildRangeData(results) {
  * @param {Object} cardData
  *   Single: { surah, ayah, surahNameArabic, surahNameEnglish, arabicText, matchStart?, matchEnd? }
  *   Range:  { surah, ayahStart, ayahEnd, surahNameArabic, surahNameEnglish, arabicText, isRange: true }
- * @param {string} font - CSS font-family name
+ * @param {string|Object} fontOrFs - CSS family string, or formatState-like { fontName, fontVariant }
  * @return {string} innerHTML for the card
  */
-function buildCardHtml(cardData, font) {
+function buildCardHtml(cardData, fontOrFs) {
   var arabicRef, englishRef, arabicHtml;
+  var arabicCss;
+  if (fontOrFs && typeof fontOrFs === 'object' && fontOrFs.fontName) {
+    arabicCss = arabicPreviewFontStyle(fontOrFs);
+  } else {
+    var f = (typeof fontOrFs === 'string' && fontOrFs) ? fontOrFs : 'Amiri';
+    arabicCss = "font-family:'" + String(f).replace(/['\\<>]/g, '') + "',serif;font-weight:400;font-style:normal";
+  }
 
   if (cardData.isRange) {
     arabicRef = escapeHtml(cardData.surahNameArabic || '') +
@@ -85,7 +92,7 @@ function buildCardHtml(cardData, font) {
     arabicHtml = escapeHtml(cardData.arabicText);
 
     return '<div class="ref-arabic">' + arabicRef + '</div>' +
-      '<div class="arabic range-block" style="font-family:' + escapeHtml(font) + ',serif">' + arabicHtml + '</div>' +
+      '<div class="arabic range-block" style="' + escapeHtml(arabicCss) + '">' + arabicHtml + '</div>' +
       '<div class="ref-english">' + englishRef + '</div>' +
       '<button type="button" class="btn-primary btn-insert-result" ' +
         'data-surah="' + cardData.surah + '" ' +
@@ -105,7 +112,7 @@ function buildCardHtml(cardData, font) {
   }
 
   return '<div class="ref-arabic">' + arabicRef + '</div>' +
-    '<div class="arabic" style="font-family:' + escapeHtml(font) + ',serif">' + arabicHtml + '</div>' +
+    '<div class="arabic" style="' + escapeHtml(arabicCss) + '">' + arabicHtml + '</div>' +
     '<div class="ref-english">' + englishRef + '</div>' +
     '<button type="button" class="btn-primary btn-insert-result" ' +
       'data-surah="' + cardData.surah + '" data-ayah="' + cardData.ayah + '">Insert</button>';

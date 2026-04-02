@@ -46,12 +46,14 @@ function pagRenderPage(tabId, containerEl, emptyEl, emptyMsg) {
 
   var start = state.page * PAGE_SIZE;
   var end = Math.min(start + PAGE_SIZE, state.results.length);
-  var font = window.getFormatState ? window.getFormatState().fontName : 'Amiri';
+  var fs = window.getFormatState
+    ? window.getFormatState()
+    : { fontName: 'Amiri', fontVariant: 'regular' };
 
   for (var i = start; i < end; i++) {
     var card = document.createElement('div');
     card.className = 'result-card';
-    card.innerHTML = buildCardHtml(state.results[i], font);
+    card.innerHTML = buildCardHtml(state.results[i], fs);
     containerEl.appendChild(card);
   }
 

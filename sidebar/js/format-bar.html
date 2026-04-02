@@ -1,16 +1,186 @@
 <script>
-// Depends on globals: formatState, SAVE_DEBOUNCE_MS (shared-state.html)
-// Reads window._activeTab and window._refreshDirectInsert (set by sidebar-js.html IIFE)
+// Depends on: formatState, SAVE_DEBOUNCE_MS (shared-state.html),
+//   parseGoogleFontVariantClient, googleFontVariantLabel, ensureGoogleFontsPreviewStylesheet,
+//   arabicPreviewFontStyle (font-variant-utils.html)
+// Reads window._activeTab, window._refreshDirectInsert (sidebar-js.html)
 
 var saveDebounceTimer = null;
+window._fontCatalog = null;
+
+function updateFontPickerLabel() {
+  var el = document.getElementById('font-picker-label');
+  if (!el) return;
+  var fam = formatState.fontName || 'Amiri';
+  var tok = formatState.fontVariant || 'regular';
+  el.textContent = fam + ' · ' + googleFontVariantLabel(tok);
+}
+
+function refreshArabicPreviewFontFace() {
+  if (!window._fontCatalog || !formatState.fontName) return;
+  var entry = null;
+  for (var i = 0; i < window._fontCatalog.length; i++) {
+    if (window._fontCatalog[i].family === formatState.fontName) {
+      entry = window._fontCatalog[i];
+      break;
+    }
+  }
+  if (entry && entry.variants && entry.variants.length) {
+    ensureGoogleFontsPreviewStylesheet(entry.family, entry.variants);
+  }
+}
+
+function closeFontPicker() {
+  var drop = document.getElementById('font-picker-dropdown');
+  var trig = document.getElementById('font-picker-trigger');
+  if (drop) drop.classList.add('hidden');
+  if (trig) trig.setAttribute('aria-expanded', 'false');
+  document.removeEventListener('click', onFontPickerDocClick, true);
+}
+
+function onFontPickerDocClick(e) {
+  var picker = document.getElementById('font-picker');
+  if (picker && !picker.contains(e.target)) closeFontPicker();
+}
+
+function openFontPicker() {
+  var drop = document.getElementById('font-picker-dropdown');
+  var trig = document.getElementById('font-picker-trigger');
+  if (!drop || !trig) return;
+  drop.classList.remove('hidden');
+  trig.setAttribute('aria-expanded', 'true');
+  setTimeout(function() {
+    document.addEventListener('click', onFontPickerDocClick, true);
+  }, 0);
+}
+
+function toggleFontPicker() {
+  var drop = document.getElementById('font-picker-dropdown');
+  if (!drop) return;
+  if (drop.classList.contains('hidden')) openFontPicker();
+  else closeFontPicker();
+}
+
+function selectFontAndVariant(family, variant, closeMenu) {
+  formatState.fontName = family;
+  formatState.fontVariant = variant || 'regular';
+  updateFontPickerLabel();
+  refreshArabicPreviewFontFace();
+  debouncedSave();
+  if (closeMenu) closeFontPicker();
+  if (window._activeTab === 'direct-insert' && window._refreshDirectInsert) {
+    window._refreshDirectInsert();
+  }
+}
+
+function buildFontPickerDom() {
+  var ul = document.getElementById('font-picker-families');
+  if (!ul) return;
+  ul.innerHTML = '';
+  if (!window._fontCatalog || !window._fontCatalog.length) {
+    var li0 = document.createElement('li');
+    li0.className = 'font-picker-empty';
+    li0.textContent = 'No fonts loaded. Check Google Fonts API access.';
+    ul.appendChild(li0);
+    return;
+  }
+  for (var i = 0; i < window._fontCatalog.length; i++) {
+    (function (entry) {
+      var li = document.createElement('li');
+      li.className = 'font-picker-family-item';
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'font-picker-family-name';
+      nameSpan.textContent = entry.family;
+      li.appendChild(nameSpan);
+      var variants = entry.variants || [];
+      if (variants.length > 1) {
+        var chev = document.createElement('span');
+        chev.className = 'font-picker-chevron';
+        chev.textContent = '›';
+        li.appendChild(chev);
+        var fly = document.createElement('ul');
+        fly.className = 'font-picker-flyout';
+        for (var v = 0; v < variants.length; v++) {
+          (function (tok) {
+            var vli = document.createElement('li');
+            vli.textContent = googleFontVariantLabel(tok);
+            vli.addEventListener('click', function (e) {
+              e.stopPropagation();
+              selectFontAndVariant(entry.family, tok, true);
+            });
+            fly.appendChild(vli);
+          })(variants[v]);
+        }
+        li.appendChild(fly);
+        li.addEventListener('click', function (e) {
+          if (e.target && e.target.closest && e.target.closest('.font-picker-flyout')) return;
+          e.stopPropagation();
+        });
+      } else if (variants.length === 1) {
+        li.addEventListener('click', function () {
+          selectFontAndVariant(entry.family, variants[0], true);
+        });
+      }
+      ul.appendChild(li);
+    })(window._fontCatalog[i]);
+  }
+}
+
+/**
+ * If saved family/variant missing from catalog, reset to first entries.
+ */
+function reconcileFontCatalogState() {
+  if (!window._fontCatalog || !window._fontCatalog.length) {
+    updateFontPickerLabel();
+    return;
+  }
+  var cat = window._fontCatalog;
+  var entry = null;
+  for (var i = 0; i < cat.length; i++) {
+    if (cat[i].family === formatState.fontName) {
+      entry = cat[i];
+      break;
+    }
+  }
+  var changed = false;
+  if (!entry) {
+    entry = cat[0];
+    formatState.fontName = entry.family;
+    formatState.fontVariant = entry.variants[0];
+    changed = true;
+  } else if (entry.variants.indexOf(formatState.fontVariant) < 0) {
+    formatState.fontVariant = entry.variants[0];
+    changed = true;
+  }
+  updateFontPickerLabel();
+  refreshArabicPreviewFontFace();
+  if (changed) {
+    google.script.run
+      .withFailureHandler(function () {})
+      .saveSettings({ fontName: formatState.fontName, fontVariant: formatState.fontVariant });
+  }
+}
+
+function onFontCatalogLoaded(result) {
+  window._fontCatalog = (result && result.catalog) ? result.catalog : [];
+  if (!result || !result.ok) {
+    window._fontCatalog = [];
+    var err = (result && result.error) ? result.error : 'UNKNOWN';
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('Font catalog:', err);
+    }
+  }
+  buildFontPickerDom();
+  reconcileFontCatalogState();
+}
 
 function debouncedSave() {
   if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
-  saveDebounceTimer = setTimeout(function() {
+  saveDebounceTimer = setTimeout(function () {
     google.script.run
-      .withFailureHandler(function(err) { console.error('Save settings failed:', err); })
+      .withFailureHandler(function (err) { console.error('Save settings failed:', err); })
       .saveSettings({
         fontName: formatState.fontName,
+        fontVariant: formatState.fontVariant,
         fontSize: formatState.fontSize,
         bold: formatState.bold,
         textColor: formatState.textColor
@@ -20,12 +190,11 @@ function debouncedSave() {
 }
 
 function applyFormatStateToUI() {
-  var fontSelect = document.getElementById('font-select');
   var sizeSelect = document.getElementById('size-select');
   var boldBtn = document.getElementById('btn-bold');
   var colorPicker = document.getElementById('color-picker');
   var colorTrigger = document.getElementById('color-trigger');
-  if (fontSelect) fontSelect.value = formatState.fontName;
+  updateFontPickerLabel();
   if (sizeSelect) {
     var sizeVal = String(formatState.fontSize);
     if (sizeSelect.querySelector('option[value="' + sizeVal + '"]')) {
@@ -39,42 +208,49 @@ function applyFormatStateToUI() {
   if (colorTrigger) colorTrigger.style.backgroundColor = formatState.textColor;
 }
 
+window.reconcileFontCatalogState = reconcileFontCatalogState;
+
 function initFormatBar() {
-  var fontSelect = document.getElementById('font-select');
   var sizeSelect = document.getElementById('size-select');
   var boldBtn = document.getElementById('btn-bold');
   var colorTrigger = document.getElementById('color-trigger');
   var colorPicker = document.getElementById('color-picker');
+  var trig = document.getElementById('font-picker-trigger');
 
-  if (fontSelect) {
-    fontSelect.addEventListener('change', function() {
-      formatState.fontName = fontSelect.value;
-      debouncedSave();
-      if (window._activeTab === 'direct-insert' && window._refreshDirectInsert) window._refreshDirectInsert();
+  if (trig) {
+    trig.addEventListener('click', function (e) {
+      e.stopPropagation();
+      toggleFontPicker();
     });
   }
   if (sizeSelect) {
-    sizeSelect.addEventListener('change', function() {
+    sizeSelect.addEventListener('change', function () {
       formatState.fontSize = parseInt(sizeSelect.value, 10) || 18;
       debouncedSave();
-      if (window._activeTab === 'direct-insert' && window._refreshDirectInsert) window._refreshDirectInsert();
+      if (window._activeTab === 'direct-insert' && window._refreshDirectInsert) {
+        window._refreshDirectInsert();
+      }
     });
   }
   if (boldBtn) {
-    boldBtn.addEventListener('click', function() {
+    boldBtn.addEventListener('click', function () {
       formatState.bold = !formatState.bold;
       boldBtn.classList.toggle('active', formatState.bold);
       debouncedSave();
-      if (window._activeTab === 'direct-insert' && window._refreshDirectInsert) window._refreshDirectInsert();
+      if (window._activeTab === 'direct-insert' && window._refreshDirectInsert) {
+        window._refreshDirectInsert();
+      }
     });
   }
   if (colorTrigger && colorPicker) {
-    colorTrigger.addEventListener('click', function() { colorPicker.click(); });
+    colorTrigger.addEventListener('click', function () { colorPicker.click(); });
     function onColorChange() {
       formatState.textColor = colorPicker.value;
       colorTrigger.style.backgroundColor = colorPicker.value;
       debouncedSave();
-      if (window._activeTab === 'direct-insert' && window._refreshDirectInsert) window._refreshDirectInsert();
+      if (window._activeTab === 'direct-insert' && window._refreshDirectInsert) {
+        window._refreshDirectInsert();
+      }
     }
     colorPicker.addEventListener('input', onColorChange);
     colorPicker.addEventListener('change', onColorChange);

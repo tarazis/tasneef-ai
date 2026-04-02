@@ -1,7 +1,13 @@
 <div class="format-bar">
-  <select class="font-select" id="font-select" title="Font">
-    <option value="Amiri">Amiri</option>
-  </select>
+  <div class="font-picker" id="font-picker">
+    <button type="button" class="font-picker-trigger" id="font-picker-trigger" aria-haspopup="listbox" aria-expanded="false" title="Font">
+      <span class="font-picker-label" id="font-picker-label">Amiri · Normal</span>
+      <span class="font-picker-caret" aria-hidden="true">▾</span>
+    </button>
+    <div class="font-picker-dropdown hidden" id="font-picker-dropdown" role="listbox" aria-label="Fonts">
+      <ul class="font-picker-families" id="font-picker-families"></ul>
+    </div>
+  </div>
   <select class="size-select" id="size-select" title="Font size">
     <option value="12">12</option>
     <option value="14">14</option>

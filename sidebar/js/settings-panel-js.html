@@ -110,29 +110,13 @@ function initSettingsPanelHandlers() {
 function onSettingsLoaded(settings) {
   _settings = settings;
   formatState.fontName = settings.fontName || 'Amiri';
+  formatState.fontVariant = settings.fontVariant || 'regular';
   formatState.fontSize = settings.fontSize || 18;
   formatState.bold = settings.bold || false;
   formatState.textColor = settings.textColor || '#000000';
   applyFormatStateToUI();
-}
-
-function onFontsLoaded(fonts) {
-  var fontSelect = document.getElementById('font-select');
-  if (!fontSelect || !fonts || !fonts.length) return;
-  fontSelect.innerHTML = '';
-  fonts.forEach(function(f) {
-    var opt = document.createElement('option');
-    opt.value = f;
-    opt.textContent = f;
-    if (f === formatState.fontName) opt.selected = true;
-    fontSelect.appendChild(opt);
-  });
-  if (formatState.fontName && !fonts.some(function(f){ return f === formatState.fontName; })) {
-    var fallback = document.createElement('option');
-    fallback.value = formatState.fontName;
-    fallback.textContent = formatState.fontName;
-    fallback.selected = true;
-    fontSelect.insertBefore(fallback, fontSelect.firstChild);
+  if (window._fontCatalog && window._fontCatalog.length && window.reconcileFontCatalogState) {
+    window.reconcileFontCatalogState();
   }
 }
 </script>

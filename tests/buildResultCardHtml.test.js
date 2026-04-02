@@ -31,6 +31,27 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
+function parseGoogleFontVariantClient(token) {
+  if (token == null || typeof token !== 'string') return { weight: 400, italic: false };
+  var t = token.replace(/\s/g, '');
+  if (t === '') return { weight: 400, italic: false };
+  if (t === 'regular') return { weight: 400, italic: false };
+  if (t === 'italic') return { weight: 400, italic: true };
+  var italic = /italic$/i.test(t);
+  if (italic) t = t.replace(/italic$/i, '');
+  var w = parseInt(t, 10);
+  if (!isNaN(w)) return { weight: w, italic: italic };
+  return { weight: 400, italic: false };
+}
+
+function arabicPreviewFontStyle(fs) {
+  var fam = (fs && fs.fontName) || 'Amiri';
+  var safeFam = String(fam).replace(/['\\<>]/g, '');
+  var p = parseGoogleFontVariantClient(fs && fs.fontVariant ? fs.fontVariant : 'regular');
+  return 'font-family:\'' + safeFam + '\',serif;font-weight:' + p.weight +
+    ';font-style:' + (p.italic ? 'italic' : 'normal');
+}
+
 // ─── isConsecutiveRange ───────────────────────────────────────────────────────
 
 function isConsecutiveRange(results) {
@@ -64,8 +85,15 @@ function buildRangeData(results) {
 
 // ─── buildCardHtml ────────────────────────────────────────────────────────────
 
-function buildCardHtml(cardData, font) {
+function buildCardHtml(cardData, fontOrFs) {
   var arabicRef, englishRef, arabicHtml;
+  var arabicCss;
+  if (fontOrFs && typeof fontOrFs === 'object' && fontOrFs.fontName) {
+    arabicCss = arabicPreviewFontStyle(fontOrFs);
+  } else {
+    var f = (typeof fontOrFs === 'string' && fontOrFs) ? fontOrFs : 'Amiri';
+    arabicCss = 'font-family:\'' + String(f).replace(/['\\<>]/g, '') + '\',serif;font-weight:400;font-style:normal';
+  }
 
   if (cardData.isRange) {
     arabicRef = escapeHtml(cardData.surahNameArabic || '') +
@@ -78,7 +106,7 @@ function buildCardHtml(cardData, font) {
     arabicHtml = escapeHtml(cardData.arabicText);
 
     return '<div class="ref-arabic">' + arabicRef + '</div>' +
-      '<div class="arabic range-block" style="font-family:' + escapeHtml(font) + ',serif">' + arabicHtml + '</div>' +
+      '<div class="arabic range-block" style="' + escapeHtml(arabicCss) + '">' + arabicHtml + '</div>' +
       '<div class="ref-english">' + englishRef + '</div>' +
       '<button type="button" class="btn-primary btn-insert-result" ' +
         'data-surah="' + cardData.surah + '" ' +
@@ -98,7 +126,7 @@ function buildCardHtml(cardData, font) {
   }
 
   return '<div class="ref-arabic">' + arabicRef + '</div>' +
-    '<div class="arabic" style="font-family:' + escapeHtml(font) + ',serif">' + arabicHtml + '</div>' +
+    '<div class="arabic" style="' + escapeHtml(arabicCss) + '">' + arabicHtml + '</div>' +
     '<div class="ref-english">' + englishRef + '</div>' +
     '<button type="button" class="btn-primary btn-insert-result" ' +
       'data-surah="' + cardData.surah + '" data-ayah="' + cardData.ayah + '">Insert</button>';
@@ -413,7 +441,7 @@ function runTests() {
       arabicText: 'بسم الله'
     };
     var html = buildCardHtml(r, 'Scheherazade New');
-    assert.ok(html.indexOf('font-family:Scheherazade New,serif') >= 0, 'custom font applied');
+    assert.ok(html.indexOf("font-family:'Scheherazade New',serif") >= 0, 'custom font applied');
   });
 
   it('single: falls back to "Surah" when surahNameEnglish is empty', function () {

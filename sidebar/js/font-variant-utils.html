@@ -1,0 +1,109 @@
+<script>
+/**
+ * Client-side font variant helpers (keep parse logic aligned with FontService.parseGoogleFontVariant).
+ */
+function parseGoogleFontVariantClient(token) {
+  if (token == null || typeof token !== 'string') {
+    return { weight: 400, italic: false };
+  }
+  var t = token.replace(/\s/g, '');
+  if (t === '') return { weight: 400, italic: false };
+  if (t === 'regular') return { weight: 400, italic: false };
+  if (t === 'italic') return { weight: 400, italic: true };
+  var italic = /italic$/i.test(t);
+  if (italic) t = t.replace(/italic$/i, '');
+  var w = parseInt(t, 10);
+  if (!isNaN(w)) return { weight: w, italic: italic };
+  return { weight: 400, italic: false };
+}
+
+var _WEIGHT_LABELS = {
+  100: 'Thin',
+  200: 'Extra Light',
+  300: 'Light',
+  400: 'Normal',
+  500: 'Medium',
+  600: 'Semi Bold',
+  700: 'Bold',
+  800: 'Extra Bold',
+  900: 'Black'
+};
+
+function googleFontVariantLabel(token) {
+  var p = parseGoogleFontVariantClient(token);
+  var base = _WEIGHT_LABELS[p.weight] || String(p.weight);
+  if (p.italic) {
+    return base === 'Normal' ? 'Italic' : base + ' Italic';
+  }
+  return base;
+}
+
+/**
+ * Builds Google Fonts CSS2 href for sidebar Arabic preview.
+ * @param {string} family
+ * @param {Array<string>} variantTokens
+ * @return {string}
+ */
+function buildGoogleFontsPreviewHref(family, variantTokens) {
+  var famEnc = family.replace(/ /g, '+');
+  var pairSet = {};
+  var hasItal = false;
+  var hasRom = false;
+  for (var i = 0; i < variantTokens.length; i++) {
+    var p = parseGoogleFontVariantClient(variantTokens[i]);
+    if (p.italic) hasItal = true;
+    else hasRom = true;
+    var pair = (p.italic ? 1 : 0) + ',' + p.weight;
+    pairSet[pair] = true;
+  }
+  var pairs = Object.keys(pairSet).sort(function (a, b) {
+    var aa = a.split(',');
+    var bb = b.split(',');
+    if (aa[0] !== bb[0]) return parseInt(aa[0], 10) - parseInt(bb[0], 10);
+    return parseInt(aa[1], 10) - parseInt(bb[1], 10);
+  });
+  if (!hasItal) {
+    var wOnly = [];
+    for (var j = 0; j < pairs.length; j++) {
+      wOnly.push(pairs[j].split(',')[1]);
+    }
+    return 'https://fonts.googleapis.com/css2?family=' + famEnc + ':wght@' +
+      wOnly.join(';') + '&display=swap';
+  }
+  if (!hasRom) {
+    var italOnly = pairs.map(function (pr) { return '1,' + pr.split(',')[1]; });
+    return 'https://fonts.googleapis.com/css2?family=' + famEnc + ':ital,wght@' +
+      italOnly.join(';') + '&display=swap';
+  }
+  return 'https://fonts.googleapis.com/css2?family=' + famEnc + ':ital,wght@' +
+    pairs.join(';') + '&display=swap';
+}
+
+function ensureGoogleFontsPreviewStylesheet(family, variantTokens) {
+  if (!family || !variantTokens || !variantTokens.length) return;
+  var id = 'gf-preview-' + family.replace(/[^a-zA-Z0-9]+/g, '-');
+  var href = buildGoogleFontsPreviewHref(family, variantTokens);
+  var existing = document.getElementById(id);
+  if (existing && existing.getAttribute('data-href') === href) return;
+  if (existing) existing.remove();
+  var link = document.createElement('link');
+  link.id = id;
+  link.rel = 'stylesheet';
+  link.href = href;
+  link.setAttribute('data-href', href);
+  document.head.appendChild(link);
+}
+
+/**
+ * Inline style for Arabic preview (.arabic) from formatState.
+ * @param {Object} fs - formatState-like { fontName, fontVariant }
+ * @return {string}
+ */
+function arabicPreviewFontStyle(fs) {
+  var fam = (fs && fs.fontName) || 'Amiri';
+  var safeFam = String(fam).replace(/['\\<>]/g, '');
+  var p = parseGoogleFontVariantClient(fs && fs.fontVariant ? fs.fontVariant : 'regular');
+  return "font-family:'" + safeFam + "',serif;font-weight:" + p.weight +
+    ';font-style:' + (p.italic ? 'italic' : 'normal');
+}
+</script>
