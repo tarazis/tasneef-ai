@@ -18,21 +18,50 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
   var insertIndex;
   var removeTarget = null;
 
+  // ── DEBUG: dump document state before insertion ──
+  var allChildren = [];
+  for (var d = 0; d < body.getNumChildren(); d++) {
+    var child = body.getChild(d);
+    var type = child.getType().toString();
+    var text = (type === 'PARAGRAPH') ? child.asParagraph().getText() : '(non-paragraph)';
+    allChildren.push('  [' + d + '] ' + type + ': "' + (text.length > 60 ? text.substring(0, 60) + '…' : text) + '"');
+  }
+  Logger.log('[INSERT-DEBUG] Document children BEFORE insertion:\n' + allChildren.join('\n'));
+
   if (cursor) {
     var cursorElement = cursor.getElement();
+    var cursorElementType = cursorElement.getType().toString();
     var parent = cursorElement.getParent();
+    var parentType = parent ? parent.getType().toString() : 'null';
+
+    Logger.log('[INSERT-DEBUG] CASE: CURSOR EXISTS');
+    Logger.log('[INSERT-DEBUG] cursorElement type: ' + cursorElementType);
+    Logger.log('[INSERT-DEBUG] cursorElement text: "' + (cursorElement.getText ? cursorElement.getText() : 'N/A') + '"');
+    Logger.log('[INSERT-DEBUG] parent type: ' + parentType);
+    Logger.log('[INSERT-DEBUG] parent text: "' + (parent && parent.getText ? parent.getText() : 'N/A') + '"');
+
     while (parent && parent.getType() !== DocumentApp.ElementType.PARAGRAPH) {
+      Logger.log('[INSERT-DEBUG] walking up from ' + parent.getType().toString());
       parent = parent.getParent();
     }
     var cursorParagraph = parent ? parent.asParagraph() : body.getParagraphs()[0];
+    var cursorParaIndex = body.getChildIndex(cursorParagraph);
+    var cursorParaText = cursorParagraph.getText();
+
+    Logger.log('[INSERT-DEBUG] resolved cursorParagraph index: ' + cursorParaIndex);
+    Logger.log('[INSERT-DEBUG] resolved cursorParagraph text: "' + (cursorParaText.length > 60 ? cursorParaText.substring(0, 60) + '…' : cursorParaText) + '"');
+    Logger.log('[INSERT-DEBUG] cursorParagraph isEmpty: ' + (cursorParaText === ''));
 
     if (cursorParagraph.getText() === '') {
       insertIndex = body.getChildIndex(cursorParagraph);
       removeTarget = cursorParagraph;
+      Logger.log('[INSERT-DEBUG] SUB-CASE: empty paragraph → insertIndex=' + insertIndex + ', will remove empty');
     } else {
       insertIndex = body.getChildIndex(cursorParagraph) + 1;
+      Logger.log('[INSERT-DEBUG] SUB-CASE: non-empty paragraph → insertIndex=' + insertIndex);
     }
   } else {
+    Logger.log('[INSERT-DEBUG] CASE: NO CURSOR');
     var paragraphs = body.getParagraphs();
     var lastNonEmptyIdx = -1;
     for (var j = paragraphs.length - 1; j >= 0; j--) {
@@ -42,16 +71,26 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
       }
     }
 
+    Logger.log('[INSERT-DEBUG] lastNonEmptyIdx (in paragraphs array): ' + lastNonEmptyIdx);
+
     if (lastNonEmptyIdx === -1) {
       insertIndex = 0;
       removeTarget = paragraphs[0];
+      Logger.log('[INSERT-DEBUG] SUB-CASE: all empty → insertIndex=0, will remove first empty');
     } else {
-      insertIndex = body.getChildIndex(paragraphs[lastNonEmptyIdx]) + 1;
+      var lastNonEmptyChildIdx = body.getChildIndex(paragraphs[lastNonEmptyIdx]);
+      insertIndex = lastNonEmptyChildIdx + 1;
+      Logger.log('[INSERT-DEBUG] last non-empty para text: "' + paragraphs[lastNonEmptyIdx].getText().substring(0, 60) + '"');
+      Logger.log('[INSERT-DEBUG] last non-empty childIndex: ' + lastNonEmptyChildIdx + ' → insertIndex=' + insertIndex);
     }
   }
 
+  Logger.log('[INSERT-DEBUG] FINAL insertIndex=' + insertIndex + ', removeTarget=' + (removeTarget ? 'yes' : 'no'));
+  Logger.log('[INSERT-DEBUG] paragraphsToInsert count: ' + paragraphsToInsert.length);
+
   var fontWarning = null;
   for (var i = 0; i < paragraphsToInsert.length; i++) {
+    Logger.log('[INSERT-DEBUG] inserting paragraph ' + i + ' at index ' + (insertIndex + i) + ': "' + paragraphsToInsert[i].text.substring(0, 50) + '…"');
     var p = body.insertParagraph(insertIndex + i, paragraphsToInsert[i].text);
     p.setAlignment(paragraphsToInsert[i].align);
     if (paragraphsToInsert[i].rtl) p.setLeftToRight(false);
@@ -59,15 +98,27 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
   }
 
   if (removeTarget) {
+    Logger.log('[INSERT-DEBUG] removing empty paragraph target');
     body.removeChild(removeTarget);
   }
 
   var cleanupIndex = removeTarget
     ? insertIndex + paragraphsToInsert.length - 1
     : insertIndex + paragraphsToInsert.length;
+  Logger.log('[INSERT-DEBUG] cleanup paragraph at index: ' + cleanupIndex);
   var cleanup = body.insertParagraph(cleanupIndex, '');
   cleanup.setHeading(DocumentApp.ParagraphHeading.NORMAL);
   cleanup.setLeftToRight(true);
+
+  // ── DEBUG: dump document state after insertion ──
+  var afterChildren = [];
+  for (var a = 0; a < body.getNumChildren(); a++) {
+    var ac = body.getChild(a);
+    var aType = ac.getType().toString();
+    var aText = (aType === 'PARAGRAPH') ? ac.asParagraph().getText() : '(non-paragraph)';
+    afterChildren.push('  [' + a + '] ' + aType + ': "' + (aText.length > 60 ? aText.substring(0, 60) + '…' : aText) + '"');
+  }
+  Logger.log('[INSERT-DEBUG] Document children AFTER insertion:\n' + afterChildren.join('\n'));
 
   return { fontWarning: fontWarning };
 }
