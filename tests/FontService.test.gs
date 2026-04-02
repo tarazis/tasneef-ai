@@ -4,7 +4,7 @@
  * Run from Apps Script editor: select runFontServiceTests, click Run.
  * View results in View → Logs.
  *
- * Fetches from tasneef-data/quran/quran-fonts.json (no API key).
+ * Fetches from tasneef-data/quran/quran-fonts.json (no API key, no ScriptCache).
  * Update EXPECTED_APPROVED_FONTS_SORTED when hosted approved_fonts changes.
  * No require/Node APIs.
  */
@@ -12,7 +12,6 @@
 /** Sorted copy of tasneef-data/quran/quran-fonts.json approved_fonts */
 var EXPECTED_APPROVED_FONTS_SORTED = [
   'Amiri',
-  'Amiri Quran',
   'Harmattan',
   'IBM Plex Sans Arabic',
   'Lateef',
@@ -20,7 +19,9 @@ var EXPECTED_APPROVED_FONTS_SORTED = [
   'Noto Kufi Arabic',
   'Noto Naskh Arabic',
   'Noto Sans Arabic',
-  'Scheherazade New'
+  'Reem Kufi Ink',
+  'Scheherazade New',
+  'Tajawal'
 ];
 
 function runFontServiceTests() {
