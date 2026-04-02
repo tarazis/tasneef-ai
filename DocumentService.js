@@ -31,20 +31,24 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
   if (cursor) {
     var cursorElement = cursor.getElement();
     var cursorElementType = cursorElement.getType().toString();
-    var parent = cursorElement.getParent();
-    var parentType = parent ? parent.getType().toString() : 'null';
 
     Logger.log('[INSERT-DEBUG] CASE: CURSOR EXISTS');
     Logger.log('[INSERT-DEBUG] cursorElement type: ' + cursorElementType);
     Logger.log('[INSERT-DEBUG] cursorElement text: "' + (cursorElement.getText ? cursorElement.getText() : 'N/A') + '"');
-    Logger.log('[INSERT-DEBUG] parent type: ' + parentType);
-    Logger.log('[INSERT-DEBUG] parent text: "' + (parent && parent.getText ? parent.getText() : 'N/A') + '"');
 
-    while (parent && parent.getType() !== DocumentApp.ElementType.PARAGRAPH) {
-      Logger.log('[INSERT-DEBUG] walking up from ' + parent.getType().toString());
-      parent = parent.getParent();
+    var cursorParagraph;
+    if (cursorElement.getType() === DocumentApp.ElementType.PARAGRAPH) {
+      cursorParagraph = cursorElement.asParagraph();
+      Logger.log('[INSERT-DEBUG] cursorElement IS the paragraph');
+    } else {
+      var parent = cursorElement.getParent();
+      Logger.log('[INSERT-DEBUG] parent type: ' + (parent ? parent.getType().toString() : 'null'));
+      while (parent && parent.getType() !== DocumentApp.ElementType.PARAGRAPH) {
+        Logger.log('[INSERT-DEBUG] walking up from ' + parent.getType().toString());
+        parent = parent.getParent();
+      }
+      cursorParagraph = parent ? parent.asParagraph() : body.getParagraphs()[0];
     }
-    var cursorParagraph = parent ? parent.asParagraph() : body.getParagraphs()[0];
     var cursorParaIndex = body.getChildIndex(cursorParagraph);
     var cursorParaText = cursorParagraph.getText();
 
@@ -97,18 +101,16 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
     fontWarning = applyFormat(p.editAsText(), formatState) || fontWarning;
   }
 
-  if (removeTarget) {
-    Logger.log('[INSERT-DEBUG] removing empty paragraph target');
-    body.removeChild(removeTarget);
-  }
-
-  var cleanupIndex = removeTarget
-    ? insertIndex + paragraphsToInsert.length - 1
-    : insertIndex + paragraphsToInsert.length;
+  var cleanupIndex = insertIndex + paragraphsToInsert.length;
   Logger.log('[INSERT-DEBUG] cleanup paragraph at index: ' + cleanupIndex);
   var cleanup = body.insertParagraph(cleanupIndex, '');
   cleanup.setHeading(DocumentApp.ParagraphHeading.NORMAL);
   cleanup.setLeftToRight(true);
+
+  if (removeTarget) {
+    Logger.log('[INSERT-DEBUG] removing empty paragraph target');
+    body.removeChild(removeTarget);
+  }
 
   // ── DEBUG: dump document state after insertion ──
   var afterChildren = [];
