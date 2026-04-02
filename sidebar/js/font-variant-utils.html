@@ -39,6 +39,22 @@ function googleFontVariantLabel(token) {
 }
 
 /**
+ * Token to use when user picks a family without choosing a weight (e.g. click row).
+ * Prefers Google "regular"; else first 400 non-italic; else first listed.
+ * @param {Array<string>} variants
+ * @return {string}
+ */
+function pickDefaultRegularVariant(variants) {
+  if (!variants || !variants.length) return 'regular';
+  if (variants.indexOf('regular') >= 0) return 'regular';
+  for (var i = 0; i < variants.length; i++) {
+    var p = parseGoogleFontVariantClient(variants[i]);
+    if (p.weight === 400 && !p.italic) return variants[i];
+  }
+  return variants[0];
+}
+
+/**
  * Builds Google Fonts CSS2 href for sidebar Arabic preview.
  * @param {string} family
  * @param {Array<string>} variantTokens
