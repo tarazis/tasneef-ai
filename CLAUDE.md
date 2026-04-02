@@ -22,7 +22,7 @@ TRANSLATION:  https://tarazis.github.io/tasneef-data/quran/en-sahih-internationa
 ```
 Font URLs live in `FontService.js`:
 ```
-FONTS:        https://tarazis.github.io/tasneef-data/fonts.json
+QURAN FONTS:  https://tarazis.github.io/tasneef-data/quran/quran-fonts.json
 ```
 - INSPECT the actual JSON structure before writing code against it
 - Translation JSON is a flat object keyed by `"surah:ayah"` with `{t: "text"}` values

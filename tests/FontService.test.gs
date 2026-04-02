@@ -4,9 +4,24 @@
  * Run from Apps Script editor: select runFontServiceTests, click Run.
  * View results in View → Logs.
  *
- * Fetches from tasneef-data/fonts.json (no API key). Falls back to curated list on error.
+ * Fetches from tasneef-data/quran/quran-fonts.json (no API key).
+ * Update EXPECTED_APPROVED_FONTS_SORTED when hosted approved_fonts changes.
  * No require/Node APIs.
  */
+
+/** Sorted copy of tasneef-data/quran/quran-fonts.json approved_fonts */
+var EXPECTED_APPROVED_FONTS_SORTED = [
+  'Amiri',
+  'Amiri Quran',
+  'Harmattan',
+  'IBM Plex Sans Arabic',
+  'Lateef',
+  'Mada',
+  'Noto Kufi Arabic',
+  'Noto Naskh Arabic',
+  'Noto Sans Arabic',
+  'Scheherazade New'
+];
 
 function runFontServiceTests() {
   var passed = 0;
@@ -30,18 +45,19 @@ function runFontServiceTests() {
         if (actual !== expected) {
           throw new Error('Expected ' + JSON.stringify(expected) + ' but got ' + JSON.stringify(actual));
         }
-      },
-      toBeGreaterThan: function (n) {
-        if (typeof actual !== 'number' || actual <= n) {
-          throw new Error('Expected > ' + n + ' but got ' + JSON.stringify(actual));
-        }
-      },
-      toContain: function (item) {
-        if (actual.indexOf(item) < 0) {
-          throw new Error('Expected array to contain ' + JSON.stringify(item));
-        }
       }
     };
+  }
+
+  function expectArraysEqual(a, b) {
+    if (!a || !b || a.length !== b.length) {
+      throw new Error('Expected equal length arrays, got ' + JSON.stringify(a) + ' vs ' + JSON.stringify(b));
+    }
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) {
+        throw new Error('Mismatch at ' + i + ': ' + JSON.stringify(a[i]) + ' vs ' + JSON.stringify(b[i]));
+      }
+    }
   }
 
   results.push('\ngetArabicFonts()');
@@ -51,33 +67,20 @@ function runFontServiceTests() {
     if (!(fonts instanceof Array)) throw new Error('Expected array');
   });
 
-  it('returns at least one font (Amiri in list)', function () {
+  it('matches sorted curated list from quran-fonts.json', function () {
     var fonts = getArabicFonts();
-    expect(fonts.length).toBeGreaterThan(0);
-    expect(fonts).toContain('Amiri');
-  });
-
-  it('excludes all BAD_FONTS from the list', function () {
-    var fonts = getArabicFonts();
-    var bad = ['Blaka', 'Cairo', 'Rubik', 'Markazi Text', 'Reem Kufi Fun'];
-    for (var i = 0; i < bad.length; i++) {
-      if (fonts.indexOf(bad[i]) >= 0) {
-        throw new Error('BAD_FONT ' + bad[i] + ' should not be in list');
-      }
-    }
-  });
-
-  it('returns list sorted alphabetically', function () {
-    var fonts = getArabicFonts();
-    for (var j = 1; j < fonts.length; j++) {
-      if (fonts[j].localeCompare(fonts[j - 1], 'en') < 0) {
-        throw new Error('List not sorted: ' + fonts[j - 1] + ' before ' + fonts[j]);
-      }
-    }
+    expectArraysEqual(fonts, EXPECTED_APPROVED_FONTS_SORTED);
   });
 
   it('FALLBACK_FONT constant equals Amiri', function () {
     expect(FALLBACK_FONT).toBe('Amiri');
+  });
+
+  it('FALLBACK_APPROVED_FONTS matches expected curated set (unsorted ok)', function () {
+    var sorted = FALLBACK_APPROVED_FONTS.slice().sort(function (a, b) {
+      return a.localeCompare(b, 'en');
+    });
+    expectArraysEqual(sorted, EXPECTED_APPROVED_FONTS_SORTED);
   });
 
   results.push('\n─────────────────────────────────────────');
