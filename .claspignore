@@ -4,6 +4,7 @@ task-*.md
 tasneef-*.md
 node_modules/**
 .git/**
+.claude/**
 README.md
 .clasp.json
 sidebar/assets/**
