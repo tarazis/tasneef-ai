@@ -46,15 +46,7 @@ function loadSettingsIntoPanel() {
   google.script.run
     .withSuccessHandler(function(s) {
       var trans = document.getElementById('insert-translation');
-      var apiKey = document.getElementById('claude-api-key');
       if (trans) trans.checked = s.showTranslation !== false;
-      if (apiKey) {
-        // Never populate the input with the actual key value — check existence only
-        google.script.run.withSuccessHandler(function(hasKey) {
-          apiKey.value = '';
-          apiKey.placeholder = hasKey ? '••••••••••' : 'sk-ant-...';
-        }).hasClaudeApiKey();
-      }
     })
     .withFailureHandler(function() {})
     .getSettings();
@@ -63,7 +55,6 @@ function loadSettingsIntoPanel() {
 function initSettingsPanelHandlers() {
   var trans = document.getElementById('insert-translation');
   var btnSave = document.getElementById('btn-save-settings');
-  var apiKeyInput = document.getElementById('claude-api-key');
   var savedMsg = document.getElementById('settings-saved-msg');
 
   function showSavedMessage(text, isError) {
@@ -77,7 +68,6 @@ function initSettingsPanelHandlers() {
   if (btnSave) {
     btnSave.addEventListener('click', function() {
       var showTranslation = trans ? trans.checked : true;
-      var key = apiKeyInput ? apiKeyInput.value.trim() : '';
 
       btnSave.disabled = true;
       btnSave.textContent = 'Saving…';
@@ -86,15 +76,6 @@ function initSettingsPanelHandlers() {
         .withSuccessHandler(function() {
           btnSave.disabled = false;
           btnSave.textContent = 'Save';
-          // Save API key only if the user typed something
-          if (key) {
-            google.script.run
-              .withSuccessHandler(function() {
-                if (apiKeyInput) { apiKeyInput.value = ''; apiKeyInput.placeholder = '••••••••••'; }
-              })
-              .withFailureHandler(function() {})
-              .setClaudeApiKey(key);
-          }
           showSavedMessage('Settings saved!', false);
         })
         .withFailureHandler(function() {

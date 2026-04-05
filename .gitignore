@@ -1,0 +1,22 @@
+# Clasp config (contains scriptId and parentId)
+.clasp.json
+
+# Claude Code worktrees and settings
+.claude/
+
+# Dependencies
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment files
+.env
+.env.*

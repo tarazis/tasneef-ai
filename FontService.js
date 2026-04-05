@@ -69,7 +69,7 @@ function sortFontVariantTokens_(variants) {
 /**
  * @return {Array<string>} Sorted unique font names, or empty if invalid.
  */
-function buildSortedFontsFromJson(json) {
+function buildSortedFontsFromJson_(json) {
   var raw = json && json.approved_fonts;
   if (!Array.isArray(raw) || raw.length === 0) {
     return [];
@@ -90,7 +90,7 @@ function buildSortedFontsFromJson(json) {
 /**
  * @return {Array<string>} Sorted list of font family names (approved only).
  */
-function getArabicFonts() {
+function getArabicFonts_() {
   var fallback = FALLBACK_APPROVED_FONTS.slice().sort(function (a, b) {
     return a.localeCompare(b, 'en');
   });
@@ -98,7 +98,7 @@ function getArabicFonts() {
   try {
     var response = UrlFetchApp.fetch(QURAN_FONTS_JSON_URL);
     var json = JSON.parse(response.getContentText());
-    var list = buildSortedFontsFromJson(json);
+    var list = buildSortedFontsFromJson_(json);
     return list.length > 0 ? list : fallback;
   } catch (e) {
     return fallback;
@@ -107,12 +107,12 @@ function getArabicFonts() {
 
 /**
  * Fetches Google Fonts metadata (arabic subset) intersected with quran-fonts approved_fonts.
- * Requires Script Properties google_fonts_api_key via getGoogleFontsApiKey().
+ * Requires Script Properties google_fonts_api_key via getGoogleFontsApiKey_().
  * @return {{ ok: boolean, error: string|null, catalog: Array<{family: string, variants: string[]}> }}
  */
 function getCuratedFontCatalog() {
   var empty = { ok: false, error: null, catalog: [] };
-  var apiKey = getGoogleFontsApiKey();
+  var apiKey = getGoogleFontsApiKey_();
   if (!apiKey || String(apiKey).trim().length === 0) {
     empty.error = 'NO_GOOGLE_FONTS_API_KEY';
     return empty;
@@ -121,7 +121,7 @@ function getCuratedFontCatalog() {
   var approved = [];
   try {
     var rQ = UrlFetchApp.fetch(QURAN_FONTS_JSON_URL);
-    approved = buildSortedFontsFromJson(JSON.parse(rQ.getContentText()));
+    approved = buildSortedFontsFromJson_(JSON.parse(rQ.getContentText()));
   } catch (e) {
     approved = FALLBACK_APPROVED_FONTS.slice().sort(function (a, b) {
       return a.localeCompare(b, 'en');
@@ -156,7 +156,7 @@ function getCuratedFontCatalog() {
     });
     return { ok: true, error: null, catalog: catalog };
   } catch (e) {
-    empty.error = String(e.message || e);
+    empty.error = 'Failed to load font catalog.';
     return empty;
   }
 }

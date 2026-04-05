@@ -13,8 +13,6 @@ function initAISearchTab() {
   var resultsEl = document.getElementById('ai-search-results');
   var clarifyEl = document.getElementById('ai-search-clarify');
   var emptyEl = document.getElementById('ai-search-empty');
-  var noKeyEl = document.getElementById('ai-no-key');
-
   function setEnabled(enabled) {
     if (btnSend) btnSend.disabled = !enabled;
     if (queryEl) queryEl.disabled = !enabled;
@@ -27,7 +25,6 @@ function initAISearchTab() {
     clarifyEl.textContent = '';
     emptyEl.classList.add('hidden');
     emptyEl.textContent = '';
-    if (noKeyEl) noKeyEl.classList.add('hidden');
   }
 
   function getLastMessages(limit) {
@@ -79,10 +76,6 @@ function initAISearchTab() {
     }
 
     if (response.type === 'error') {
-      if (response.error === 'NO_API_KEY') {
-        if (noKeyEl) noKeyEl.classList.remove('hidden');
-        return;
-      }
       emptyEl.textContent = response.error;
       emptyEl.classList.remove('hidden');
       return;
@@ -148,11 +141,9 @@ function clearAISearch() {
   var resultsEl = document.getElementById('ai-search-results');
   var clarifyEl = document.getElementById('ai-search-clarify');
   var emptyEl = document.getElementById('ai-search-empty');
-  var noKeyEl = document.getElementById('ai-no-key');
   if (queryEl) { queryEl.value = ''; queryEl.style.height = 'auto'; queryEl.focus(); }
   if (resultsEl) resultsEl.innerHTML = '';
   if (clarifyEl) { clarifyEl.classList.add('hidden'); clarifyEl.textContent = ''; }
   if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
-  if (noKeyEl) noKeyEl.classList.add('hidden');
 }
 </script>
