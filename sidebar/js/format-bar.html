@@ -1,7 +1,6 @@
 <script>
 // Depends on: formatState, SAVE_DEBOUNCE_MS (shared-state.html),
-//   parseGoogleFontVariantClient, googleFontVariantLabel, pickDefaultRegularVariant,
-//   ensureGoogleFontsPreviewStylesheet, arabicPreviewFontStyle (font-variant-utils.html)
+//   pickDefaultRegularVariant, ensureGoogleFontsPreviewStylesheet, arabicPreviewFontStyle (font-variant-utils.html)
 // Reads window._activeTab, window._refreshDirectInsert (sidebar-js.html)
 
 var saveDebounceTimer = null;
@@ -10,9 +9,7 @@ window._fontCatalog = null;
 function updateFontPickerLabel() {
   var el = document.getElementById('font-picker-label');
   if (!el) return;
-  var fam = formatState.fontName || 'Amiri';
-  var tok = formatState.fontVariant || 'regular';
-  el.textContent = fam + ' · ' + googleFontVariantLabel(tok);
+  el.textContent = formatState.fontName || 'Amiri';
 }
 
 function refreshArabicPreviewFontFace() {
@@ -29,48 +26,11 @@ function refreshArabicPreviewFontFace() {
   }
 }
 
-function resetFontPickerFlyoutPositions() {
-  var nodes = document.querySelectorAll('.font-picker-flyout');
-  for (var i = 0; i < nodes.length; i++) {
-    nodes[i].style.left = '';
-    nodes[i].style.top = '';
-  }
-}
-
-function positionFontPickerFlyout(li, fly) {
-  if (!li || !fly) return;
-  var r = li.getBoundingClientRect();
-  var overlap = 1;
-  fly.style.left = r.right - overlap + 'px';
-  fly.style.top = r.top + 'px';
-  var fr = fly.getBoundingClientRect();
-  if (fr.width > 0 && fr.right > window.innerWidth - 8) {
-    fly.style.left = Math.max(8, r.left - fr.width + overlap) + 'px';
-  }
-}
-
-function repositionHoveredFontFlyout() {
-  var drop = document.getElementById('font-picker-dropdown');
-  if (!drop || drop.classList.contains('hidden')) return;
-  var items = drop.querySelectorAll('.font-picker-family-item');
-  for (var j = 0; j < items.length; j++) {
-    var item = items[j];
-    if (item.matches && item.matches(':hover')) {
-      var fl = item.querySelector('.font-picker-flyout');
-      if (fl) {
-        positionFontPickerFlyout(item, fl);
-        return;
-      }
-    }
-  }
-}
-
 function closeFontPicker() {
   var drop = document.getElementById('font-picker-dropdown');
   var trig = document.getElementById('font-picker-trigger');
   if (drop) drop.classList.add('hidden');
   if (trig) trig.setAttribute('aria-expanded', 'false');
-  resetFontPickerFlyoutPositions();
   document.removeEventListener('click', onFontPickerDocClick, true);
 }
 
@@ -100,7 +60,6 @@ function toggleFontPicker() {
 
 function syncFontPickerSelectionClasses() {
   var fam = formatState.fontName || '';
-  var tok = formatState.fontVariant || 'regular';
   var items = document.querySelectorAll('.font-picker-family-item');
   for (var i = 0; i < items.length; i++) {
     var li = items[i];
@@ -108,14 +67,6 @@ function syncFontPickerSelectionClasses() {
     var familySelected = liFam === fam;
     li.classList.toggle('is-selected', familySelected);
     li.setAttribute('aria-selected', familySelected ? 'true' : 'false');
-    var flyLis = li.querySelectorAll('.font-picker-flyout li');
-    for (var j = 0; j < flyLis.length; j++) {
-      var vli = flyLis[j];
-      var vtok = vli.getAttribute('data-variant-token') || '';
-      var variantSelected = familySelected && vtok === tok;
-      vli.classList.toggle('is-selected', variantSelected);
-      vli.setAttribute('aria-selected', variantSelected ? 'true' : 'false');
-    }
   }
 }
 
@@ -154,42 +105,10 @@ function buildFontPickerDom() {
       nameSpan.textContent = entry.family;
       li.appendChild(nameSpan);
       var variants = entry.variants || [];
-      if (variants.length > 1) {
-        var chev = document.createElement('span');
-        chev.className = 'font-picker-chevron';
-        chev.textContent = '›';
-        li.appendChild(chev);
-        var fly = document.createElement('ul');
-        fly.className = 'font-picker-flyout';
-        for (var v = 0; v < variants.length; v++) {
-          (function (tok) {
-            var vli = document.createElement('li');
-            vli.setAttribute('data-variant-token', tok);
-            vli.setAttribute('role', 'option');
-            vli.textContent = googleFontVariantLabel(tok);
-            vli.addEventListener('click', function (e) {
-              e.stopPropagation();
-              selectFontAndVariant(entry.family, tok, true);
-            });
-            fly.appendChild(vli);
-          })(variants[v]);
-        }
-        li.appendChild(fly);
-        li.addEventListener('mouseenter', function () {
-          requestAnimationFrame(function () {
-            positionFontPickerFlyout(li, fly);
-          });
-        });
-        li.addEventListener('click', function (e) {
-          if (e.target && e.target.closest && e.target.closest('.font-picker-flyout')) return;
-          e.stopPropagation();
-          selectFontAndVariant(entry.family, pickDefaultRegularVariant(variants), true);
-        });
-      } else if (variants.length === 1) {
-        li.addEventListener('click', function () {
-          selectFontAndVariant(entry.family, variants[0], true);
-        });
-      }
+      li.addEventListener('click', function (e) {
+        e.stopPropagation();
+        selectFontAndVariant(entry.family, pickDefaultRegularVariant(variants), true);
+      });
       ul.appendChild(li);
     })(window._fontCatalog[i]);
   }
@@ -216,10 +135,10 @@ function reconcileFontCatalogState() {
   if (!entry) {
     entry = cat[0];
     formatState.fontName = entry.family;
-    formatState.fontVariant = entry.variants[0];
+    formatState.fontVariant = pickDefaultRegularVariant(entry.variants || []);
     changed = true;
   } else if (entry.variants.indexOf(formatState.fontVariant) < 0) {
-    formatState.fontVariant = entry.variants[0];
+    formatState.fontVariant = pickDefaultRegularVariant(entry.variants || []);
     changed = true;
   }
   updateFontPickerLabel();
@@ -295,15 +214,6 @@ function initFormatBar() {
       e.stopPropagation();
       toggleFontPicker();
     });
-  }
-  var fontDrop = document.getElementById('font-picker-dropdown');
-  if (fontDrop && !fontDrop._fontFlyoutScrollBound) {
-    fontDrop._fontFlyoutScrollBound = true;
-    fontDrop.addEventListener('scroll', repositionHoveredFontFlyout);
-  }
-  if (typeof window !== 'undefined' && !window._fontFlyoutResizeBound) {
-    window._fontFlyoutResizeBound = true;
-    window.addEventListener('resize', repositionHoveredFontFlyout);
   }
   if (sizeSelect) {
     sizeSelect.addEventListener('change', function () {
