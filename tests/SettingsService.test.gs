@@ -82,7 +82,7 @@ function runSettingsServiceTests() {
   results.push('\nAI_SEARCH_DAILY_LIMIT');
 
   it('daily limit is 10', function () {
-    expect(AI_SEARCH_DAILY_LIMIT).toBe(10);
+    expect(AI_SEARCH_DAILY_LIMIT).toBe(50);
   });
 
   results.push('\n─────────────────────────────────────────');

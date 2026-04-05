@@ -34,7 +34,7 @@ QURAN FONTS:  https://tarazis.github.io/tasneef-data/quran/quran-fonts.json
 - Server copy exists solely for parity testing; all production search runs client-side
 
 ### Claude API — intent classification only
-- Model: claude-sonnet-4-20250514, temperature: 0
+- Model: claude-haiku-4-5-20251001, temperature: 0
 - Claude classifies user intent and returns JSON actions — NEVER Quranic text
 - For Arabic corpus search: Claude extracts the query text, client runs the search locally
 - For English/semantic search: Claude returns {surah, ayah} references, client resolves text

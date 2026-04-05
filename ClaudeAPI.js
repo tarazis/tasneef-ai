@@ -10,9 +10,9 @@
  */
 
 var CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
-var CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+var CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
 var CLAUDE_MAX_TOKENS = 1024;
-var AI_MAX_REFERENCES = 10;
+var AI_MAX_REFERENCES = 50;
 var CONVERSATION_CONTEXT_LIMIT = 3;
 var DIRECT_AYAH_RANGE_CAP = 30;
 
@@ -29,7 +29,7 @@ var UNIFIED_SYSTEM_PROMPT =
   '{"action":"search","query":"بسم الله الرحمن","language":"arabic"}\n' +
   'For English or non-Arabic description of what to find (include references you know):\n' +
   '{"action":"search","query":"patience in hardship","language":"english","references":[{"surah":2,"ayah":153},{"surah":3,"ayah":200}]}\n' +
-  'Return 5-10 of the most relevant references for English search, ordered by relevance.\n\n' +
+  'Return up to 50 of the most relevant references for English search, ordered by relevance.\n\n' +
   '3. clarify — the request is ambiguous or you need more information:\n' +
   '{"action":"clarify","message":"Your clarifying question here"}\n\n' +
   'Rules:\n' +
@@ -39,7 +39,7 @@ var UNIFIED_SYSTEM_PROMPT =
   '- For Arabic input: determine if it is Quranic text to search for (use search with language "arabic") ' +
   'or a conversational question in Arabic (interpret the intent and respond accordingly). ' +
   'If genuinely unsure, use clarify.\n' +
-  '- For search with language "english": include a "references" array of {surah, ayah} pairs from your Quran knowledge.\n' +
+  '- For search with language "english": include a "references" array of up to 50 {surah, ayah} pairs from your Quran knowledge.\n' +
   '- For search with language "arabic": include only "query" (the Arabic text). No references needed.\n' +
   '- If the user gives a surah name without an ayah number, use clarify to ask which ayah.\n' +
   '- Prefer clarify over guessing when the input is ambiguous.';
