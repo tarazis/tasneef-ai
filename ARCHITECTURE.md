@@ -115,8 +115,8 @@ All four are module-private `_*CacheApi` objects. Public access is only through 
 
 | Function | Cache | Used by |
 |---|---|---|
-| `ensureUthmaniCache(onReady, onError)` | Uthmani JSON | `initDirectInsertTab`, `switchTab`, `init` |
-| `lookupUthmaniAyah(surah, ayah)` | Uthmani JSON | `initDirectInsertTab`, `_buildResultsFromReferences`, `_buildAyahDataForInsert` |
+| `ensureUthmaniCache(onReady, onError)` | **imlaei-script** JSON (see CLAUDE.md naming note; legacy “Uthmani” names) | `initDirectInsertTab`, `switchTab`, `init` |
+| `lookupUthmaniAyah(surah, ayah)` | **imlaei-script** JSON (same) | `initDirectInsertTab`, `_buildResultsFromReferences`, `_buildAyahDataForInsert` |
 | `ensureTranslationCache(onReady, onError)` | Translation JSON | `switchTab`, `init` |
 | `loadTranslationEdition(url, onReady, onError)` | Translation JSON | (settings, future use) |
 | `lookupTranslation(surah, ayah)` | Translation JSON | `initDirectInsertTab`, `_buildResultsFromReferences`, `_buildAyahDataForInsert` |
@@ -173,7 +173,7 @@ onInsertClick(e)                             [render-helpers.html]
     │
     ├── reads data-surah, data-ayah (single) OR data-surah, data-ayah-start, data-ayah-end (range)
     ├── reads window.getFormatState() → fs  (font, size, bold, color)
-    ├── reads _settings.arabicStyle → 'uthmani' | 'simple'
+    ├── reads _settings.arabicStyle → 'uthmani' | 'simple' (`'uthmani'` = imlaei-script display; see CLAUDE.md)
     │
     ├── SINGLE:  _buildAyahDataForInsert(surah, ayah, style)
     │               └── google.script.run.insertAyah(ayahData, fs, _settings)
@@ -218,7 +218,7 @@ User types in search box
         → searchImlaeiClient(query)
             → normalizeArabic(query)
             → scans pre-normalized imlaei index (loaded once at startup)
-            → _mapNormalizedToOriginal() maps match position back to Uthmani offsets
+            → _mapNormalizedToOriginal() maps match position back to offsets in the imlaei-simple verse string (preview Arabic for exact search)
             → returns up to MAX_RESULTS results
         → pagReset() + pagRenderPage()  →  paginated cards
 

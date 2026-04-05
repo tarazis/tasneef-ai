@@ -1,7 +1,7 @@
 <script>
 // ─── Cache URLs ──────────────────────────────────────────────────────────────
 
-var UTHMANI_URL     = 'https://tarazis.github.io/tasneef-data/quran/uthmani.json';
+var UTHMANI_URL     = 'https://tarazis.github.io/tasneef-data/quran/imlaei-script.json';
 var IMLAEI_URL      = 'https://tarazis.github.io/tasneef-data/quran/imlaei-simple.json';
 var SURAH_META_URL  = 'https://tarazis.github.io/tasneef-data/quran/quran-metadata-surah-name.json';
 var TRANSLATION_URL = 'https://tarazis.github.io/tasneef-data/quran/en-sahih-international-simple.json';
@@ -81,7 +81,7 @@ var _surahMetaCacheApi = makeClientCache({
 // ─── Public accessors ─────────────────────────────────────────────────────────
 
 /**
- * Ensures uthmani.json is fetched and cached. Fetches at most once; subsequent calls queue callbacks.
+ * Ensures imlaei-script.json (UTHMANI_URL) is fetched and cached. Fetches at most once; subsequent calls queue callbacks.
  * @param {Function} [onReady]
  * @param {Function} [onError]
  */
