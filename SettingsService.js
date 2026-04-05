@@ -5,7 +5,7 @@
  * API keys (Claude, Google Fonts) are in Script Properties (shared, developer-owned).
  */
 
-var AI_SEARCH_DAILY_LIMIT = 10;
+var AI_SEARCH_DAILY_LIMIT = 50;
 
 var SETTINGS_DEFAULTS = {
   showTranslation: true,
