@@ -10,14 +10,18 @@ var FALLBACK_FONT = 'Amiri';
 /** Google Docs font family for inserted English translation (Google Fonts name). */
 var ENGLISH_TRANSLATION_INSERT_FONT = 'Figtree';
 
+/** Points smaller than the ayah font size for inserted English translation. */
+var ENGLISH_TRANSLATION_FONT_SIZE_DELTA = 2;
+
 /**
- * Format state for the English translation paragraph: same size, variant, bold, color as Arabic; Figtree family.
+ * Format state for the English translation paragraph: Figtree; font size two points smaller than Arabic;
+ * never bold; same variant and color as Arabic.
  * @param {Object|null|undefined} formatState - Sidebar format state
  * @return {Object}
  */
 function formatStateForEnglishTranslation(formatState) {
   if (!formatState) {
-    return { fontName: ENGLISH_TRANSLATION_INSERT_FONT };
+    return { fontName: ENGLISH_TRANSLATION_INSERT_FONT, bold: false };
   }
   var out = {};
   for (var k in formatState) {
@@ -26,6 +30,11 @@ function formatStateForEnglishTranslation(formatState) {
     }
   }
   out.fontName = ENGLISH_TRANSLATION_INSERT_FONT;
+  out.bold = false;
+  if (formatState.fontSize != null && !isNaN(Number(formatState.fontSize))) {
+    var sz = Number(formatState.fontSize);
+    out.fontSize = Math.max(1, sz - ENGLISH_TRANSLATION_FONT_SIZE_DELTA);
+  }
   return out;
 }
 

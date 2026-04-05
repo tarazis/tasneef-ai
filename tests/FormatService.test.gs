@@ -49,21 +49,29 @@ function runFormatServiceTests() {
 
   results.push('\nformatStateForEnglishTranslation()');
 
-  it('null yields Figtree-only state', function () {
+  it('null yields Figtree state with bold off', function () {
     var a = formatStateForEnglishTranslation(null);
     expect(a.fontName).toBe('Figtree');
+    expect(a.bold).toBe(false);
   });
-  it('undefined yields Figtree-only state', function () {
+  it('undefined yields Figtree state with bold off', function () {
     var a = formatStateForEnglishTranslation(undefined);
     expect(a.fontName).toBe('Figtree');
+    expect(a.bold).toBe(false);
   });
-  it('copies fields and overrides fontName to Figtree', function () {
-    var fs = { fontName: 'Scheherazade New', fontVariant: '700', fontSize: 11, bold: false };
+  it('copies fields; Figtree; font size minus 2; never bold', function () {
+    var fs = { fontName: 'Scheherazade New', fontVariant: '700', fontSize: 14, bold: true, textColor: '#000' };
     var b = formatStateForEnglishTranslation(fs);
     expect(b.fontName).toBe('Figtree');
     expect(b.fontVariant).toBe('700');
-    expect(b.fontSize).toBe(11);
+    expect(b.fontSize).toBe(12);
     expect(b.bold).toBe(false);
+    expect(b.textColor).toBe('#000');
+  });
+  it('font size floors at 1 when ayah size is very small', function () {
+    var fs = { fontName: 'X', fontSize: 2 };
+    var b = formatStateForEnglishTranslation(fs);
+    expect(b.fontSize).toBe(1);
   });
   it('does not mutate original formatState', function () {
     var fs = { fontName: 'Amiri', fontSize: 10 };
