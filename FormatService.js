@@ -15,7 +15,7 @@ var ENGLISH_TRANSLATION_FONT_SIZE_DELTA = 2;
 
 /**
  * Format state for the English translation paragraph: Figtree; font size two points smaller than Arabic;
- * never bold; same variant and color as Arabic.
+ * never bold; regular font variant (no weight or italic from the Arabic font variant); same color as Arabic.
  * @param {Object|null|undefined} formatState - Sidebar format state
  * @return {Object}
  */
@@ -30,6 +30,7 @@ function formatStateForEnglishTranslation(formatState) {
     }
   }
   out.fontName = ENGLISH_TRANSLATION_INSERT_FONT;
+  out.fontVariant = 'regular';
   out.bold = false;
   if (formatState.fontSize != null && !isNaN(Number(formatState.fontSize))) {
     var sz = Number(formatState.fontSize);
