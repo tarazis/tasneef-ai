@@ -95,6 +95,13 @@ function buildCardHtml(cardData, fontOrFs) {
     arabicCss = 'font-family:\'' + String(f).replace(/['\\<>]/g, '') + '\',serif;font-weight:400;font-style:normal';
   }
 
+  var translationBlock = '';
+  if (cardData.translationText) {
+    translationBlock =
+      '<a class="btn-toggle-translation" role="button" tabindex="0">Show translation</a>' +
+      '<div class="translation hidden">' + escapeHtml(cardData.translationText) + '</div>';
+  }
+
   if (cardData.isRange) {
     arabicRef = escapeHtml(cardData.surahNameArabic || '') +
                 ' ' + toArabicIndicClient(cardData.ayahStart) +
@@ -108,6 +115,7 @@ function buildCardHtml(cardData, fontOrFs) {
     return '<div class="ref-arabic">' + arabicRef + '</div>' +
       '<div class="arabic range-block" style="' + escapeHtml(arabicCss) + '">' + arabicHtml + '</div>' +
       '<div class="ref-english">' + englishRef + '</div>' +
+      translationBlock +
       '<button type="button" class="btn-primary btn-insert-result" ' +
         'data-surah="' + cardData.surah + '" ' +
         'data-ayah-start="' + cardData.ayahStart + '" ' +
@@ -128,6 +136,7 @@ function buildCardHtml(cardData, fontOrFs) {
   return '<div class="ref-arabic">' + arabicRef + '</div>' +
     '<div class="arabic" style="' + escapeHtml(arabicCss) + '">' + arabicHtml + '</div>' +
     '<div class="ref-english">' + englishRef + '</div>' +
+    translationBlock +
     '<button type="button" class="btn-primary btn-insert-result" ' +
       'data-surah="' + cardData.surah + '" data-ayah="' + cardData.ayah + '">Insert</button>';
 }
@@ -389,7 +398,7 @@ function runTests() {
     assert.strictEqual(html.indexOf('<mark>'), -1, 'no <mark> when matchEnd equals matchStart');
   });
 
-  it('single: never renders a translation row', function () {
+  it('single: renders translation toggle and hidden translation div when translationText provided', function () {
     var r = {
       surah: 1, ayah: 1,
       surahNameArabic: 'الفاتحة', surahNameEnglish: 'Al-Fatihah',
@@ -397,8 +406,44 @@ function runTests() {
       translationText: 'In the name of Allah, the Most Gracious, the Most Merciful'
     };
     var html = buildCardHtml(r, 'Amiri');
-    assert.strictEqual(html.indexOf('translation'), -1, 'no translation class in output');
-    assert.strictEqual(html.indexOf('Most Gracious'), -1, 'translation text not rendered');
+    assert.ok(html.indexOf('btn-toggle-translation') >= 0, 'toggle link present');
+    assert.ok(html.indexOf('Show translation') >= 0, 'toggle text is "Show translation"');
+    assert.ok(html.indexOf('translation hidden') >= 0, 'translation div has hidden class by default');
+    assert.ok(html.indexOf('Most Gracious') >= 0, 'translation text present in hidden div');
+  });
+
+  it('single: no translation toggle when translationText is empty', function () {
+    var r = {
+      surah: 1, ayah: 1,
+      surahNameArabic: 'الفاتحة', surahNameEnglish: 'Al-Fatihah',
+      arabicText: 'بسم الله', translationText: ''
+    };
+    var html = buildCardHtml(r, 'Amiri');
+    assert.strictEqual(html.indexOf('btn-toggle-translation'), -1, 'no toggle when translation empty');
+    assert.strictEqual(html.indexOf('class="translation'), -1, 'no translation div when empty');
+  });
+
+  it('single: no translation toggle when translationText is undefined', function () {
+    var r = {
+      surah: 1, ayah: 1,
+      surahNameArabic: 'الفاتحة', surahNameEnglish: 'Al-Fatihah',
+      arabicText: 'بسم الله'
+    };
+    var html = buildCardHtml(r, 'Amiri');
+    assert.strictEqual(html.indexOf('btn-toggle-translation'), -1, 'no toggle when translation undefined');
+    assert.strictEqual(html.indexOf('class="translation'), -1, 'no translation div when undefined');
+  });
+
+  it('single: translation text is HTML-escaped', function () {
+    var r = {
+      surah: 1, ayah: 1,
+      surahNameArabic: 'الفاتحة', surahNameEnglish: 'Al-Fatihah',
+      arabicText: 'بسم الله',
+      translationText: '<script>alert("xss")</script>'
+    };
+    var html = buildCardHtml(r, 'Amiri');
+    assert.strictEqual(html.indexOf('<script>alert'), -1, 'script tag escaped in translation');
+    assert.ok(html.indexOf('&lt;script&gt;') >= 0, 'escaped script present in translation div');
   });
 
   it('single: includes Arabic reference with Arabic-Indic ayah number', function () {
@@ -496,11 +541,20 @@ function runTests() {
     assert.strictEqual(html.indexOf('data-ayah="'), -1, 'no data-ayah on range card');
   });
 
-  it('range: never renders a translation row', function () {
+  it('range: renders translation toggle and hidden translation div when translationText provided', function () {
     var data = { isRange: true, surah: 2, ayahStart: 255, ayahEnd: 256, surahNameArabic: 'البقرة', surahNameEnglish: 'Al-Baqarah', arabicText: 'text', translationText: 'Allah - there is no deity' };
     var html = buildCardHtml(data, 'Amiri');
-    assert.strictEqual(html.indexOf('translation'), -1, 'no translation class in range card');
-    assert.strictEqual(html.indexOf('Allah - there is no deity'), -1, 'translation text not rendered');
+    assert.ok(html.indexOf('btn-toggle-translation') >= 0, 'toggle link present on range card');
+    assert.ok(html.indexOf('Show translation') >= 0, 'toggle text is "Show translation"');
+    assert.ok(html.indexOf('translation hidden') >= 0, 'translation div has hidden class');
+    assert.ok(html.indexOf('Allah - there is no deity') >= 0, 'translation text present');
+  });
+
+  it('range: no translation toggle when translationText is empty', function () {
+    var data = { isRange: true, surah: 2, ayahStart: 1, ayahEnd: 2, surahNameArabic: '', surahNameEnglish: '', arabicText: 'text', translationText: '' };
+    var html = buildCardHtml(data, 'Amiri');
+    assert.strictEqual(html.indexOf('btn-toggle-translation'), -1, 'no toggle on range when translation empty');
+    assert.strictEqual(html.indexOf('class="translation'), -1, 'no translation div on range when empty');
   });
 
   it('range: does not have <mark> even if match params somehow present', function () {

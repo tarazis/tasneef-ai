@@ -1,7 +1,7 @@
 <script>
 // Depends on globals: _surahList, MAX_RESULTS (shared-state.html),
 //   ensureSurahMetaCache, lookupUthmaniAyah, lookupTranslation (quran-caches.html),
-//   renderPreview, onInsertClick (render-helpers.html)
+//   renderPreview, onInsertClick, onToggleTranslationClick (render-helpers.html)
 // Sets window._refreshDirectInsert (read by format-bar.html)
 
 function initDirectInsertTab() {
@@ -130,6 +130,7 @@ function initDirectInsertTab() {
   window._refreshDirectInsert = autoRenderPreview;
 
   if (resultsEl) resultsEl.addEventListener('click', onInsertClick);
+  if (resultsEl) resultsEl.addEventListener('click', onToggleTranslationClick);
 }
 
 function clearDirectInsert() {

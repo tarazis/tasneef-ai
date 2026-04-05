@@ -1,5 +1,5 @@
 <script>
-// Depends on globals: makeSkeleton, renderPreview, onInsertClick (render-helpers.html),
+// Depends on globals: makeSkeleton, renderPreview, onInsertClick, onToggleTranslationClick (render-helpers.html),
 //   searchImlaeiClient, _buildResultsFromReferences (search-utils.html),
 //   isConsecutiveRange (card-builder.html),
 //   pagClear, pagReset, pagRenderPage (pagination.html),
@@ -138,6 +138,7 @@ function initAISearchTab() {
   window.setupTextarea(queryEl, doAISearch);
   if (btnSend) btnSend.addEventListener('click', doAISearch);
   if (resultsEl) resultsEl.addEventListener('click', onInsertClick);
+  if (resultsEl) resultsEl.addEventListener('click', onToggleTranslationClick);
 }
 
 function clearAISearch() {

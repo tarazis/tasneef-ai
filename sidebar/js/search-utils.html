@@ -7,7 +7,7 @@
  * Synchronous client-side search against the pre-normalized imlaei corpus.
  * Must be called after imlaei cache is loaded (ensure resolves synchronously post-load).
  * @param {string} query - Raw Arabic search text
- * @return {Array<{surah, ayah, surahNameArabic, surahNameEnglish, arabicText, matchStart, matchEnd}>}
+ * @return {Array<{surah, ayah, surahNameArabic, surahNameEnglish, arabicText, translationText, matchStart, matchEnd}>}
  */
 function searchImlaeiClient(query) {
   if (!query || typeof query !== 'string') return [];
@@ -39,6 +39,7 @@ function searchImlaeiClient(query) {
       surahNameArabic: surahMeta ? surahMeta.nameArabic : '',
       surahNameEnglish: surahMeta ? surahMeta.nameEnglish : '',
       arabicText: verse.text || '',
+      translationText: lookupTranslation(verse.surah, verse.ayah) || '',
       matchStart: mapped.start,
       matchEnd: mapped.end
     });

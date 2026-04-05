@@ -129,4 +129,27 @@ function onInsertClick(e) {
     })
     .insertAyah(ayahData, fs, _settings);
 }
+
+/**
+ * Delegated click handler for the per-card translation toggle.
+ * Toggles the .translation sibling's visibility and swaps the link text.
+ */
+function onToggleTranslationClick(e) {
+  var toggle = e.target;
+  if (!toggle.classList || !toggle.classList.contains('btn-toggle-translation')) return;
+
+  var card = toggle.closest('.result-card');
+  if (!card) return;
+
+  var translationDiv = card.querySelector('.translation');
+  if (!translationDiv) return;
+
+  if (translationDiv.classList.contains('hidden')) {
+    translationDiv.classList.remove('hidden');
+    toggle.textContent = 'Hide translation';
+  } else {
+    translationDiv.classList.add('hidden');
+    toggle.textContent = 'Show translation';
+  }
+}
 </script>

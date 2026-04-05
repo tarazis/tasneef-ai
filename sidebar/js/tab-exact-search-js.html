@@ -2,7 +2,7 @@
 // Depends on globals: EXACT_MIN_CHARS, EXACT_DEBOUNCE_MS (shared-state.html),
 //   searchImlaeiClient (search-utils.html),
 //   pagClear, pagReset, pagRenderPage (pagination.html),
-//   onInsertClick (render-helpers.html)
+//   onInsertClick, onToggleTranslationClick (render-helpers.html)
 
 function initExactSearchTab() {
   var queryEl = document.getElementById('exact-search-query');
@@ -70,6 +70,7 @@ function initExactSearchTab() {
 
   if (btnSearch) btnSearch.addEventListener('click', doExactSearch);
   if (resultsEl) resultsEl.addEventListener('click', onInsertClick);
+  if (resultsEl) resultsEl.addEventListener('click', onToggleTranslationClick);
 }
 
 function clearExactSearch() {
