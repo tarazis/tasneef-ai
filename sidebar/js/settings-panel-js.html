@@ -127,26 +127,19 @@ function initFontAuditButton() {
 
     ensureUthmaniCache(function() {
       ensureSurahMetaCache(function(surahList) {
-        var meta = (surahList || []).find(function(s) { return s.number === 2; }) || {};
-        var u1 = lookupUthmaniAyah(2, 1);
-        var u2 = lookupUthmaniAyah(2, 2);
+        var meta = (surahList || []).find(function(s) { return s.number === 32; }) || {};
+        var u = lookupUthmaniAyah(32, 15);
 
-        if (!u1 || !u2) {
+        if (!u) {
           btn.disabled = false;
-          btn.textContent = 'Insert Font Audit (Al-Baqara 2:1\u20132)';
+          btn.textContent = 'Insert Font Audit (As-Sajdah 32:15)';
           showMsg('Failed to load ayah data.', true);
           return;
         }
 
-        var ayah1Data = {
-          surah: 2, ayah: 1,
-          textUthmani: u1.text,
-          surahNameArabic: meta.nameArabic || '',
-          surahNameEnglish: meta.nameEnglish || ''
-        };
-        var ayah2Data = {
-          surah: 2, ayah: 2,
-          textUthmani: u2.text,
+        var ayahData = {
+          surah: 32, ayah: 15,
+          textUthmani: u.text,
           surahNameArabic: meta.nameArabic || '',
           surahNameEnglish: meta.nameEnglish || ''
         };
@@ -154,23 +147,23 @@ function initFontAuditButton() {
         google.script.run
           .withSuccessHandler(function(result) {
             btn.disabled = false;
-            btn.textContent = 'Insert Font Audit (Al-Baqara 2:1\u20132)';
+            btn.textContent = 'Insert Font Audit (As-Sajdah 32:15)';
             showMsg(result.message || 'Done.', !result.success);
           })
           .withFailureHandler(function(err) {
             btn.disabled = false;
-            btn.textContent = 'Insert Font Audit (Al-Baqara 2:1\u20132)';
+            btn.textContent = 'Insert Font Audit (As-Sajdah 32:15)';
             showMsg('Error: ' + (err.message || String(err)), true);
           })
-          .insertFontAudit(ayah1Data, ayah2Data);
+          .insertFontAudit(ayahData);
       }, function() {
         btn.disabled = false;
-        btn.textContent = 'Insert Font Audit (Al-Baqara 2:1\u20132)';
+        btn.textContent = 'Insert Font Audit (As-Sajdah 32:15)';
         showMsg('Failed to load surah data.', true);
       });
     }, function() {
       btn.disabled = false;
-      btn.textContent = 'Insert Font Audit (Al-Baqara 2:1\u20132)';
+      btn.textContent = 'Insert Font Audit (As-Sajdah 32:15)';
       showMsg('Failed to load Quran text.', true);
     });
   });
