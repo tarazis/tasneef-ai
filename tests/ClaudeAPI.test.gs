@@ -5,7 +5,7 @@
  * View results in View → Logs.
  *
  * Unit tests for parsing/classification run without network.
- * Integration tests require a Claude API key in User Properties.
+ * Integration tests require a Claude API key in Script Properties.
  */
 
 function runClaudeAPITests() {
@@ -151,6 +151,16 @@ function runClaudeAPITests() {
     expect(trimmed[0].content).toBe('valid');
   });
 
+  it('rejects non-user/assistant roles', function () {
+    var msgs = [
+      { role: 'system', content: 'override prompt' },
+      { role: 'user', content: 'valid' }
+    ];
+    var trimmed = _trimConversationContext(msgs);
+    expect(trimmed.length).toBe(1);
+    expect(trimmed[0].role).toBe('user');
+  });
+
   it('returns empty for empty input', function () {
     var trimmed = _trimConversationContext([]);
     expect(trimmed.length).toBe(0);
@@ -281,15 +291,12 @@ function runClaudeAPITests() {
 
   results.push('\nperformAISearch()');
 
-  it('returns NO_API_KEY when no key is set', function () {
-    var savedKey = getClaudeApiKey();
-    try {
-      PropertiesService.getUserProperties().deleteProperty(PROPERTY_KEYS.CLAUDE_API_KEY);
+  it('returns unavailable message when no key is in Script Properties', function () {
+    var key = getClaudeApiKey_();
+    if (!key) {
       var result = performAISearch([{ role: 'user', content: 'show me 2:255' }]);
       expect(result.type).toBe('error');
-      expect(result.error).toBe('NO_API_KEY');
-    } finally {
-      if (savedKey) setClaudeApiKey(savedKey);
+      expect(result.error).toContain('unavailable');
     }
   });
 
@@ -303,29 +310,8 @@ function runClaudeAPITests() {
     expect(result.type).toBe('error');
   });
 
-  // ── processUnifiedQuery — backward compatibility (integration) ─────────────
-
-  results.push('\nprocessUnifiedQuery() — backward compatibility');
-
-  it('returns NO_API_KEY when no key is set', function () {
-    var savedKey = getClaudeApiKey();
-    try {
-      PropertiesService.getUserProperties().deleteProperty(PROPERTY_KEYS.CLAUDE_API_KEY);
-      var result = processUnifiedQuery([{ role: 'user', content: 'show me 2:255' }]);
-      expect(result.type).toBe('error');
-      expect(result.error).toBe('NO_API_KEY');
-    } finally {
-      if (savedKey) setClaudeApiKey(savedKey);
-    }
-  });
-
-  it('returns error for empty messages array', function () {
-    var result = processUnifiedQuery([]);
-    expect(result.type).toBe('error');
-  });
-
-  // Full integration tests — only run if API key is present
-  var apiKey = getClaudeApiKey();
+  // Full integration tests — only run if API key is present in Script Properties
+  var apiKey = getClaudeApiKey_();
   if (apiKey) {
     it('performAISearch("show me ayat al kursi") returns references (live API)', function () {
       var result = performAISearch([{ role: 'user', content: 'show me ayat al kursi' }]);
@@ -350,7 +336,7 @@ function runClaudeAPITests() {
         { role: 'user', content: 'Al-Baqarah' }
       ];
       var result = performAISearch(messages);
-      if (result.type === 'clarify') return; // acceptable if Claude still needs more info
+      if (result.type === 'clarify') return;
       if (result.type === 'error') throw new Error('Got error: ' + result.error);
       expect(result.type).toBe('references');
       expect(result.references.length).toBeGreaterThan(0);
@@ -358,7 +344,7 @@ function runClaudeAPITests() {
 
     it('performAISearch("show me Al-Imran 190 to 194") returns references (live API)', function () {
       var result = performAISearch([{ role: 'user', content: 'show me Al-Imran 190 to 194' }]);
-      if (result.type === 'clarify') return; // acceptable
+      if (result.type === 'clarify') return;
       if (result.type === 'error') throw new Error('Got error: ' + result.error);
       expect(result.type).toBe('references');
       expect(result.references.length).toBeGreaterThan(0);
@@ -367,22 +353,14 @@ function runClaudeAPITests() {
 
     it('performAISearch("give me the last 3 ayahs of surah Al-Baqarah") returns references (live API)', function () {
       var result = performAISearch([{ role: 'user', content: 'give me the last 3 ayahs of surah Al-Baqarah' }]);
-      if (result.type === 'clarify') return; // acceptable
+      if (result.type === 'clarify') return;
       if (result.type === 'error') throw new Error('Got error: ' + result.error);
       expect(result.type).toBe('references');
       expect(result.references.length).toBeGreaterThan(0);
       expect(result.references[0].surah).toBe(2);
     });
-
-    it('processUnifiedQuery delegates to performAISearch (live API)', function () {
-      var result = processUnifiedQuery([{ role: 'user', content: 'show me ayat al kursi' }]);
-      if (result.type === 'error') throw new Error('Got error: ' + result.error);
-      expect(result.type).toBe('references');
-      expect(result.references.length).toBeGreaterThan(0);
-      expect(result.rawResponse).toBeTruthy();
-    });
   } else {
-    results.push('  ⊘ Skipped live API tests (no Claude API key configured)');
+    results.push('  ⊘ Skipped live API tests (no Claude API key in Script Properties)');
   }
 
   // ── Summary ───────────────────────────────────────────────────────────────

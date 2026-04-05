@@ -1,10 +1,11 @@
 /**
  * SettingsService.gs
- * Manages user preferences and Claude API key via PropertiesService.
- * All settings are persisted to User Properties (per-user, per-script).
+ * Manages user preferences via PropertiesService.
+ * User settings are persisted to User Properties (per-user, per-script).
+ * API keys (Claude, Google Fonts) are in Script Properties (shared, developer-owned).
  */
 
-var AI_SEARCH_DAILY_LIMIT = 100;
+var AI_SEARCH_DAILY_LIMIT = 10;
 
 var SETTINGS_DEFAULTS = {
   showTranslation: true,
@@ -51,7 +52,7 @@ function getSettings() {
  * @param {*}      value - The value to store.
  * @throws {Error} If key is not a recognised setting.
  */
-function saveSetting(key, value) {
+function saveSetting_(key, value) {
   if (!SETTINGS_DEFAULTS.hasOwnProperty(key)) {
     throw new Error('Unknown setting key: ' + key);
   }
@@ -66,62 +67,30 @@ function saveSetting(key, value) {
  */
 function saveSettings(settingsObj) {
   for (var key in settingsObj) {
-    saveSetting(key, settingsObj[key]);
+    saveSetting_(key, settingsObj[key]);
   }
 }
 
 /**
- * Returns the stored Claude API key, or null if not set.
+ * Returns the shared Claude API key from Script Properties, or null if not set.
+ * Set once by the developer in Project Settings → Script Properties.
+ * Trailing underscore hides this from google.script.run (prevents client access).
  * @return {string|null}
  */
-function getClaudeApiKey() {
-  return PropertiesService.getUserProperties()
+function getClaudeApiKey_() {
+  return PropertiesService.getScriptProperties()
     .getProperty(PROPERTY_KEYS.CLAUDE_API_KEY) || null;
 }
 
 /**
- * Returns true if a Claude API key has been stored, false otherwise.
- * Use this instead of getClaudeApiKey() when you only need to check existence
- * (avoids sending the key value to the client).
- * @return {boolean}
- */
-function hasClaudeApiKey() {
-  var key = PropertiesService.getUserProperties()
-    .getProperty(PROPERTY_KEYS.CLAUDE_API_KEY);
-  return !!(key && key.length > 0);
-}
-
-/**
- * Persists the Claude API key to User Properties.
- * Pass an empty string or null to delete the stored key.
- * @param {string} key - The API key to store.
- */
-function setClaudeApiKey(key) {
-  var props = PropertiesService.getUserProperties();
-  if (!key || key.trim().length === 0) {
-    props.deleteProperty(PROPERTY_KEYS.CLAUDE_API_KEY);
-  } else {
-    props.setProperty(PROPERTY_KEYS.CLAUDE_API_KEY, key.trim());
-  }
-}
-
-/**
  * Returns the Google Fonts Developer API key from Script Properties (shared by all users).
- * Set once in Project settings → Script properties as google_fonts_api_key.
+ * Set once by the developer in Project Settings → Script Properties.
+ * Trailing underscore hides this from google.script.run (prevents client access).
  * @return {string|null}
  */
-function getGoogleFontsApiKey() {
+function getGoogleFontsApiKey_() {
   return PropertiesService.getScriptProperties()
     .getProperty(PROPERTY_KEYS.GOOGLE_FONTS_API_KEY) || null;
-}
-
-/**
- * Persists the Google Fonts API key to Script Properties (optional; prefer Script editor UI).
- * @param {string} key - The API key to store.
- */
-function setGoogleFontsApiKey(key) {
-  PropertiesService.getScriptProperties()
-    .setProperty(PROPERTY_KEYS.GOOGLE_FONTS_API_KEY, String(key || '').trim());
 }
 
 /**
@@ -129,7 +98,7 @@ function setGoogleFontsApiKey(key) {
  * If the stored date is not today, the count is treated as 0.
  * @return {number} The current count for today.
  */
-function getAiSearchCount() {
+function getAiSearchCount_() {
   var raw = PropertiesService.getUserProperties()
     .getProperty(PROPERTY_KEYS.AI_SEARCH_COUNT);
 
@@ -148,8 +117,8 @@ function getAiSearchCount() {
  * Increments today's AI search count and persists it.
  * @return {number} The new count, or -1 if the daily limit has been reached.
  */
-function incrementAiSearchCount() {
-  var current = getAiSearchCount();
+function incrementAiSearchCount_() {
+  var current = getAiSearchCount_();
 
   if (current >= AI_SEARCH_DAILY_LIMIT) return -1;
 

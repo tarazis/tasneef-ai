@@ -3,7 +3,7 @@
 <head>
   <base target="_top">
   <meta charset="UTF-8">
-  <?!= include('sidebar/sidebar-css') ?>
+  <?!= include_('sidebar/sidebar-css') ?>
 </head>
 <body>
   <div class="sidebar">
@@ -14,7 +14,7 @@
 
     <header class="header">
       <div class="header-brand">
-        <?!= include('sidebar/components/logo-img') ?>
+        <?!= include_('sidebar/components/logo-img') ?>
         <span class="title">Tasneef AI</span>
       </div>
       <div class="header-actions">
@@ -23,7 +23,7 @@
       </div>
     </header>
 
-    <?!= include('sidebar/components/format-bar') ?>
+    <?!= include_('sidebar/components/format-bar') ?>
 
     <nav class="tab-nav">
       <button type="button" class="tab-btn active" data-tab="direct-insert">Insert</button>
@@ -32,30 +32,30 @@
     </nav>
 
     <main class="tab-content">
-      <?!= include('sidebar/components/tab-direct-insert') ?>
-      <?!= include('sidebar/components/tab-exact-search') ?>
-      <?!= include('sidebar/components/tab-ai-search') ?>
+      <?!= include_('sidebar/components/tab-direct-insert') ?>
+      <?!= include_('sidebar/components/tab-exact-search') ?>
+      <?!= include_('sidebar/components/tab-ai-search') ?>
     </main>
   </div>
 
   <div id="settings-overlay" class="settings-overlay hidden">
-    <?!= include('sidebar/components/settings-panel') ?>
+    <?!= include_('sidebar/components/settings-panel') ?>
   </div>
 
-  <?!= include('client/makeClientCache') ?>
-  <?!= include('client/normalizeArabic') ?>
-  <?!= include('sidebar/js/quran-caches') ?>
-  <?!= include('sidebar/js/search-utils') ?>
-  <?!= include('sidebar/js/shared-state') ?>
-  <?!= include('sidebar/js/font-variant-utils') ?>
-  <?!= include('sidebar/js/card-builder') ?>
-  <?!= include('sidebar/js/pagination') ?>
-  <?!= include('sidebar/js/render-helpers') ?>
-  <?!= include('sidebar/js/format-bar') ?>
-  <?!= include('sidebar/js/settings-panel-js') ?>
-  <?!= include('sidebar/js/tab-direct-insert-js') ?>
-  <?!= include('sidebar/js/tab-exact-search-js') ?>
-  <?!= include('sidebar/js/tab-ai-search-js') ?>
-  <?!= include('sidebar/js/sidebar-js') ?>
+  <?!= include_('client/makeClientCache') ?>
+  <?!= include_('client/normalizeArabic') ?>
+  <?!= include_('sidebar/js/quran-caches') ?>
+  <?!= include_('sidebar/js/search-utils') ?>
+  <?!= include_('sidebar/js/shared-state') ?>
+  <?!= include_('sidebar/js/font-variant-utils') ?>
+  <?!= include_('sidebar/js/card-builder') ?>
+  <?!= include_('sidebar/js/pagination') ?>
+  <?!= include_('sidebar/js/render-helpers') ?>
+  <?!= include_('sidebar/js/format-bar') ?>
+  <?!= include_('sidebar/js/settings-panel-js') ?>
+  <?!= include_('sidebar/js/tab-direct-insert-js') ?>
+  <?!= include_('sidebar/js/tab-exact-search-js') ?>
+  <?!= include_('sidebar/js/tab-ai-search-js') ?>
+  <?!= include_('sidebar/js/sidebar-js') ?>
 </body>
 </html>

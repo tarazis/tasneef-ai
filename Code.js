@@ -22,11 +22,12 @@ function showSidebar() {
 
 /**
  * Includes an HTML file's content for use in Apps Script HTML templates.
- * Usage in templates: <?!= include('sidebar/sidebar-css') ?>
+ * Usage in templates: <?!= include_('sidebar/sidebar-css') ?>
+ * Trailing underscore hides this from google.script.run (prevents source disclosure).
  * @param {string} filename - The file to include (without .html extension).
  * @return {string} The file's HTML content.
  */
-function include(filename) {
+function include_(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 

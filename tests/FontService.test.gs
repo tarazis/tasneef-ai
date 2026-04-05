@@ -84,12 +84,12 @@ function runFontServiceTests() {
   results.push('\ngetArabicFonts()');
 
   it('returns an array', function () {
-    var fonts = getArabicFonts();
+    var fonts = getArabicFonts_();
     if (!(fonts instanceof Array)) throw new Error('Expected array');
   });
 
   it('matches sorted curated list from quran-fonts.json', function () {
-    var fonts = getArabicFonts();
+    var fonts = getArabicFonts_();
     expectArraysEqual(fonts, EXPECTED_APPROVED_FONTS_SORTED);
   });
 

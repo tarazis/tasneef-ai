@@ -62,12 +62,12 @@ function performAISearch(messages) {
     return { type: 'error', error: 'Please enter a query.' };
   }
 
-  var apiKey = getClaudeApiKey();
+  var apiKey = getClaudeApiKey_();
   if (!apiKey) {
-    return { type: 'error', error: 'NO_API_KEY' };
+    return { type: 'error', error: 'AI search is temporarily unavailable. Please try again later.' };
   }
 
-  var count = incrementAiSearchCount();
+  var count = incrementAiSearchCount_();
   if (count === -1) {
     return {
       type: 'error',
@@ -113,10 +113,11 @@ function performAISearch(messages) {
 
 /**
  * Thin wrapper for frontend compatibility.
+ * Trailing underscore hides this from google.script.run.
  * @param {Array<{role: string, content: string}>} messages
  * @return {Object} Unified response
  */
-function processUnifiedQuery(messages) {
+function processUnifiedQuery_(messages) {
   return performAISearch(messages);
 }
 
@@ -206,8 +207,9 @@ function _trimConversationContext(messages) {
   var valid = [];
   for (var i = 0; i < messages.length; i++) {
     var m = messages[i];
-    if (m && m.role && m.content && typeof m.content === 'string') {
-      valid.push({ role: String(m.role), content: String(m.content) });
+    if (m && m.content && typeof m.content === 'string' &&
+        (m.role === 'user' || m.role === 'assistant')) {
+      valid.push({ role: m.role, content: String(m.content) });
     }
   }
   if (valid.length > CONVERSATION_CONTEXT_LIMIT) {
