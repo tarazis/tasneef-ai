@@ -7,6 +7,27 @@
 
 var ARABIC_INDIC = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
 var FALLBACK_FONT = 'Amiri';
+/** Google Docs font family for inserted English translation (Google Fonts name). */
+var ENGLISH_TRANSLATION_INSERT_FONT = 'Figtree';
+
+/**
+ * Format state for the English translation paragraph: same size, variant, bold, color as Arabic; Figtree family.
+ * @param {Object|null|undefined} formatState - Sidebar format state
+ * @return {Object}
+ */
+function formatStateForEnglishTranslation(formatState) {
+  if (!formatState) {
+    return { fontName: ENGLISH_TRANSLATION_INSERT_FONT };
+  }
+  var out = {};
+  for (var k in formatState) {
+    if (Object.prototype.hasOwnProperty.call(formatState, k)) {
+      out[k] = formatState[k];
+    }
+  }
+  out.fontName = ENGLISH_TRANSLATION_INSERT_FONT;
+  return out;
+}
 
 /**
  * Builds the font family string Google Docs accepts for weighted Google Fonts.

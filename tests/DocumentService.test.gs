@@ -126,7 +126,8 @@ function runDocumentServiceTests() {
       },
       {
         text: '"translation" (Al-Fatiha 1:1)',
-        align: DocumentApp.HorizontalAlignment.CENTER
+        align: DocumentApp.HorizontalAlignment.CENTER,
+        useEnglishTranslationFont: true
       }
     ];
   }
@@ -134,7 +135,11 @@ function runDocumentServiceTests() {
   // Save original applyFormat and stub it
   var originalApplyFormat = applyFormat;
   var applyFormatReturnValue = null;
-  applyFormat = function () { return applyFormatReturnValue; };
+  var applyFormatCalls = [];
+  applyFormat = function (textEl, state) {
+    applyFormatCalls.push(state);
+    return applyFormatReturnValue;
+  };
 
   // ── Tests ───────────────────────────────────────────────────
 
@@ -266,6 +271,7 @@ function runDocumentServiceTests() {
   results.push('\ninsertParagraphsAtPosition_() — multi-paragraph & font warning');
 
   it('font warning is propagated from applyFormat', function () {
+    applyFormatCalls = [];
     applyFormatReturnValue = 'Font "Custom" not found. Using Amiri.';
     var body = createMockBody(['']);
     var doc = createMockDoc(body, body._children[0]);
@@ -274,6 +280,30 @@ function runDocumentServiceTests() {
 
     expect(result.fontWarning).toBe('Font "Custom" not found. Using Amiri.');
     applyFormatReturnValue = null;
+  });
+
+  it('translation paragraph uses Figtree and copies other format fields from sidebar state', function () {
+    applyFormatCalls = [];
+    applyFormatReturnValue = null;
+    var fs = {
+      fontName: 'Scheherazade New',
+      fontVariant: '700',
+      fontSize: 14,
+      bold: true,
+      textColor: '#112233'
+    };
+    var body = createMockBody(['existing']);
+    var doc = createMockDoc(body, body._children[0]);
+
+    insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), fs);
+
+    expect(applyFormatCalls.length).toBe(2);
+    expect(applyFormatCalls[0]).toBe(fs);
+    expect(applyFormatCalls[1].fontName).toBe('Figtree');
+    expect(applyFormatCalls[1].fontVariant).toBe('700');
+    expect(applyFormatCalls[1].fontSize).toBe(14);
+    expect(applyFormatCalls[1].bold).toBe(true);
+    expect(applyFormatCalls[1].textColor).toBe('#112233');
   });
 
   it('two content paragraphs at end — both inserted, cleanup follows', function () {

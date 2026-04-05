@@ -20,7 +20,7 @@
  *
  * @param {Body} body - The document body
  * @param {Document} doc - The active document
- * @param {Array<Object>} paragraphsToInsert - Array of { text, align, rtl? }
+ * @param {Array<Object>} paragraphsToInsert - Array of { text, align, rtl?, useEnglishTranslationFont? }
  * @param {Object} formatState - { fontName, fontVariant, fontSize, bold, textColor }
  * @return {Object} { fontWarning: string|null }
  */
@@ -69,10 +69,14 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
 
   var fontWarning = null;
   for (var i = 0; i < paragraphsToInsert.length; i++) {
-    var p = body.insertParagraph(insertIndex + i, paragraphsToInsert[i].text);
-    p.setAlignment(paragraphsToInsert[i].align);
-    if (paragraphsToInsert[i].rtl) p.setLeftToRight(false);
-    fontWarning = applyFormat(p.editAsText(), formatState) || fontWarning;
+    var item = paragraphsToInsert[i];
+    var p = body.insertParagraph(insertIndex + i, item.text);
+    p.setAlignment(item.align);
+    if (item.rtl) p.setLeftToRight(false);
+    var fs = item.useEnglishTranslationFont
+      ? formatStateForEnglishTranslation(formatState)
+      : formatState;
+    fontWarning = applyFormat(p.editAsText(), fs) || fontWarning;
   }
 
   if (removeTarget) {
@@ -137,7 +141,8 @@ function insertAyah(ayahData, formatState, settings) {
     });
     paragraphsToInsert.push({
       text: '\u201C' + translationText + '\u201D (' + surahNameEn + ' ' + ayahData.surah + ':' + ayahData.ayah + ')',
-      align: DocumentApp.HorizontalAlignment.CENTER
+      align: DocumentApp.HorizontalAlignment.CENTER,
+      useEnglishTranslationFont: true
     });
   } else {
     paragraphsToInsert.push({
@@ -187,7 +192,8 @@ function insertAyahRange(rangeData, formatState, settings) {
       text: '\u201C' + translationText + '\u201D (' +
             surahNameEn + ' ' + rangeData.surah + ':' +
             rangeData.ayahStart + '-' + rangeData.ayahEnd + ')',
-      align: DocumentApp.HorizontalAlignment.CENTER
+      align: DocumentApp.HorizontalAlignment.CENTER,
+      useEnglishTranslationFont: true
     });
   } else {
     paragraphsToInsert.push({

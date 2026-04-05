@@ -47,6 +47,30 @@ function runFormatServiceTests() {
     expect(toArabicIndic(null)).toBe('null');
   });
 
+  results.push('\nformatStateForEnglishTranslation()');
+
+  it('null yields Figtree-only state', function () {
+    var a = formatStateForEnglishTranslation(null);
+    expect(a.fontName).toBe('Figtree');
+  });
+  it('undefined yields Figtree-only state', function () {
+    var a = formatStateForEnglishTranslation(undefined);
+    expect(a.fontName).toBe('Figtree');
+  });
+  it('copies fields and overrides fontName to Figtree', function () {
+    var fs = { fontName: 'Scheherazade New', fontVariant: '700', fontSize: 11, bold: false };
+    var b = formatStateForEnglishTranslation(fs);
+    expect(b.fontName).toBe('Figtree');
+    expect(b.fontVariant).toBe('700');
+    expect(b.fontSize).toBe(11);
+    expect(b.bold).toBe(false);
+  });
+  it('does not mutate original formatState', function () {
+    var fs = { fontName: 'Amiri', fontSize: 10 };
+    formatStateForEnglishTranslation(fs);
+    expect(fs.fontName).toBe('Amiri');
+  });
+
   results.push('\n─────────────────────────────────────────');
   results.push('Results: ' + passed + ' passed, ' + failed + ' failed');
   Logger.log(results.join('\n'));
