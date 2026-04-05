@@ -13,13 +13,14 @@ A Google Docs sidebar add-on for Islamic scholars to search and insert Quranic a
 ### Quran data — client-only, loaded from GitHub Pages into browser memory
 All Quran text, metadata, and translations are fetched **client-side** via `makeClientCache` (browser `fetch()`). The server never loads or caches Quran data.
 
-**Canonical URL constants** live in `sidebar/sidebar-js.html`:
+**Canonical URL constants** live in `sidebar/js/quran-caches.html`:
 ```
-UTHMANI:      https://tarazis.github.io/tasneef-data/quran/uthmani.json
-SIMPLE:       https://tarazis.github.io/tasneef-data/quran/imlaei-simple.json
-SURAH META:   https://tarazis.github.io/tasneef-data/quran/quran-metadata-surah-name.json
-TRANSLATION:  https://tarazis.github.io/tasneef-data/quran/en-sahih-international-simple.json
+IMLAEI_SCRIPT: https://tarazis.github.io/tasneef-data/quran/imlaei-script.json
+SIMPLE:        https://tarazis.github.io/tasneef-data/quran/imlaei-simple.json
+SURAH META:    https://tarazis.github.io/tasneef-data/quran/quran-metadata-surah-name.json
+TRANSLATION:   https://tarazis.github.io/tasneef-data/quran/en-sahih-international-simple.json
 ```
+**Naming note:** The primary Arabic feed above is **imlaei-script**. Legacy identifiers in code still say “uthmani” (`UTHMANI_URL`, `ensureUthmaniCache`, `lookupUthmaniAyah`, settings `arabicStyle: 'uthmani'`, payload `textUthmani`) but they all refer to this imlaei-script source, not traditional Uthmani rasm.
 Font URLs live in `FontService.js`:
 ```
 QURAN FONTS:  https://tarazis.github.io/tasneef-data/quran/quran-fonts.json
