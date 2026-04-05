@@ -91,7 +91,7 @@ function initAISearchTab() {
     // Non-clarify response breaks the conversation chain
     _conversationMessages = [];
 
-    // Arabic corpus search: run client-side against imlaei cache, show paginated results
+    // Arabic corpus search: same cap and pagination as Exact Search (MAX_RESULTS + PAGE_SIZE via searchImlaeiClient / pagRenderPage)
     if (response.type === 'arabic_search') {
       var searchResults = searchImlaeiClient(response.query);
       if (!searchResults.length) {

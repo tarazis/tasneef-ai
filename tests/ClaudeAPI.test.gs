@@ -243,7 +243,7 @@ function runClaudeAPITests() {
 
   it('caps references at AI_MAX_REFERENCES', function () {
     var refs = [];
-    for (var r = 0; r < 15; r++) { refs.push({ surah: 1, ayah: r + 1 }); }
+    for (var r = 0; r < 60; r++) { refs.push({ surah: 1, ayah: (r % 7) + 1 }); }
     var classified = { query: 'test', language: 'english', references: refs };
     var result = _handleEnglishSearch(classified);
     expect(result.type).toBe('references');
