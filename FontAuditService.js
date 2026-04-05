@@ -20,12 +20,12 @@ function insertFontAudit(ayahData) {
     return { success: false, fontsInserted: 0, message: 'Invalid ayah data.' };
   }
 
-  var fontsResult = getAllArabicFontsFromApi();
+  var fontsResult = getCuratedFontCatalog();
   if (!fontsResult.ok) {
     return { success: false, fontsInserted: 0, message: fontsResult.error || 'Failed to fetch fonts.' };
   }
 
-  var fonts = fontsResult.fonts;
+  var fonts = fontsResult.catalog;
   if (!fonts.length) {
     return { success: false, fontsInserted: 0, message: 'No fonts returned from Google Fonts API.' };
   }
