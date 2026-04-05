@@ -23,7 +23,9 @@ var UNIFIED_SYSTEM_PROMPT =
   'Actions:\n\n' +
   '1. fetch_ayah — user wants a specific ayah or consecutive range by reference:\n' +
   'Single: {"action":"fetch_ayah","surah":2,"ayah":255}\n' +
-  'Range:  {"action":"fetch_ayah","surah":3,"ayahStart":190,"ayahEnd":194}\n\n' +
+  'Range:  {"action":"fetch_ayah","surah":3,"ayahStart":190,"ayahEnd":194}\n' +
+  'Multi (non-consecutive or different surahs): {"action":"fetch_ayah","references":[{"surah":2,"ayah":1},{"surah":67,"ayah":2}]}\n' +
+  'Each item in references can use "ayah" (single) or "ayahStart"/"ayahEnd" (range). Maximum 30 total ayahs.\n\n' +
   '2. search — user wants to find verses (by Arabic text, topic, theme, or meaning):\n' +
   'For Arabic Quranic text to search in the corpus:\n' +
   '{"action":"search","query":"بسم الله الرحمن","language":"arabic"}\n' +
@@ -35,7 +37,8 @@ var UNIFIED_SYSTEM_PROMPT =
   'Rules:\n' +
   '- Return ONLY the raw JSON object.\n' +
   '- For fetch_ayah: you must know the exact surah (1-114) and ayah number(s). ' +
-  'Use "ayah" for a single verse, or "ayahStart" and "ayahEnd" for a consecutive range.\n' +
+  'Use "ayah" for a single verse, "ayahStart"/"ayahEnd" for a consecutive range, ' +
+  'or "references" array for multiple non-consecutive verses or verses from different surahs.\n' +
   '- For Arabic input: determine if it is Quranic text to search for (use search with language "arabic") ' +
   'or a conversational question in Arabic (interpret the intent and respond accordingly). ' +
   'If genuinely unsure, use clarify.\n' +
@@ -176,6 +179,10 @@ function _handleEnglishSearch(classified) {
  * @return {Object} { type: 'references', references: [{surah, ayah}] } or error
  */
 function _handleFetchAyahAsReferences(classified) {
+  if (Array.isArray(classified.references) && classified.references.length > 0) {
+    return _expandMultiReferences(classified.references);
+  }
+
   var ayahStart = parseInt(classified.ayahStart || classified.ayah, 10);
   var ayahEnd = parseInt(classified.ayahEnd || classified.ayah || ayahStart, 10);
   var s = parseInt(classified.surah, 10);
@@ -194,6 +201,39 @@ function _handleFetchAyahAsReferences(classified) {
   var refs = [];
   for (var i = ayahStart; i <= ayahEnd; i++) {
     refs.push({ surah: s, ayah: i });
+  }
+  return { type: 'references', references: refs };
+}
+
+/**
+ * Expands an array of multi-reference items into a flat list of {surah, ayah} pairs.
+ * Each item may be a single ayah or a range (ayahStart/ayahEnd).
+ * Invalid items are silently skipped; total count is capped at DIRECT_AYAH_RANGE_CAP.
+ * @param {Array<{surah: number, ayah?: number, ayahStart?: number, ayahEnd?: number}>} groups
+ * @return {Object} { type: 'references', references: [{surah, ayah}] } or error
+ */
+function _expandMultiReferences(groups) {
+  var refs = [];
+  for (var g = 0; g < groups.length; g++) {
+    var item = groups[g];
+    var s = parseInt(item.surah, 10);
+    if (!s || s < 1 || s > 114) continue;
+
+    var start = parseInt(item.ayahStart || item.ayah, 10);
+    var end = parseInt(item.ayahEnd || item.ayah || start, 10);
+    if (!start || start < 1) continue;
+    if (end < start) end = start;
+
+    for (var a = start; a <= end; a++) {
+      refs.push({ surah: s, ayah: a });
+      if (refs.length > DIRECT_AYAH_RANGE_CAP) {
+        return { type: 'error', error: 'Too many ayahs requested. Maximum ' + DIRECT_AYAH_RANGE_CAP + ' at once.' };
+      }
+    }
+  }
+
+  if (!refs.length) {
+    return { type: 'error', error: 'No valid references found.' };
   }
   return { type: 'references', references: refs };
 }
