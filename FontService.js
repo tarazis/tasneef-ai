@@ -106,6 +106,58 @@ function getArabicFonts() {
 }
 
 /**
+ * Selects the regular (weight 400, non-italic) variant from a list, or the
+ * lightest non-italic weight if 'regular' is not present.
+ * @param {Array<string>} variants
+ * @return {string}
+ */
+function pickRegularVariant_(variants) {
+  if (!variants || !variants.length) return 'regular';
+  if (variants.indexOf('regular') !== -1) return 'regular';
+  var best = null;
+  var bestWeight = Infinity;
+  for (var i = 0; i < variants.length; i++) {
+    var parsed = parseGoogleFontVariant(variants[i]);
+    if (!parsed.italic && parsed.weight < bestWeight) {
+      bestWeight = parsed.weight;
+      best = variants[i];
+    }
+  }
+  return best || variants[0];
+}
+
+/**
+ * Fetches ALL Arabic-subset fonts from Google Fonts API without approved-list filtering.
+ * Requires Script Properties google_fonts_api_key via getGoogleFontsApiKey().
+ * @return {{ ok: boolean, error: string|null, fonts: Array<{family: string, variants: string[]}> }}
+ */
+function getAllArabicFontsFromApi() {
+  var empty = { ok: false, error: null, fonts: [] };
+  var apiKey = getGoogleFontsApiKey();
+  if (!apiKey || String(apiKey).trim().length === 0) {
+    empty.error = 'NO_GOOGLE_FONTS_API_KEY';
+    return empty;
+  }
+  try {
+    var url = GOOGLE_WEBFONTS_API +
+      '?key=' + encodeURIComponent(String(apiKey).trim()) +
+      '&subset=arabic&sort=alpha';
+    var r = UrlFetchApp.fetch(url);
+    var data = JSON.parse(r.getContentText());
+    var fonts = (data.items || []).map(function(item) {
+      return {
+        family: item.family,
+        variants: sortFontVariantTokens_(item.variants ? item.variants.slice() : [])
+      };
+    });
+    return { ok: true, error: null, fonts: fonts };
+  } catch (e) {
+    empty.error = String(e.message || e);
+    return empty;
+  }
+}
+
+/**
  * Fetches Google Fonts metadata (arabic subset) intersected with quran-fonts approved_fonts.
  * Requires Script Properties google_fonts_api_key via getGoogleFontsApiKey().
  * @return {{ ok: boolean, error: string|null, catalog: Array<{family: string, variants: string[]}> }}

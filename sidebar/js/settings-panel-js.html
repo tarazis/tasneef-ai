@@ -34,6 +34,7 @@ function initSettings() {
       }
     });
   }
+  initFontAuditButton();
 }
 
 function refreshSettings() {
@@ -105,6 +106,74 @@ function initSettingsPanelHandlers() {
         .saveSettings({ showTranslation: showTranslation });
     });
   }
+}
+
+function initFontAuditButton() {
+  var btn = document.getElementById('btn-font-audit');
+  var msg = document.getElementById('font-audit-msg');
+  if (!btn) return;
+
+  function showMsg(text, isError) {
+    if (!msg) return;
+    msg.textContent = text;
+    msg.className = 'settings-saved-msg ' + (isError ? 'error' : 'success');
+    msg.classList.remove('hidden');
+    setTimeout(function() { msg.classList.add('hidden'); }, 4000);
+  }
+
+  btn.addEventListener('click', function() {
+    btn.disabled = true;
+    btn.textContent = 'Inserting\u2026';
+
+    ensureUthmaniCache(function() {
+      ensureSurahMetaCache(function(surahList) {
+        var meta = (surahList || []).find(function(s) { return s.number === 2; }) || {};
+        var u1 = lookupUthmaniAyah(2, 1);
+        var u2 = lookupUthmaniAyah(2, 2);
+
+        if (!u1 || !u2) {
+          btn.disabled = false;
+          btn.textContent = 'Insert Font Audit (Al-Baqara 2:1\u20132)';
+          showMsg('Failed to load ayah data.', true);
+          return;
+        }
+
+        var ayah1Data = {
+          surah: 2, ayah: 1,
+          textUthmani: u1.text,
+          surahNameArabic: meta.nameArabic || '',
+          surahNameEnglish: meta.nameEnglish || ''
+        };
+        var ayah2Data = {
+          surah: 2, ayah: 2,
+          textUthmani: u2.text,
+          surahNameArabic: meta.nameArabic || '',
+          surahNameEnglish: meta.nameEnglish || ''
+        };
+
+        google.script.run
+          .withSuccessHandler(function(result) {
+            btn.disabled = false;
+            btn.textContent = 'Insert Font Audit (Al-Baqara 2:1\u20132)';
+            showMsg(result.message || 'Done.', !result.success);
+          })
+          .withFailureHandler(function(err) {
+            btn.disabled = false;
+            btn.textContent = 'Insert Font Audit (Al-Baqara 2:1\u20132)';
+            showMsg('Error: ' + (err.message || String(err)), true);
+          })
+          .insertFontAudit(ayah1Data, ayah2Data);
+      }, function() {
+        btn.disabled = false;
+        btn.textContent = 'Insert Font Audit (Al-Baqara 2:1\u20132)';
+        showMsg('Failed to load surah data.', true);
+      });
+    }, function() {
+      btn.disabled = false;
+      btn.textContent = 'Insert Font Audit (Al-Baqara 2:1\u20132)';
+      showMsg('Failed to load Quran text.', true);
+    });
+  });
 }
 
 function onSettingsLoaded(settings) {
