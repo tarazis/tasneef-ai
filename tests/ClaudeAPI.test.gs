@@ -258,7 +258,7 @@ function runClaudeAPITests() {
   });
 
   it('returns error for range exceeding cap', function () {
-    var result = _handleFetchAyahAsReferences({ surah: 2, ayahStart: 1, ayahEnd: 50 });
+    var result = _handleFetchAyahAsReferences({ surah: 2, ayahStart: 1, ayahEnd: 51 });
     expect(result.type).toBe('error');
   });
 
@@ -308,7 +308,7 @@ function runClaudeAPITests() {
 
   it('returns error when multi-references exceed cap', function () {
     var refs = [];
-    for (var i = 0; i < 5; i++) { refs.push({ surah: 2, ayahStart: 1, ayahEnd: 10 }); }
+    for (var i = 0; i < 6; i++) { refs.push({ surah: 2, ayahStart: 1, ayahEnd: 10 }); }
     var result = _handleFetchAyahAsReferences({ references: refs });
     expect(result.type).toBe('error');
     expect(result.error).toContain('Maximum');
