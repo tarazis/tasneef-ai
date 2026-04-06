@@ -62,13 +62,6 @@ function initDirectInsertTab() {
     if (!surahNum || !startNum) return;
 
     var end = endNum || startNum;
-    var rangeSize = end - startNum + 1;
-
-    if (rangeSize > MAX_RESULTS) {
-      emptyEl.textContent = 'Range too large. Maximum is ' + MAX_RESULTS + ' ayahs.';
-      emptyEl.classList.remove('hidden');
-      return;
-    }
 
     var surahMeta = _surahList.find(function(s) { return s.number === surahNum; });
     var nameArabic  = surahMeta ? surahMeta.nameArabic  : '';

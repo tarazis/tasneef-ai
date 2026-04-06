@@ -347,9 +347,16 @@ function runClaudeAPITests() {
     expect(result.references[0].ayahEnd).toBe(194);
   });
 
-  it('returns error for invalid surah (0)', function () {
+  it('returns clarify for invalid surah (0)', function () {
     var result = _handleFetchAyahAsReferences({ surah: 0, ayah: 1 });
-    expect(result.type).toBe('error');
+    expect(result.type).toBe('clarify');
+    expect(result.message).toContain('not a valid surah number');
+  });
+
+  it('returns clarify for out-of-range surah (115)', function () {
+    var result = _handleFetchAyahAsReferences({ surah: 115, ayah: 1 });
+    expect(result.type).toBe('clarify');
+    expect(result.message).toContain('115');
   });
 
   it('returns error for range exceeding safety cap', function () {
@@ -471,11 +478,13 @@ function runClaudeAPITests() {
     expect(result.type).toBe('error');
   });
 
-  it('returns error when all references are invalid', function () {
+  it('returns clarify when all references have invalid surahs', function () {
     var result = _handleFetchAyahAsReferences({
       references: [{ surah: 0, ayah: 1 }, { surah: 200, ayah: 1 }]
     });
-    expect(result.type).toBe('error');
+    expect(result.type).toBe('clarify');
+    expect(result.message).toContain('200');
+    expect(result.message).toContain('not a valid surah number');
   });
 
   it('defaults ayahEnd to ayahStart when ayahEnd < ayahStart in multi-ref', function () {

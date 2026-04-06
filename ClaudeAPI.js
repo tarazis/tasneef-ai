@@ -53,6 +53,8 @@ var UNIFIED_SYSTEM_PROMPT =
   'If the user provides a name or number that does not exactly match a known surah ' +
   'or exceeds the ayah count for that surah, use clarify to ask the user to verify. ' +
   'Do not guess the closest match.\n' +
+  '- Surah numbers must be between 1 and 114. If the user requests a surah number outside this range ' +
+  '(e.g. surah 116, surah 0, surah 200), always use clarify to tell them it is not valid and ask which surah they meant.\n' +
   '- Prefer clarify over guessing when input is ambiguous.\n' +
   '</guidelines>\n\n' +
   '<examples>\n' +
@@ -73,7 +75,9 @@ var UNIFIED_SYSTEM_PROMPT =
   'User: "show me Al-Baqarah"\n' +
   '{"action":"fetch_ayah","references":[{"surah":2,"ayahStart":1,"ayahEnd":286}]}\n\n' +
   'User: "show me Surah Al-Fatiha"\n' +
-  '{"action":"fetch_ayah","references":[{"surah":1,"ayahStart":1,"ayahEnd":7}]}\n' +
+  '{"action":"fetch_ayah","references":[{"surah":1,"ayahStart":1,"ayahEnd":7}]}\n\n' +
+  'User: "show me surah 116"\n' +
+  '{"action":"clarify","message":"Surah 116 is not a valid surah number. The Quran has 114 surahs (1-114). Which surah did you mean?"}\n' +
   '</examples>';
 
 // ─── Public API ──────────────────────────────────────────────────────────────
@@ -216,7 +220,10 @@ function _handleFetchAyahAsReferences(classified) {
   var s = parseInt(classified.surah, 10);
 
   if (!s || s < 1 || s > 114) {
-    return { type: 'error', error: 'Invalid surah number. Must be 1-114.' };
+    return {
+      type: 'clarify',
+      message: 'Surah ' + (s || '?') + ' is not a valid surah number. The Quran has 114 surahs (1\u2013114). Which surah did you mean?'
+    };
   }
   if (!ayahStart || ayahStart < 1) {
     return { type: 'error', error: 'Invalid ayah number.' };
@@ -274,10 +281,14 @@ function _mergeConsecutiveReferences(refs) {
  */
 function _expandMultiReferences(groups) {
   var refs = [];
+  var invalidSurahs = [];
   for (var g = 0; g < groups.length; g++) {
     var item = groups[g];
     var s = parseInt(item.surah, 10);
-    if (!s || s < 1 || s > 114) continue;
+    if (!s || s < 1 || s > 114) {
+      if (s) invalidSurahs.push(s);
+      continue;
+    }
 
     var start = parseInt(item.ayahStart || item.ayah, 10);
     var end = parseInt(item.ayahEnd || item.ayah || start, 10);
@@ -293,6 +304,13 @@ function _expandMultiReferences(groups) {
   }
 
   if (!refs.length) {
+    if (invalidSurahs.length) {
+      var nums = invalidSurahs.join(', ');
+      return {
+        type: 'clarify',
+        message: 'Surah ' + nums + ' is not a valid surah number. The Quran has 114 surahs (1\u2013114). Which surah did you mean?'
+      };
+    }
     return { type: 'error', error: 'No valid references found.' };
   }
   return { type: 'references', references: refs };
