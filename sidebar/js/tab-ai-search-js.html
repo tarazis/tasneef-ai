@@ -1,7 +1,6 @@
 <script>
 // Depends on globals: makeSkeleton, renderPreview, onInsertClick, onToggleTranslationClick (render-helpers.html),
-//   searchImlaeiClient, _buildResultsFromReferences (search-utils.html),
-//   isConsecutiveRange (card-builder.html),
+//   searchImlaeiClient, _buildResultsFromReferences, _resolveGroups (search-utils.html),
 //   pagClear, pagReset, pagRenderPage (pagination.html),
 //   window.setupTextarea (sidebar-js.html IIFE)
 
@@ -104,23 +103,18 @@ function initAISearchTab() {
       return;
     }
 
-    // References type: resolve against client-side caches
-    // Consecutive range in one surah → preview mode (one card)
-    // Non-consecutive or multi-surah → paginated search results mode
+    // References type: backend returns merged groups [{surah, ayahStart, ayahEnd}].
+    // Resolve each group into a card (single or range) and paginate.
     if (response.type === 'references') {
-      var refs = response.references || [];
-      var resolved = _buildResultsFromReferences(refs);
-      if (!resolved.length) {
+      var groups = response.references || [];
+      var cards = _resolveGroups(groups);
+      if (!cards.length) {
         emptyEl.textContent = 'No verified results found. Try a different query.';
         emptyEl.classList.remove('hidden');
         return;
       }
-      if (isConsecutiveRange(resolved)) {
-        renderPreview(resultsEl, resolved);
-      } else {
-        pagReset('ai-search', resolved);
-        pagRenderPage('ai-search', resultsEl, emptyEl, 'No verified results found. Try a different query.');
-      }
+      pagReset('ai-search', cards);
+      pagRenderPage('ai-search', resultsEl, emptyEl, 'No verified results found. Try a different query.');
       return;
     }
 
