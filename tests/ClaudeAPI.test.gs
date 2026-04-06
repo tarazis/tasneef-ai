@@ -51,11 +51,12 @@ function runClaudeAPITests() {
 
   results.push('\n_parseClassificationResponse()');
 
-  it('parses a fetch_ayah JSON object', function () {
-    var parsed = _parseClassificationResponse('{"action":"fetch_ayah","surah":2,"ayah":255}');
+  it('parses a fetch_ayah JSON object with ayahStart/ayahEnd', function () {
+    var parsed = _parseClassificationResponse('{"action":"fetch_ayah","surah":2,"ayahStart":255,"ayahEnd":255}');
     expect(parsed.action).toBe('fetch_ayah');
     expect(parsed.surah).toBe(2);
-    expect(parsed.ayah).toBe(255);
+    expect(parsed.ayahStart).toBe(255);
+    expect(parsed.ayahEnd).toBe(255);
   });
 
   it('parses a fetch_ayah range JSON object with ayahStart/ayahEnd', function () {
@@ -66,18 +67,16 @@ function runClaudeAPITests() {
     expect(parsed.ayahEnd).toBe(194);
   });
 
-  it('parses a search JSON object with language arabic', function () {
-    var parsed = _parseClassificationResponse('{"action":"search","query":"بسم الله","language":"arabic"}');
-    expect(parsed.action).toBe('search');
+  it('parses an exact_search JSON object', function () {
+    var parsed = _parseClassificationResponse('{"action":"exact_search","query":"بسم الله"}');
+    expect(parsed.action).toBe('exact_search');
     expect(parsed.query).toBe('بسم الله');
-    expect(parsed.language).toBe('arabic');
   });
 
-  it('parses a search JSON object with language english and references', function () {
-    var text = '{"action":"search","query":"patience","language":"english","references":[{"surah":2,"ayah":153}]}';
+  it('parses a semantic_search JSON object with references', function () {
+    var text = '{"action":"semantic_search","references":[{"surah":2,"ayah":153}]}';
     var parsed = _parseClassificationResponse(text);
-    expect(parsed.action).toBe('search');
-    expect(parsed.language).toBe('english');
+    expect(parsed.action).toBe('semantic_search');
     expect(parsed.references.length).toBe(1);
     expect(parsed.references[0].surah).toBe(2);
   });
@@ -166,56 +165,41 @@ function runClaudeAPITests() {
     expect(trimmed.length).toBe(0);
   });
 
-  // ── _handleSearchRouting (unit — Arabic delegates to client) ────────────
+  // ── _handleExactSearch (unit — Arabic corpus search) ────────────────────
 
-  results.push('\n_handleSearchRouting()');
+  results.push('\n_handleExactSearch()');
 
-  it('returns arabic_search type with query for Arabic language', function () {
-    var classified = { query: 'بسم الله', language: 'arabic' };
-    var result = _handleSearchRouting(classified);
+  it('returns arabic_search type with query', function () {
+    var result = _handleExactSearch({ query: 'بسم الله' });
     expect(result.type).toBe('arabic_search');
     expect(result.query).toBe('بسم الله');
   });
 
-  it('trims whitespace from Arabic query', function () {
-    var classified = { query: '  الكرسي  ', language: 'arabic' };
-    var result = _handleSearchRouting(classified);
+  it('trims whitespace from query', function () {
+    var result = _handleExactSearch({ query: '  الكرسي  ' });
     expect(result.type).toBe('arabic_search');
     expect(result.query).toBe('الكرسي');
   });
 
-  it('returns error for empty Arabic query', function () {
-    var result = _handleSearchRouting({ query: '', language: 'arabic' });
+  it('returns error for empty query', function () {
+    var result = _handleExactSearch({ query: '' });
     expect(result.type).toBe('error');
   });
 
-  it('returns error for whitespace-only Arabic query', function () {
-    var result = _handleSearchRouting({ query: '   ', language: 'arabic' });
+  it('returns error for whitespace-only query', function () {
+    var result = _handleExactSearch({ query: '   ' });
     expect(result.type).toBe('error');
   });
 
-  it('delegates English language to _handleEnglishSearch', function () {
-    var classified = {
-      query: 'patience',
-      language: 'english',
-      references: [{ surah: 2, ayah: 153 }]
-    };
-    var result = _handleSearchRouting(classified);
-    expect(result.type).toBe('references');
-    expect(result.references.length).toBe(1);
-  });
+  // ── _handleSemanticSearch (unit — returns raw references) ─────────────────
 
-  // ── _handleEnglishSearch (unit — returns raw references) ──────────────────
-
-  results.push('\n_handleEnglishSearch()');
+  results.push('\n_handleSemanticSearch()');
 
   it('returns references type with valid surah/ayah pairs', function () {
     var classified = {
-      query: 'patience',
-      language: 'english',
       references: [{ surah: 1, ayah: 1 }, { surah: 2, ayah: 255 }]
     };
-    var result = _handleEnglishSearch(classified);
+    var result = _handleSemanticSearch(classified);
     expect(result.type).toBe('references');
     expect(result.references.length).toBe(2);
     expect(result.references[0].surah).toBe(1);
@@ -226,26 +210,24 @@ function runClaudeAPITests() {
 
   it('discards references with invalid surah (> 114)', function () {
     var classified = {
-      query: 'test',
-      language: 'english',
       references: [{ surah: 1, ayah: 1 }, { surah: 999, ayah: 1 }]
     };
-    var result = _handleEnglishSearch(classified);
+    var result = _handleSemanticSearch(classified);
     expect(result.type).toBe('references');
     expect(result.references.length).toBe(1);
     expect(result.references[0].surah).toBe(1);
   });
 
-  it('returns error when no references provided for English search', function () {
-    var result = _handleEnglishSearch({ query: 'patience', language: 'english' });
+  it('returns error when no references provided', function () {
+    var result = _handleSemanticSearch({});
     expect(result.type).toBe('error');
   });
 
   it('caps references at AI_MAX_REFERENCES', function () {
     var refs = [];
     for (var r = 0; r < 60; r++) { refs.push({ surah: 1, ayah: (r % 7) + 1 }); }
-    var classified = { query: 'test', language: 'english', references: refs };
-    var result = _handleEnglishSearch(classified);
+    var classified = { references: refs };
+    var result = _handleSemanticSearch(classified);
     expect(result.type).toBe('references');
     expect(result.references.length).toBe(AI_MAX_REFERENCES);
   });
