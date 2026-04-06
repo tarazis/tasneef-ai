@@ -27,7 +27,7 @@ var UNIFIED_SYSTEM_PROMPT =
   'Always use ayahStart/ayahEnd (for a single ayah, set both to the same number).\n' +
   'Single surah: {"action":"fetch_ayah","surah":2,"ayahStart":255,"ayahEnd":255}\n' +
   'Multi-reference: {"action":"fetch_ayah","references":[{"surah":2,"ayahStart":255,"ayahEnd":255},{"surah":67,"ayahStart":1,"ayahEnd":3}]}\n' +
-  'Use "references" array when verses span different surahs or are non-consecutive within a surah. Maximum 30 total ayahs.\n\n' +
+  'Use "references" array when verses span different surahs or are non-consecutive within a surah.\n\n' +
   '2. exact_search — Input contains Quranic Arabic text to find in the corpus.\n' +
   'Extract only the Quranic Arabic text into "query", stripping any surrounding instructions.\n' +
   '{"action":"exact_search","query":"بسم الله الرحمن"}\n\n' +
@@ -39,7 +39,7 @@ var UNIFIED_SYSTEM_PROMPT =
   '</actions>\n\n' +
   '<guidelines>\n' +
   '- Return ONLY the raw JSON object.\n' +
-  '- For fetch_ayah: you must know the exact surah (1\u2013114) and ayah number(s). ' +
+  '- For fetch_ayah: you must know the exact surah (1-114) and ayah number(s). ' +
   'Use top-level surah/ayahStart/ayahEnd for a single surah, or "references" array for multi-surah or non-consecutive.\n' +
   '- Use exact_search when the input contains Quranic Arabic text to match in the corpus, ' +
   'regardless of whether surrounding instructions are in Arabic or another language. ' +
@@ -50,8 +50,8 @@ var UNIFIED_SYSTEM_PROMPT =
   '- Prefer clarify over guessing when input is ambiguous.\n' +
   '</guidelines>\n\n' +
   '<examples>\n' +
-  'User: "أعوذ بالله من الشيطان الرجيم بسم الله الرحمن الرحيم"\n' +
-  '{"action":"exact_search","query":"أعوذ بالله من الشيطان الرجيم بسم الله الرحمن الرحيم"}\n\n' +
+  'User: "الحمد لله رب العالمين"\n' +
+  '{"action":"exact_search","query":"الحمد لله رب العالمين"}\n\n' +
   'User: "ابحث عن: إن مع العسر يسرا"\n' +
   '{"action":"exact_search","query":"إن مع العسر يسرا"}\n\n' +
   'User: "find the verse that contains الله نور السماوات"\n' +
@@ -205,7 +205,7 @@ function _handleFetchAyahAsReferences(classified) {
   var s = parseInt(classified.surah, 10);
 
   if (!s || s < 1 || s > 114) {
-    return { type: 'error', error: 'Invalid surah number. Must be 1\u2013114.' };
+    return { type: 'error', error: 'Invalid surah number. Must be 1-114.' };
   }
   if (!ayahStart || ayahStart < 1) {
     return { type: 'error', error: 'Invalid ayah number.' };
