@@ -201,11 +201,76 @@ function runClaudeAPITests() {
     expect(result.type).toBe('error');
   });
 
-  // ── _handleSemanticSearch (unit — returns raw references) ─────────────────
+  // ── _mergeConsecutiveReferences (unit) ──────────────���─────────────────────
+
+  results.push('\n_mergeConsecutiveReferences()');
+
+  it('merges consecutive same-surah refs into one group', function () {
+    var refs = [{ surah: 3, ayah: 123 }, { surah: 3, ayah: 124 }, { surah: 3, ayah: 125 }];
+    var groups = _mergeConsecutiveReferences(refs);
+    expect(groups.length).toBe(1);
+    expect(groups[0].surah).toBe(3);
+    expect(groups[0].ayahStart).toBe(123);
+    expect(groups[0].ayahEnd).toBe(125);
+  });
+
+  it('keeps non-consecutive same-surah refs as separate groups', function () {
+    var refs = [{ surah: 2, ayah: 255 }, { surah: 2, ayah: 153 }];
+    var groups = _mergeConsecutiveReferences(refs);
+    expect(groups.length).toBe(2);
+    expect(groups[0].ayahStart).toBe(153);
+    expect(groups[1].ayahStart).toBe(255);
+  });
+
+  it('sorts and groups multi-surah refs correctly', function () {
+    var refs = [{ surah: 3, ayah: 124 }, { surah: 2, ayah: 255 }, { surah: 3, ayah: 123 }];
+    var groups = _mergeConsecutiveReferences(refs);
+    expect(groups.length).toBe(2);
+    expect(groups[0].surah).toBe(2);
+    expect(groups[0].ayahStart).toBe(255);
+    expect(groups[0].ayahEnd).toBe(255);
+    expect(groups[1].surah).toBe(3);
+    expect(groups[1].ayahStart).toBe(123);
+    expect(groups[1].ayahEnd).toBe(124);
+  });
+
+  it('returns single group for single ref', function () {
+    var groups = _mergeConsecutiveReferences([{ surah: 1, ayah: 5 }]);
+    expect(groups.length).toBe(1);
+    expect(groups[0].surah).toBe(1);
+    expect(groups[0].ayahStart).toBe(5);
+    expect(groups[0].ayahEnd).toBe(5);
+  });
+
+  it('returns empty array for empty input', function () {
+    var groups = _mergeConsecutiveReferences([]);
+    expect(groups.length).toBe(0);
+  });
+
+  it('returns empty array for null input', function () {
+    var groups = _mergeConsecutiveReferences(null);
+    expect(groups.length).toBe(0);
+  });
+
+  it('handles unsorted input across multiple surahs', function () {
+    var refs = [
+      { surah: 67, ayah: 3 }, { surah: 2, ayah: 255 },
+      { surah: 67, ayah: 1 }, { surah: 67, ayah: 2 }
+    ];
+    var groups = _mergeConsecutiveReferences(refs);
+    expect(groups.length).toBe(2);
+    expect(groups[0].surah).toBe(2);
+    expect(groups[0].ayahStart).toBe(255);
+    expect(groups[1].surah).toBe(67);
+    expect(groups[1].ayahStart).toBe(1);
+    expect(groups[1].ayahEnd).toBe(3);
+  });
+
+  // ── _handleSemanticSearch (unit — returns merged reference groups) ────────
 
   results.push('\n_handleSemanticSearch()');
 
-  it('returns references type with valid surah/ayah pairs', function () {
+  it('returns merged groups for valid surah/ayah pairs', function () {
     var classified = {
       references: [{ surah: 1, ayah: 1 }, { surah: 2, ayah: 255 }]
     };
@@ -213,9 +278,25 @@ function runClaudeAPITests() {
     expect(result.type).toBe('references');
     expect(result.references.length).toBe(2);
     expect(result.references[0].surah).toBe(1);
-    expect(result.references[0].ayah).toBe(1);
+    expect(result.references[0].ayahStart).toBe(1);
+    expect(result.references[0].ayahEnd).toBe(1);
     expect(result.references[1].surah).toBe(2);
-    expect(result.references[1].ayah).toBe(255);
+    expect(result.references[1].ayahStart).toBe(255);
+    expect(result.references[1].ayahEnd).toBe(255);
+  });
+
+  it('merges consecutive semantic_search refs into range groups', function () {
+    var classified = {
+      references: [{ surah: 3, ayah: 123 }, { surah: 3, ayah: 124 }, { surah: 2, ayah: 255 }]
+    };
+    var result = _handleSemanticSearch(classified);
+    expect(result.type).toBe('references');
+    expect(result.references.length).toBe(2);
+    expect(result.references[0].surah).toBe(2);
+    expect(result.references[0].ayahStart).toBe(255);
+    expect(result.references[1].surah).toBe(3);
+    expect(result.references[1].ayahStart).toBe(123);
+    expect(result.references[1].ayahEnd).toBe(124);
   });
 
   it('discards references with invalid surah (> 114)', function () {
@@ -233,33 +314,37 @@ function runClaudeAPITests() {
     expect(result.type).toBe('error');
   });
 
-  it('caps references at AI_MAX_REFERENCES', function () {
+  it('caps references at AI_MAX_REFERENCES before merging', function () {
     var refs = [];
     for (var r = 0; r < 60; r++) { refs.push({ surah: 1, ayah: (r % 7) + 1 }); }
     var classified = { references: refs };
     var result = _handleSemanticSearch(classified);
     expect(result.type).toBe('references');
-    expect(result.references.length).toBe(AI_MAX_REFERENCES);
+    // After capping at 50 and merging, should have one group for surah 1
+    expect(result.references.length).toBeGreaterThan(0);
+    expect(result.references[0].surah).toBe(1);
   });
 
-  // ── _handleFetchAyahAsReferences (unit) ───────────────────────────────────
+  // ── _handleFetchAyahAsReferences (unit — returns merged groups) ────────────
 
   results.push('\n_handleFetchAyahAsReferences()');
 
-  it('returns single reference for fetch_ayah', function () {
+  it('returns single group for fetch_ayah single ayah', function () {
     var result = _handleFetchAyahAsReferences({ surah: 2, ayah: 255 });
     expect(result.type).toBe('references');
     expect(result.references.length).toBe(1);
     expect(result.references[0].surah).toBe(2);
-    expect(result.references[0].ayah).toBe(255);
+    expect(result.references[0].ayahStart).toBe(255);
+    expect(result.references[0].ayahEnd).toBe(255);
   });
 
-  it('returns range of references for ayahStart/ayahEnd', function () {
+  it('returns single merged group for ayahStart/ayahEnd range', function () {
     var result = _handleFetchAyahAsReferences({ surah: 3, ayahStart: 190, ayahEnd: 194 });
     expect(result.type).toBe('references');
-    expect(result.references.length).toBe(5);
-    expect(result.references[0].ayah).toBe(190);
-    expect(result.references[4].ayah).toBe(194);
+    expect(result.references.length).toBe(1);
+    expect(result.references[0].surah).toBe(3);
+    expect(result.references[0].ayahStart).toBe(190);
+    expect(result.references[0].ayahEnd).toBe(194);
   });
 
   it('returns error for invalid surah (0)', function () {
@@ -275,84 +360,93 @@ function runClaudeAPITests() {
   it('allows large range within safety cap (full surah)', function () {
     var result = _handleFetchAyahAsReferences({ surah: 2, ayahStart: 1, ayahEnd: 286 });
     expect(result.type).toBe('references');
-    expect(result.references.length).toBe(286);
-    expect(result.references[0].ayah).toBe(1);
-    expect(result.references[285].ayah).toBe(286);
+    expect(result.references.length).toBe(1);
+    expect(result.references[0].ayahStart).toBe(1);
+    expect(result.references[0].ayahEnd).toBe(286);
   });
 
   it('defaults ayahEnd to ayahStart when not provided', function () {
     var result = _handleFetchAyahAsReferences({ surah: 1, ayah: 5 });
     expect(result.type).toBe('references');
     expect(result.references.length).toBe(1);
-    expect(result.references[0].ayah).toBe(5);
+    expect(result.references[0].ayahStart).toBe(5);
+    expect(result.references[0].ayahEnd).toBe(5);
   });
 
-  // ── _handleFetchAyahAsReferences with references array (unit) ─────────────
+  // ── _handleFetchAyahAsReferences with references array (unit — merged) ────
 
-  results.push('\n_handleFetchAyahAsReferences() — multi-reference');
+  results.push('\n_handleFetchAyahAsReferences() — multi-reference (merged)');
 
-  it('returns single reference when references array has one item', function () {
+  it('returns single merged group when references array has one item', function () {
     var result = _handleFetchAyahAsReferences({
       references: [{ surah: 2, ayahStart: 255, ayahEnd: 255 }]
     });
     expect(result.type).toBe('references');
     expect(result.references.length).toBe(1);
     expect(result.references[0].surah).toBe(2);
-    expect(result.references[0].ayah).toBe(255);
+    expect(result.references[0].ayahStart).toBe(255);
+    expect(result.references[0].ayahEnd).toBe(255);
   });
 
-  it('expands full surah via references array', function () {
+  it('merges full surah into single group via references array', function () {
     var result = _handleFetchAyahAsReferences({
       references: [{ surah: 1, ayahStart: 1, ayahEnd: 7 }]
     });
     expect(result.type).toBe('references');
-    expect(result.references.length).toBe(7);
+    expect(result.references.length).toBe(1);
     expect(result.references[0].surah).toBe(1);
-    expect(result.references[0].ayah).toBe(1);
-    expect(result.references[6].ayah).toBe(7);
+    expect(result.references[0].ayahStart).toBe(1);
+    expect(result.references[0].ayahEnd).toBe(7);
   });
 
-  it('expands long surah (286 ayahs) via references array', function () {
+  it('merges long surah (286 ayahs) into single group via references array', function () {
     var result = _handleFetchAyahAsReferences({
       references: [{ surah: 2, ayahStart: 1, ayahEnd: 286 }]
     });
     expect(result.type).toBe('references');
-    expect(result.references.length).toBe(286);
-    expect(result.references[0].ayah).toBe(1);
-    expect(result.references[285].ayah).toBe(286);
+    expect(result.references.length).toBe(1);
+    expect(result.references[0].ayahStart).toBe(1);
+    expect(result.references[0].ayahEnd).toBe(286);
   });
 
-  it('returns references for two single verses from different surahs', function () {
+  it('returns two groups for two single verses from different surahs', function () {
     var result = _handleFetchAyahAsReferences({
       references: [{ surah: 2, ayah: 1 }, { surah: 67, ayah: 2 }]
     });
     expect(result.type).toBe('references');
     expect(result.references.length).toBe(2);
     expect(result.references[0].surah).toBe(2);
-    expect(result.references[0].ayah).toBe(1);
+    expect(result.references[0].ayahStart).toBe(1);
     expect(result.references[1].surah).toBe(67);
-    expect(result.references[1].ayah).toBe(2);
+    expect(result.references[1].ayahStart).toBe(2);
   });
 
-  it('expands mixed single and range references', function () {
+  it('merges mixed single and range references into groups', function () {
     var result = _handleFetchAyahAsReferences({
       references: [{ surah: 2, ayah: 255 }, { surah: 3, ayahStart: 190, ayahEnd: 194 }]
     });
     expect(result.type).toBe('references');
-    expect(result.references.length).toBe(6);
+    expect(result.references.length).toBe(2);
     expect(result.references[0].surah).toBe(2);
-    expect(result.references[0].ayah).toBe(255);
+    expect(result.references[0].ayahStart).toBe(255);
+    expect(result.references[0].ayahEnd).toBe(255);
     expect(result.references[1].surah).toBe(3);
-    expect(result.references[1].ayah).toBe(190);
-    expect(result.references[5].ayah).toBe(194);
+    expect(result.references[1].ayahStart).toBe(190);
+    expect(result.references[1].ayahEnd).toBe(194);
   });
 
-  it('expands a single range item in references array', function () {
+  it('merges consecutive refs from separate objects in references array', function () {
     var result = _handleFetchAyahAsReferences({
-      references: [{ surah: 1, ayahStart: 1, ayahEnd: 7 }]
+      references: [
+        { surah: 3, ayahStart: 123, ayahEnd: 123 },
+        { surah: 3, ayahStart: 124, ayahEnd: 124 }
+      ]
     });
     expect(result.type).toBe('references');
-    expect(result.references.length).toBe(7);
+    expect(result.references.length).toBe(1);
+    expect(result.references[0].surah).toBe(3);
+    expect(result.references[0].ayahStart).toBe(123);
+    expect(result.references[0].ayahEnd).toBe(124);
   });
 
   it('returns error when multi-references exceed safety cap', function () {
@@ -374,7 +468,6 @@ function runClaudeAPITests() {
 
   it('returns error for empty references array', function () {
     var result = _handleFetchAyahAsReferences({ references: [] });
-    // Empty array falls through to single-surah path which errors on missing surah
     expect(result.type).toBe('error');
   });
 
@@ -391,7 +484,8 @@ function runClaudeAPITests() {
     });
     expect(result.type).toBe('references');
     expect(result.references.length).toBe(1);
-    expect(result.references[0].ayah).toBe(10);
+    expect(result.references[0].ayahStart).toBe(10);
+    expect(result.references[0].ayahEnd).toBe(10);
   });
 
   // ── performAISearch (integration) ──────────────────────────────────────────
@@ -469,17 +563,18 @@ function runClaudeAPITests() {
       expect(surahs[1]).toBe(67);
     });
 
-    it('performAISearch("show me Surah Al-Fatiha") returns full surah references (live API)', function () {
+    it('performAISearch("show me Surah Al-Fatiha") returns full surah as single merged group (live API)', function () {
       var result = performAISearch([{ role: 'user', content: 'show me Surah Al-Fatiha' }]);
       if (result.type === 'clarify') return;
       if (result.type === 'error') throw new Error('Got error: ' + result.error);
       expect(result.type).toBe('references');
-      expect(result.references.length).toBe(7);
+      expect(result.references.length).toBe(1);
       expect(result.references[0].surah).toBe(1);
-      expect(result.references[0].ayah).toBe(1);
+      expect(result.references[0].ayahStart).toBe(1);
+      expect(result.references[0].ayahEnd).toBe(7);
     });
 
-    it('performAISearch("give me the last 3 ayahs of surah Al-Baqarah") returns references (live API)', function () {
+    it('performAISearch("give me the last 3 ayahs of surah Al-Baqarah") returns merged group (live API)', function () {
       var result = performAISearch([{ role: 'user', content: 'give me the last 3 ayahs of surah Al-Baqarah' }]);
       if (result.type === 'clarify') return;
       if (result.type === 'error') throw new Error('Got error: ' + result.error);

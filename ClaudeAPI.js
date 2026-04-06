@@ -49,6 +49,10 @@ var UNIFIED_SYSTEM_PROMPT =
   'in any language (including Arabic questions about Quran topics).\n' +
   '- If a surah name is given without an ayah number, return the full surah using fetch_ayah. ' +
   'You must know the correct total ayah count for the surah.\n' +
+  '- Never assume or correct a surah name, surah number, or ayah number. ' +
+  'If the user provides a name or number that does not exactly match a known surah ' +
+  'or exceeds the ayah count for that surah, use clarify to ask the user to verify. ' +
+  'Do not guess the closest match.\n' +
   '- Prefer clarify over guessing when input is ambiguous.\n' +
   '</guidelines>\n\n' +
   '<examples>\n' +
@@ -166,10 +170,10 @@ function _handleExactSearch(classified) {
 }
 
 /**
- * Handles semantic search: returns Claude's validated references for
- * client-side resolution against in-memory caches.
+ * Handles semantic search: validates Claude's references, merges consecutive
+ * same-surah ayahs into range groups, and returns them for client-side resolution.
  * @param {Object} classified - { references: [{surah, ayah}] }
- * @return {Object} { type: 'references', references: [{surah, ayah}] } or error
+ * @return {Object} { type: 'references', references: [{surah, ayahStart, ayahEnd}] } or error
  */
 function _handleSemanticSearch(classified) {
   var refs = classified.references;
@@ -191,17 +195,20 @@ function _handleSemanticSearch(classified) {
     return { type: 'error', error: 'No valid results found. Try a different query.' };
   }
 
-  return { type: 'references', references: validRefs };
+  return { type: 'references', references: _mergeConsecutiveReferences(validRefs) };
 }
 
 /**
- * Converts a fetch_ayah classification into raw references for client-side resolution.
- * @param {Object} classified - { surah, ayah?, ayahStart?, ayahEnd? }
- * @return {Object} { type: 'references', references: [{surah, ayah}] } or error
+ * Converts a fetch_ayah classification into merged range groups for client-side resolution.
+ * Expands references to flat pairs, then merges consecutive same-surah ayahs into groups.
+ * @param {Object} classified - { references?, surah?, ayah?, ayahStart?, ayahEnd? }
+ * @return {Object} { type: 'references', references: [{surah, ayahStart, ayahEnd}] } or error
  */
 function _handleFetchAyahAsReferences(classified) {
   if (Array.isArray(classified.references) && classified.references.length > 0) {
-    return _expandMultiReferences(classified.references);
+    var expanded = _expandMultiReferences(classified.references);
+    if (expanded.type === 'error') return expanded;
+    return { type: 'references', references: _mergeConsecutiveReferences(expanded.references) };
   }
 
   var ayahStart = parseInt(classified.ayahStart || classified.ayah, 10);
@@ -223,7 +230,39 @@ function _handleFetchAyahAsReferences(classified) {
   for (var i = ayahStart; i <= ayahEnd; i++) {
     refs.push({ surah: s, ayah: i });
   }
-  return { type: 'references', references: refs };
+  return { type: 'references', references: _mergeConsecutiveReferences(refs) };
+}
+
+/**
+ * Sorts flat {surah, ayah} references and merges consecutive same-surah ayahs into range groups.
+ * E.g. [{surah:3, ayah:124}, {surah:2, ayah:255}, {surah:3, ayah:123}]
+ *    → [{surah:2, ayahStart:255, ayahEnd:255}, {surah:3, ayahStart:123, ayahEnd:124}]
+ * @param {Array<{surah: number, ayah: number}>} refs - Flat references
+ * @return {Array<{surah: number, ayahStart: number, ayahEnd: number}>} Merged groups
+ */
+function _mergeConsecutiveReferences(refs) {
+  if (!refs || !refs.length) return [];
+
+  var sorted = refs.slice().sort(function(a, b) {
+    if (a.surah !== b.surah) return a.surah - b.surah;
+    return a.ayah - b.ayah;
+  });
+
+  var groups = [];
+  var cur = { surah: sorted[0].surah, ayahStart: sorted[0].ayah, ayahEnd: sorted[0].ayah };
+
+  for (var i = 1; i < sorted.length; i++) {
+    var r = sorted[i];
+    if (r.surah === cur.surah && r.ayah === cur.ayahEnd + 1) {
+      cur.ayahEnd = r.ayah;
+    } else {
+      groups.push(cur);
+      cur = { surah: r.surah, ayahStart: r.ayah, ayahEnd: r.ayah };
+    }
+  }
+  groups.push(cur);
+
+  return groups;
 }
 
 /**

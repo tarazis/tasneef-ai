@@ -89,6 +89,35 @@ function _buildResultsFromReferences(references) {
 }
 
 /**
+ * Resolves merged reference groups into card data objects for rendering.
+ * Each group {surah, ayahStart, ayahEnd} becomes either a single-ayah card
+ * or a range card (with isRange=true). Invalid references are silently skipped.
+ * @param {Array<{surah: number, ayahStart: number, ayahEnd: number}>} groups
+ * @return {Array<Object>} Card data objects suitable for buildCardHtml
+ */
+function _resolveGroups(groups) {
+  var cards = [];
+  for (var i = 0; i < groups.length; i++) {
+    var g = groups[i];
+    var refs = [];
+    for (var a = g.ayahStart; a <= g.ayahEnd; a++) {
+      refs.push({ surah: g.surah, ayah: a });
+    }
+    var resolved = _buildResultsFromReferences(refs);
+    if (!resolved.length) continue;
+
+    if (resolved.length === 1) {
+      cards.push(resolved[0]);
+    } else {
+      var rangeData = buildRangeData(resolved);
+      rangeData.isRange = true;
+      cards.push(rangeData);
+    }
+  }
+  return cards;
+}
+
+/**
  * Builds a full ayah data object for insertion from client-side caches.
  * Returns the same shape that insertAyah() expects.
  * @param {number} surahNum
