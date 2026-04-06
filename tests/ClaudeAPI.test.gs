@@ -67,6 +67,16 @@ function runClaudeAPITests() {
     expect(parsed.ayahEnd).toBe(194);
   });
 
+  it('parses a fetch_ayah JSON object with references array', function () {
+    var parsed = _parseClassificationResponse(
+      '{"action":"fetch_ayah","references":[{"surah":2,"ayahStart":255,"ayahEnd":255}]}'
+    );
+    expect(parsed.action).toBe('fetch_ayah');
+    expect(parsed.references.length).toBe(1);
+    expect(parsed.references[0].surah).toBe(2);
+    expect(parsed.references[0].ayahStart).toBe(255);
+  });
+
   it('parses an exact_search JSON object', function () {
     var parsed = _parseClassificationResponse('{"action":"exact_search","query":"بسم الله"}');
     expect(parsed.action).toBe('exact_search');
@@ -257,9 +267,17 @@ function runClaudeAPITests() {
     expect(result.type).toBe('error');
   });
 
-  it('returns error for range exceeding cap', function () {
-    var result = _handleFetchAyahAsReferences({ surah: 2, ayahStart: 1, ayahEnd: 51 });
+  it('returns error for range exceeding safety cap', function () {
+    var result = _handleFetchAyahAsReferences({ surah: 2, ayahStart: 1, ayahEnd: 301 });
     expect(result.type).toBe('error');
+  });
+
+  it('allows large range within safety cap (full surah)', function () {
+    var result = _handleFetchAyahAsReferences({ surah: 2, ayahStart: 1, ayahEnd: 286 });
+    expect(result.type).toBe('references');
+    expect(result.references.length).toBe(286);
+    expect(result.references[0].ayah).toBe(1);
+    expect(result.references[285].ayah).toBe(286);
   });
 
   it('defaults ayahEnd to ayahStart when not provided', function () {
@@ -272,6 +290,37 @@ function runClaudeAPITests() {
   // ── _handleFetchAyahAsReferences with references array (unit) ─────────────
 
   results.push('\n_handleFetchAyahAsReferences() — multi-reference');
+
+  it('returns single reference when references array has one item', function () {
+    var result = _handleFetchAyahAsReferences({
+      references: [{ surah: 2, ayahStart: 255, ayahEnd: 255 }]
+    });
+    expect(result.type).toBe('references');
+    expect(result.references.length).toBe(1);
+    expect(result.references[0].surah).toBe(2);
+    expect(result.references[0].ayah).toBe(255);
+  });
+
+  it('expands full surah via references array', function () {
+    var result = _handleFetchAyahAsReferences({
+      references: [{ surah: 1, ayahStart: 1, ayahEnd: 7 }]
+    });
+    expect(result.type).toBe('references');
+    expect(result.references.length).toBe(7);
+    expect(result.references[0].surah).toBe(1);
+    expect(result.references[0].ayah).toBe(1);
+    expect(result.references[6].ayah).toBe(7);
+  });
+
+  it('expands long surah (286 ayahs) via references array', function () {
+    var result = _handleFetchAyahAsReferences({
+      references: [{ surah: 2, ayahStart: 1, ayahEnd: 286 }]
+    });
+    expect(result.type).toBe('references');
+    expect(result.references.length).toBe(286);
+    expect(result.references[0].ayah).toBe(1);
+    expect(result.references[285].ayah).toBe(286);
+  });
 
   it('returns references for two single verses from different surahs', function () {
     var result = _handleFetchAyahAsReferences({
@@ -306,9 +355,9 @@ function runClaudeAPITests() {
     expect(result.references.length).toBe(7);
   });
 
-  it('returns error when multi-references exceed cap', function () {
+  it('returns error when multi-references exceed safety cap', function () {
     var refs = [];
-    for (var i = 0; i < 6; i++) { refs.push({ surah: 2, ayahStart: 1, ayahEnd: 10 }); }
+    for (var i = 0; i < 4; i++) { refs.push({ surah: 2, ayahStart: 1, ayahEnd: 100 }); }
     var result = _handleFetchAyahAsReferences({ references: refs });
     expect(result.type).toBe('error');
     expect(result.error).toContain('Maximum');
@@ -418,6 +467,16 @@ function runClaudeAPITests() {
       var surahs = result.references.map(function(r) { return r.surah; }).sort();
       expect(surahs[0]).toBe(2);
       expect(surahs[1]).toBe(67);
+    });
+
+    it('performAISearch("show me Surah Al-Fatiha") returns full surah references (live API)', function () {
+      var result = performAISearch([{ role: 'user', content: 'show me Surah Al-Fatiha' }]);
+      if (result.type === 'clarify') return;
+      if (result.type === 'error') throw new Error('Got error: ' + result.error);
+      expect(result.type).toBe('references');
+      expect(result.references.length).toBe(7);
+      expect(result.references[0].surah).toBe(1);
+      expect(result.references[0].ayah).toBe(1);
     });
 
     it('performAISearch("give me the last 3 ayahs of surah Al-Baqarah") returns references (live API)', function () {

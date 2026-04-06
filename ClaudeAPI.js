@@ -14,7 +14,7 @@ var CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
 var CLAUDE_MAX_TOKENS = 1024;
 var AI_MAX_REFERENCES = 50;
 var CONVERSATION_CONTEXT_LIMIT = 3;
-var DIRECT_AYAH_RANGE_CAP = 50;
+var FETCH_AYAH_SAFETY_CAP = 300;
 
 var UNIFIED_SYSTEM_PROMPT =
   '<role>\n' +
@@ -24,10 +24,11 @@ var UNIFIED_SYSTEM_PROMPT =
   '</role>\n\n' +
   '<actions>\n' +
   '1. fetch_ayah — User wants specific ayah(s) by surah and ayah reference.\n' +
-  'Always use ayahStart/ayahEnd (for a single ayah, set both to the same number).\n' +
-  'Single surah: {"action":"fetch_ayah","surah":2,"ayahStart":255,"ayahEnd":255}\n' +
-  'Multi-reference: {"action":"fetch_ayah","references":[{"surah":2,"ayahStart":255,"ayahEnd":255},{"surah":67,"ayahStart":1,"ayahEnd":3}]}\n' +
-  'Use "references" array when verses span different surahs or are non-consecutive within a surah.\n\n' +
+  'Always use the "references" array, even for a single ayah. Always use ayahStart/ayahEnd (for a single ayah, set both to the same number).\n' +
+  'Single ayah: {"action":"fetch_ayah","references":[{"surah":2,"ayahStart":255,"ayahEnd":255}]}\n' +
+  'Range: {"action":"fetch_ayah","references":[{"surah":3,"ayahStart":190,"ayahEnd":194}]}\n' +
+  'Multiple references: {"action":"fetch_ayah","references":[{"surah":2,"ayahStart":255,"ayahEnd":255},{"surah":67,"ayahStart":1,"ayahEnd":3}]}\n' +
+  'Full surah: {"action":"fetch_ayah","references":[{"surah":1,"ayahStart":1,"ayahEnd":7}]}\n\n' +
   '2. exact_search — Input contains Quranic Arabic text to find in the corpus.\n' +
   'Extract only the Quranic Arabic text into "query", stripping any surrounding instructions.\n' +
   '{"action":"exact_search","query":"بسم الله الرحمن"}\n\n' +
@@ -40,13 +41,14 @@ var UNIFIED_SYSTEM_PROMPT =
   '<guidelines>\n' +
   '- Return ONLY the raw JSON object.\n' +
   '- For fetch_ayah: you must know the exact surah (1-114) and ayah number(s). ' +
-  'Use top-level surah/ayahStart/ayahEnd for a single surah, or "references" array for multi-surah or non-consecutive.\n' +
+  'Always use the "references" array format.\n' +
   '- Use exact_search when the input contains Quranic Arabic text to match in the corpus, ' +
   'regardless of whether surrounding instructions are in Arabic or another language. ' +
   'Extract only the Quranic text into "query".\n' +
   '- Use semantic_search when the user describes what to find by meaning, topic, or theme, ' +
   'in any language (including Arabic questions about Quran topics).\n' +
-  '- If a surah name is given without an ayah number, use clarify to ask which ayah.\n' +
+  '- If a surah name is given without an ayah number, return the full surah using fetch_ayah. ' +
+  'You must know the correct total ayah count for the surah.\n' +
   '- Prefer clarify over guessing when input is ambiguous.\n' +
   '</guidelines>\n\n' +
   '<examples>\n' +
@@ -61,11 +63,13 @@ var UNIFIED_SYSTEM_PROMPT =
   'User: "ما هي الآيات التي تتحدث عن الصبر"\n' +
   '{"action":"semantic_search","references":[{"surah":2,"ayah":153},{"surah":2,"ayah":155},{"surah":31,"ayah":17}]}\n\n' +
   'User: "show me Al-Imran 190 to 194"\n' +
-  '{"action":"fetch_ayah","surah":3,"ayahStart":190,"ayahEnd":194}\n\n' +
+  '{"action":"fetch_ayah","references":[{"surah":3,"ayahStart":190,"ayahEnd":194}]}\n\n' +
   'User: "give me al baqarah 255 and al mulk 1 to 3"\n' +
   '{"action":"fetch_ayah","references":[{"surah":2,"ayahStart":255,"ayahEnd":255},{"surah":67,"ayahStart":1,"ayahEnd":3}]}\n\n' +
   'User: "show me Al-Baqarah"\n' +
-  '{"action":"clarify","message":"Which ayah(s) from Surah Al-Baqarah would you like?"}\n' +
+  '{"action":"fetch_ayah","references":[{"surah":2,"ayahStart":1,"ayahEnd":286}]}\n\n' +
+  'User: "show me Surah Al-Fatiha"\n' +
+  '{"action":"fetch_ayah","references":[{"surah":1,"ayahStart":1,"ayahEnd":7}]}\n' +
   '</examples>';
 
 // ─── Public API ──────────────────────────────────────────────────────────────
@@ -211,8 +215,8 @@ function _handleFetchAyahAsReferences(classified) {
     return { type: 'error', error: 'Invalid ayah number.' };
   }
   if (ayahEnd < ayahStart) ayahEnd = ayahStart;
-  if (ayahEnd - ayahStart + 1 > DIRECT_AYAH_RANGE_CAP) {
-    return { type: 'error', error: 'Range too large. Maximum ' + DIRECT_AYAH_RANGE_CAP + ' ayahs at once.' };
+  if (ayahEnd - ayahStart + 1 > FETCH_AYAH_SAFETY_CAP) {
+    return { type: 'error', error: 'Range too large. Maximum ' + FETCH_AYAH_SAFETY_CAP + ' ayahs at once.' };
   }
 
   var refs = [];
@@ -225,7 +229,7 @@ function _handleFetchAyahAsReferences(classified) {
 /**
  * Expands an array of multi-reference items into a flat list of {surah, ayah} pairs.
  * Each item may be a single ayah or a range (ayahStart/ayahEnd).
- * Invalid items are silently skipped; total count is capped at DIRECT_AYAH_RANGE_CAP.
+ * Invalid items are silently skipped; total count is capped at FETCH_AYAH_SAFETY_CAP.
  * @param {Array<{surah: number, ayah?: number, ayahStart?: number, ayahEnd?: number}>} groups
  * @return {Object} { type: 'references', references: [{surah, ayah}] } or error
  */
@@ -243,8 +247,8 @@ function _expandMultiReferences(groups) {
 
     for (var a = start; a <= end; a++) {
       refs.push({ surah: s, ayah: a });
-      if (refs.length > DIRECT_AYAH_RANGE_CAP) {
-        return { type: 'error', error: 'Too many ayahs requested. Maximum ' + DIRECT_AYAH_RANGE_CAP + ' at once.' };
+      if (refs.length > FETCH_AYAH_SAFETY_CAP) {
+        return { type: 'error', error: 'Too many ayahs requested. Maximum ' + FETCH_AYAH_SAFETY_CAP + ' at once.' };
       }
     }
   }
