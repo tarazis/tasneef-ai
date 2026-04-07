@@ -111,15 +111,42 @@ function ensureGoogleFontsPreviewStylesheet(family, variantTokens) {
 }
 
 /**
+ * Safe CSS color for inline preview (mirrors hex rules used in the color picker).
+ * @param {Object} fs - formatState-like { textColor }
+ * @return {string} #RRGGBB
+ */
+function previewTextColorCss(fs) {
+  var fallback = '#000000';
+  var raw = fs && fs.textColor;
+  if (raw == null || typeof raw !== 'string') return fallback;
+  var s = raw.trim();
+  if (s.charAt(0) === '#') s = s.slice(1);
+  if (s.length === 3 && /^[0-9a-fA-F]{3}$/.test(s)) {
+    s = s.charAt(0) + s.charAt(0) + s.charAt(1) + s.charAt(1) + s.charAt(2) + s.charAt(2);
+  }
+  if (/^[0-9a-fA-F]{6}$/.test(s)) return '#' + s.toUpperCase();
+  return fallback;
+}
+
+/**
  * Inline style for Arabic preview (.arabic) from formatState.
- * @param {Object} fs - formatState-like { fontName, fontVariant }
+ * Bold/weight rules align with FormatService.applyFormat (Docs).
+ * @param {Object} fs - formatState-like { fontName, fontVariant, fontSize?, bold?, textColor? }
  * @return {string}
  */
 function arabicPreviewFontStyle(fs) {
   var fam = (fs && fs.fontName) || 'Amiri';
   var safeFam = String(fam).replace(/['\\<>]/g, '');
   var p = parseGoogleFontVariantClient(fs && fs.fontVariant ? fs.fontVariant : 'regular');
-  return "font-family:'" + safeFam + "',serif;font-weight:" + p.weight +
-    ';font-style:' + (p.italic ? 'italic' : 'normal');
+  var w = p.weight;
+  if (fs && fs.bold === true && w < 700) {
+    w = 700;
+  }
+  var sz = parseInt(fs && fs.fontSize, 10);
+  if (isNaN(sz) || sz < 1) sz = 18;
+  var color = previewTextColorCss(fs);
+  return "font-family:'" + safeFam + "',serif;font-weight:" + w +
+    ';font-style:' + (p.italic ? 'italic' : 'normal') +
+    ';font-size:' + sz + 'px;color:' + color;
 }
 </script>

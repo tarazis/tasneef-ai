@@ -17,6 +17,19 @@ function pagReset(tabId, results) {
   _pagState[tabId] = { results: results || [], page: 0 };
 }
 
+function pagAppendShowMoreButton(tabId, containerEl, emptyEl, emptyMsg, remaining) {
+  var showMore = document.createElement('button');
+  showMore.type = 'button';
+  showMore.className = 'btn-show-more';
+  showMore.textContent = 'Show more (' + remaining + ' remaining)';
+  (function(tid, cEl, eEl, msg) {
+    showMore.addEventListener('click', function() {
+      pagRenderPage(tid, cEl, eEl, msg);
+    });
+  }(tabId, containerEl, emptyEl, emptyMsg));
+  containerEl.appendChild(showMore);
+}
+
 /**
  * Render the next page of results for a tab.
  * Clears the container on page 0. Appends a "Show more" button if more results remain.
@@ -60,19 +73,61 @@ function pagRenderPage(tabId, containerEl, emptyEl, emptyMsg) {
   state.page++;
 
   if (end < state.results.length) {
-    var remaining = state.results.length - end;
-    var showMore = document.createElement('button');
-    showMore.type = 'button';
-    showMore.className = 'btn-show-more';
-    showMore.textContent = 'Show more (' + remaining + ' remaining)';
-    (function(tid, cEl, eEl, msg) {
-      showMore.addEventListener('click', function() {
-        pagRenderPage(tid, cEl, eEl, msg);
-      });
-    }(tabId, containerEl, emptyEl, emptyMsg));
-    containerEl.appendChild(showMore);
+    pagAppendShowMoreButton(tabId, containerEl, emptyEl, emptyMsg, state.results.length - end);
   }
 }
+
+/**
+ * Re-render all cards currently visible (after format bar changes), preserving pagination depth.
+ * @param {string} tabId
+ * @param {Element} containerEl
+ * @param {Element} emptyEl
+ * @param {string} emptyMsg
+ */
+function pagRebuildVisibleCards(tabId, containerEl, emptyEl, emptyMsg) {
+  var state = _pagState[tabId];
+  if (!state || !state.results.length || state.page < 1) return;
+
+  var n = Math.min(state.page * PAGE_SIZE, state.results.length);
+  if (n <= 0) return;
+
+  containerEl.innerHTML = '';
+  emptyEl.classList.add('hidden');
+
+  var fs = window.getFormatState
+    ? window.getFormatState()
+    : { fontName: 'Amiri', fontVariant: 'regular' };
+
+  for (var i = 0; i < n; i++) {
+    var card = document.createElement('div');
+    card.className = 'result-card';
+    card.innerHTML = buildCardHtml(state.results[i], fs);
+    containerEl.appendChild(card);
+  }
+
+  if (n < state.results.length) {
+    pagAppendShowMoreButton(tabId, containerEl, emptyEl, emptyMsg, state.results.length - n);
+  }
+}
+
+/**
+ * Refresh Arabic preview on all tabs after format bar or settings change.
+ */
+window.refreshAllResultCardPreviews = function () {
+  if (typeof window._refreshDirectInsert === 'function') {
+    window._refreshDirectInsert();
+  }
+  var exactR = document.getElementById('exact-search-results');
+  var exactE = document.getElementById('exact-search-empty');
+  if (exactR && exactE) {
+    pagRebuildVisibleCards('exact-search', exactR, exactE, 'No exact matches found.');
+  }
+  var aiR = document.getElementById('ai-search-results');
+  var aiE = document.getElementById('ai-search-empty');
+  if (aiR && aiE) {
+    pagRebuildVisibleCards('ai-search', aiR, aiE, 'No exact matches found for that text.');
+  }
+};
 
 /**
  * Clear pagination state for a tab. Called on new search or explicit clear actions.

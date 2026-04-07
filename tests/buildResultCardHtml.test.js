@@ -44,12 +44,33 @@ function parseGoogleFontVariantClient(token) {
   return { weight: 400, italic: false };
 }
 
+function previewTextColorCss(fs) {
+  var fallback = '#000000';
+  var raw = fs && fs.textColor;
+  if (raw == null || typeof raw !== 'string') return fallback;
+  var s = raw.trim();
+  if (s.charAt(0) === '#') s = s.slice(1);
+  if (s.length === 3 && /^[0-9a-fA-F]{3}$/.test(s)) {
+    s = s.charAt(0) + s.charAt(0) + s.charAt(1) + s.charAt(1) + s.charAt(2) + s.charAt(2);
+  }
+  if (/^[0-9a-fA-F]{6}$/.test(s)) return '#' + s.toUpperCase();
+  return fallback;
+}
+
 function arabicPreviewFontStyle(fs) {
   var fam = (fs && fs.fontName) || 'Amiri';
   var safeFam = String(fam).replace(/['\\<>]/g, '');
   var p = parseGoogleFontVariantClient(fs && fs.fontVariant ? fs.fontVariant : 'regular');
-  return 'font-family:\'' + safeFam + '\',serif;font-weight:' + p.weight +
-    ';font-style:' + (p.italic ? 'italic' : 'normal');
+  var w = p.weight;
+  if (fs && fs.bold === true && w < 700) {
+    w = 700;
+  }
+  var sz = parseInt(fs && fs.fontSize, 10);
+  if (isNaN(sz) || sz < 1) sz = 18;
+  var color = previewTextColorCss(fs);
+  return 'font-family:\'' + safeFam + '\',serif;font-weight:' + w +
+    ';font-style:' + (p.italic ? 'italic' : 'normal') +
+    ';font-size:' + sz + 'px;color:' + color;
 }
 
 // ─── isConsecutiveRange ───────────────────────────────────────────────────────
@@ -193,6 +214,16 @@ function pagClear(tabId) {
   _pagState[tabId] = { results: [], page: 0 };
 }
 
+function pagAppendShowMoreButton(tabId, containerEl, emptyEl, emptyMsg, remaining) {
+  var showMore = makeBtn('btn-show-more', 'Show more (' + remaining + ' remaining)');
+  (function(tid, cEl, eEl, msg) {
+    showMore.addEventListener('click', function() {
+      pagRenderPage(tid, cEl, eEl, msg);
+    });
+  }(tabId, containerEl, emptyEl, emptyMsg));
+  containerEl.appendChild(showMore);
+}
+
 function pagRenderPage(tabId, containerEl, emptyEl, emptyMsg) {
   var state = _pagState[tabId];
   if (!state) { state = { results: [], page: 0 }; _pagState[tabId] = state; }
@@ -222,14 +253,27 @@ function pagRenderPage(tabId, containerEl, emptyEl, emptyMsg) {
   state.page++;
 
   if (end < state.results.length) {
-    var remaining = state.results.length - end;
-    var showMore = makeBtn('btn-show-more', 'Show more (' + remaining + ' remaining)');
-    (function(tid, cEl, eEl, msg) {
-      showMore.addEventListener('click', function() {
-        pagRenderPage(tid, cEl, eEl, msg);
-      });
-    }(tabId, containerEl, emptyEl, emptyMsg));
-    containerEl.appendChild(showMore);
+    pagAppendShowMoreButton(tabId, containerEl, emptyEl, emptyMsg, state.results.length - end);
+  }
+}
+
+function pagRebuildVisibleCards(tabId, containerEl, emptyEl, emptyMsg) {
+  var state = _pagState[tabId];
+  if (!state || !state.results.length || state.page < 1) return;
+
+  var n = Math.min(state.page * PAGE_SIZE, state.results.length);
+  if (n <= 0) return;
+
+  containerEl.innerHTML = '';
+  emptyEl.classList.add('hidden');
+
+  for (var i = 0; i < n; i++) {
+    var card = { _raw: '<card>' + i + '</card>', _className: 'result-card' };
+    containerEl.appendChild(card);
+  }
+
+  if (n < state.results.length) {
+    pagAppendShowMoreButton(tabId, containerEl, emptyEl, emptyMsg, state.results.length - n);
   }
 }
 
@@ -489,6 +533,76 @@ function runTests() {
     assert.ok(html.indexOf("font-family:'Scheherazade New',serif") >= 0, 'custom font applied');
   });
 
+  it('single: formatState object applies font-size and color', function () {
+    var r = {
+      surah: 1, ayah: 1,
+      surahNameArabic: 'الفاتحة', surahNameEnglish: 'Al-Fatihah',
+      arabicText: 'بسم الله'
+    };
+    var fs = {
+      fontName: 'Amiri',
+      fontVariant: 'regular',
+      fontSize: 24,
+      bold: false,
+      textColor: '#2e7d32'
+    };
+    var html = buildCardHtml(r, fs);
+    assert.ok(html.indexOf('font-size:24px') >= 0, 'font size in inline style');
+    assert.ok(html.indexOf('color:#2E7D32') >= 0 || html.indexOf('color:#2e7d32') >= 0, 'color in inline style');
+  });
+
+  it('single: bold with regular variant uses font-weight 700 in preview', function () {
+    var r = {
+      surah: 1, ayah: 1,
+      surahNameArabic: 'الفاتحة', surahNameEnglish: 'Al-Fatihah',
+      arabicText: 'بسم الله'
+    };
+    var fs = {
+      fontName: 'Amiri',
+      fontVariant: 'regular',
+      fontSize: 18,
+      bold: true,
+      textColor: '#000000'
+    };
+    var html = buildCardHtml(r, fs);
+    assert.ok(html.indexOf('font-weight:700') >= 0, 'bold maps to weight 700');
+  });
+
+  it('single: bold does not bump weight when variant is already 700', function () {
+    var r = {
+      surah: 1, ayah: 1,
+      surahNameArabic: 'الفاتحة', surahNameEnglish: 'Al-Fatihah',
+      arabicText: 'بسم الله'
+    };
+    var fs = {
+      fontName: 'Amiri',
+      fontVariant: '700',
+      fontSize: 18,
+      bold: true,
+      textColor: '#000000'
+    };
+    var html = buildCardHtml(r, fs);
+    assert.ok(html.indexOf('font-weight:700') >= 0, 'stays at variant weight 700');
+    assert.strictEqual(html.indexOf('font-weight:900'), -1, 'does not inflate past variant');
+  });
+
+  it('single: invalid textColor falls back to #000000', function () {
+    var r = {
+      surah: 1, ayah: 1,
+      surahNameArabic: 'الفاتحة', surahNameEnglish: 'Al-Fatihah',
+      arabicText: 'بسم الله'
+    };
+    var fs = {
+      fontName: 'Amiri',
+      fontVariant: 'regular',
+      fontSize: 18,
+      bold: false,
+      textColor: 'not-a-color'
+    };
+    var html = buildCardHtml(r, fs);
+    assert.ok(html.indexOf('color:#000000') >= 0, 'fallback black');
+  });
+
   it('single: falls back to "Surah" when surahNameEnglish is empty', function () {
     var r = {
       surah: 1, ayah: 1,
@@ -688,6 +802,32 @@ function runTests() {
     pagReset('test-newq', [{ id: 99 }]);
     assert.strictEqual(_pagState['test-newq'].page, 0, 'page reset after pagReset');
     assert.strictEqual(_pagState['test-newq'].results.length, 1, 'new results stored');
+  });
+
+  it('pagRebuildVisibleCards is a no-op when page is 0', function () {
+    var items = [{ id: 0 }];
+    var container = makeEl('div');
+    var emptyEl = makeEl('div');
+    pagReset('test-rebuild0', items);
+    pagRebuildVisibleCards('test-rebuild0', container, emptyEl, 'Empty');
+    assert.strictEqual(container._children.length, 0, 'nothing rendered before first pagRenderPage');
+  });
+
+  it('pagRebuildVisibleCards re-renders all visible cards and show-more', function () {
+    var items = [];
+    for (var i = 0; i < 25; i++) items.push({ id: i });
+    var container = makeEl('div');
+    var emptyEl = makeEl('div');
+    pagReset('test-rebuild', items);
+    pagRenderPage('test-rebuild', container, emptyEl, 'Empty');
+    pagRenderPage('test-rebuild', container, emptyEl, 'Empty');
+    assert.strictEqual(_pagState['test-rebuild'].page, 2, 'two pages loaded');
+
+    pagRebuildVisibleCards('test-rebuild', container, emptyEl, 'Empty');
+    var btn = container.querySelector('.btn-show-more');
+    assert.ok(btn, 'Show more still present after rebuild');
+    assert.ok(btn.textContent.indexOf('5 remaining') >= 0, 'remaining count preserved');
+    assert.strictEqual(container._children.length, 21, '20 cards + show more');
   });
 
   // ─── Run all tests ────────────────────────────────────────────────────────

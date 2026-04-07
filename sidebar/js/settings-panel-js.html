@@ -138,5 +138,8 @@ function onSettingsLoaded(settings) {
   if (window._fontCatalog && window._fontCatalog.length && window.reconcileFontCatalogState) {
     window.reconcileFontCatalogState();
   }
+  if (typeof window.refreshAllResultCardPreviews === 'function') {
+    window.refreshAllResultCardPreviews();
+  }
 }
 </script>

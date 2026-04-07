@@ -1,7 +1,7 @@
 <script>
 // Depends on: formatState, SAVE_DEBOUNCE_MS (shared-state.html),
 //   pickDefaultRegularVariant, ensureGoogleFontsPreviewStylesheet, arabicPreviewFontStyle (font-variant-utils.html)
-// Reads window._activeTab, window._refreshDirectInsert (sidebar-js.html)
+// Calls window.refreshAllResultCardPreviews (pagination.html) after format changes
 // initJsColorPicker, syncJsColorPickerSelection (js-color-picker.html)
 
 var saveDebounceTimer = null;
@@ -80,8 +80,8 @@ function selectFontAndVariant(family, variant, closeMenu) {
   syncFontPickerSelectionClasses();
   debouncedSave();
   if (closeMenu) closeFontPicker();
-  if (window._activeTab === 'direct-insert' && window._refreshDirectInsert) {
-    window._refreshDirectInsert();
+  if (typeof window.refreshAllResultCardPreviews === 'function') {
+    window.refreshAllResultCardPreviews();
   }
 }
 
@@ -150,6 +150,9 @@ function reconcileFontCatalogState() {
     google.script.run
       .withFailureHandler(function () {})
       .saveSettings({ fontName: formatState.fontName, fontVariant: formatState.fontVariant });
+    if (typeof window.refreshAllResultCardPreviews === 'function') {
+      window.refreshAllResultCardPreviews();
+    }
   }
 }
 
@@ -227,8 +230,8 @@ function initFormatBar() {
     sizeSelect.addEventListener('change', function () {
       formatState.fontSize = parseInt(sizeSelect.value, 10) || 18;
       debouncedSave();
-      if (window._activeTab === 'direct-insert' && window._refreshDirectInsert) {
-        window._refreshDirectInsert();
+      if (typeof window.refreshAllResultCardPreviews === 'function') {
+        window.refreshAllResultCardPreviews();
       }
     });
   }
@@ -237,8 +240,8 @@ function initFormatBar() {
       formatState.bold = !formatState.bold;
       boldBtn.classList.toggle('active', formatState.bold);
       debouncedSave();
-      if (window._activeTab === 'direct-insert' && window._refreshDirectInsert) {
-        window._refreshDirectInsert();
+      if (typeof window.refreshAllResultCardPreviews === 'function') {
+        window.refreshAllResultCardPreviews();
       }
     });
   }
@@ -246,8 +249,8 @@ function initFormatBar() {
     formatState.textColor = hex;
     if (colorTrigger) colorTrigger.style.backgroundColor = hex;
     debouncedSave();
-    if (window._activeTab === 'direct-insert' && window._refreshDirectInsert) {
-      window._refreshDirectInsert();
+    if (typeof window.refreshAllResultCardPreviews === 'function') {
+      window.refreshAllResultCardPreviews();
     }
   }
   if (typeof initJsColorPicker === 'function') {
