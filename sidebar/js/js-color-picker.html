@@ -93,60 +93,28 @@ function hsvToRgb(h, s, v) {
   };
 }
 
-function mixRgb(c0, c1, t) {
-  return {
-    r: c0.r + (c1.r - c0.r) * t,
-    g: c0.g + (c1.g - c0.g) * t,
-    b: c0.b + (c1.b - c0.b) * t
-  };
-}
+/**
+ * Fixed 8×7 preset palette (row-major). Duplicated in tests/jsColorPicker.test.js.
+ * @type {string[]}
+ */
+var PRESET_SWATCH_HEXES_RAW = [
+  '#EE7EA0', '#FFA9BA', '#FFD7D6', '#FF9797', '#EA7D70', '#F65353', '#D20000',
+  '#FD5E00', '#F58553', '#FFA07A', '#FBBF9B', '#FFAF6E', '#F59A23', '#FCB55C',
+  '#FFCC80', '#FFD6A2', '#EEB649', '#CE8540', '#FEF7B5', '#F6DE6C', '#F7CE15',
+  '#BCC07B', '#DBE098', '#C1DB9E', '#91CA57', '#669E63', '#007355', '#007D75',
+  '#75B39C', '#ADD2CA', '#D5E2D3', '#7CCED2', '#D5EDF8', '#ABCDDE', '#65C0E6',
+  '#1EB0E6', '#03468F', '#7D8BE0', '#B5BEF5', '#CDBDEB', '#E1CEE5', '#EFD5FF',
+  '#F6E7FF', '#9A81B0', '#7851A5', '#E6B1D3', '#B19F9A', '#E1CFCA', '#F1ECEA',
+  '#E5DACA', '#C9A98D', '#8E715B', '#4F3F3E', '#D2D2D2', '#AAAAAA', '#363636'
+];
 
 /**
- * 80 swatches: row0 grayscale, row1 primaries, row2 pale, rows3–7 darker shades.
  * @return {string[]}
  */
-function buildDocStyleSwatchHexes() {
+function buildPresetSwatchHexes() {
   var out = [];
-  var white = { r: 255, g: 255, b: 255 };
-  var black = { r: 0, g: 0, b: 0 };
-  var i;
-  var c;
-  var t;
-  for (i = 0; i < 10; i++) {
-    t = i / 9;
-    c = mixRgb(black, white, t);
-    out.push(rgbToHex(c.r, c.g, c.b));
-  }
-  var primaries = [
-    '#7F1D1D',
-    '#E53935',
-    '#FB8C00',
-    '#FDD835',
-    '#43A047',
-    '#00ACC1',
-    '#29B6F6',
-    '#1E88E5',
-    '#8E24AA',
-    '#D81B60'
-  ];
-  for (i = 0; i < primaries.length; i++) {
-    out.push(normalizeHex6(primaries[i]));
-  }
-  for (i = 0; i < primaries.length; i++) {
-    c = hexToRgb(primaries[i]);
-    c = mixRgb(c, white, 0.88);
-    out.push(rgbToHex(c.r, c.g, c.b));
-  }
-  var shadeSteps = [0.22, 0.38, 0.52, 0.68, 0.82];
-  var row;
-  var s;
-  for (row = 0; row < shadeSteps.length; row++) {
-    s = shadeSteps[row];
-    for (i = 0; i < primaries.length; i++) {
-      c = hexToRgb(primaries[i]);
-      c = mixRgb(c, black, s);
-      out.push(rgbToHex(c.r, c.g, c.b));
-    }
+  for (var i = 0; i < PRESET_SWATCH_HEXES_RAW.length; i++) {
+    out.push(normalizeHex6(PRESET_SWATCH_HEXES_RAW[i]));
   }
   return out;
 }
@@ -160,6 +128,7 @@ function swatchNeedsLightOutline(hex) {
 
 var _jsColorPickerDocHandler = null;
 var _jsColorPickerInitialized = false;
+var _colorPickerOnColorChosen = null;
 
 var _customH = 0;
 var _customS = 1;
@@ -210,18 +179,80 @@ function toggleJsColorPickerPopover(closeFontPickerFn) {
 }
 
 function syncJsColorPickerSelection() {
-  var grid = document.getElementById('color-swatch-grid');
-  if (!grid) return;
+  var pop = document.getElementById('color-picker-popover');
+  if (!pop) return;
   var current = typeof formatState !== 'undefined' && formatState.textColor
     ? normalizeHex6(formatState.textColor)
     : null;
-  var buttons = grid.querySelectorAll('.color-swatch');
+  var buttons = pop.querySelectorAll('.color-swatch');
   for (var i = 0; i < buttons.length; i++) {
     var btn = buttons[i];
     var h = btn.getAttribute('data-hex');
     var norm = normalizeHex6(h);
     btn.classList.toggle('is-selected', current != null && norm === current);
   }
+}
+
+function addCustomSwatchColor(hex) {
+  var h = normalizeHex6(hex);
+  if (!h || typeof formatState === 'undefined') return;
+  var list = formatState.customSwatchColors && formatState.customSwatchColors.length
+    ? formatState.customSwatchColors.slice()
+    : [];
+  list = list.filter(function (x) {
+    return normalizeHex6(x) !== h;
+  });
+  list.push(h);
+  while (list.length > 5) list.shift();
+  formatState.customSwatchColors = list;
+  google.script.run
+    .withFailureHandler(function () {})
+    .saveSettings({ customSwatchColors: list });
+  renderCustomSwatchRow();
+  syncJsColorPickerSelection();
+}
+
+function clearCustomSwatchColors() {
+  if (typeof formatState === 'undefined') return;
+  formatState.customSwatchColors = [];
+  google.script.run
+    .withFailureHandler(function () {})
+    .saveSettings({ customSwatchColors: [] });
+  renderCustomSwatchRow();
+  syncJsColorPickerSelection();
+}
+
+function renderCustomSwatchRow() {
+  var host = document.getElementById('color-custom-swatches');
+  var rowWrap = document.getElementById('color-custom-row');
+  var nativeInput = document.getElementById('color-picker');
+  if (!host || !rowWrap) return;
+  var list = (typeof formatState !== 'undefined' && formatState.customSwatchColors)
+    ? formatState.customSwatchColors
+    : [];
+  host.innerHTML = '';
+  var i;
+  for (i = 0; i < list.length; i++) {
+    var hex = normalizeHex6(list[i]);
+    if (!hex) continue;
+    (function (savedHex) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'color-swatch';
+      b.setAttribute('data-hex', savedHex);
+      b.style.backgroundColor = savedHex;
+      if (swatchNeedsLightOutline(savedHex)) b.classList.add('color-swatch--outline');
+      b.setAttribute('aria-label', 'Saved custom color');
+      b.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        if (nativeInput) nativeInput.value = savedHex;
+        if (typeof _colorPickerOnColorChosen === 'function') _colorPickerOnColorChosen(savedHex);
+        closeJsColorPickerPopover();
+      });
+      host.appendChild(b);
+    })(hex);
+  }
+  rowWrap.classList.toggle('hidden', list.length === 0);
 }
 
 function closeCustomColorDialog() {
@@ -408,11 +439,13 @@ function bindCustomColorPointer(svEl, hueTrack) {
 function initJsColorPicker(onColorChosen, closeFontPicker) {
   if (_jsColorPickerInitialized) return;
   _jsColorPickerInitialized = true;
+  _colorPickerOnColorChosen = onColorChosen;
 
   var grid = document.getElementById('color-swatch-grid');
   var colorTrigger = document.getElementById('color-trigger');
   var nativeInput = document.getElementById('color-picker');
   var btnCustom = document.getElementById('btn-color-custom');
+  var btnClearCustom = document.getElementById('btn-clear-custom-swatches');
   var customDlg = document.getElementById('custom-color-dialog');
   var customPanel = customDlg ? customDlg.querySelector('.custom-color-dialog-panel') : null;
   var svEl = document.getElementById('custom-color-sv');
@@ -427,24 +460,15 @@ function initJsColorPicker(onColorChosen, closeFontPicker) {
 
   if (!grid || !colorTrigger || !nativeInput) return;
 
-  var hexes = buildDocStyleSwatchHexes();
+  var hexes = buildPresetSwatchHexes();
   grid.innerHTML = '';
   var row;
   var col;
   var idx;
-  var rowLabels = [
-    'Grayscale',
-    'Primary',
-    'Light tint',
-    'Shade 1',
-    'Shade 2',
-    'Shade 3',
-    'Shade 4',
-    'Shade 5'
-  ];
+  var cols = 7;
   for (idx = 0; idx < hexes.length; idx++) {
-    row = Math.floor(idx / 10) + 1;
-    col = (idx % 10) + 1;
+    row = Math.floor(idx / cols) + 1;
+    col = (idx % cols) + 1;
     var hex = hexes[idx];
     var b = document.createElement('button');
     b.type = 'button';
@@ -452,8 +476,7 @@ function initJsColorPicker(onColorChosen, closeFontPicker) {
     b.setAttribute('data-hex', hex);
     b.style.backgroundColor = hex;
     if (swatchNeedsLightOutline(hex)) b.classList.add('color-swatch--outline');
-    var rlab = rowLabels[row - 1] || 'Row ' + row;
-    b.setAttribute('aria-label', rlab + ', column ' + col);
+    b.setAttribute('aria-label', 'Swatch row ' + row + ', column ' + col);
     b.addEventListener('click', function (ev) {
       ev.stopPropagation();
       var h = normalizeHex6(ev.currentTarget.getAttribute('data-hex'));
@@ -497,10 +520,19 @@ function initJsColorPicker(onColorChosen, closeFontPicker) {
       var h = rgbToHex(rgb.r, rgb.g, rgb.b);
       nativeInput.value = h;
       if (typeof onColorChosen === 'function') onColorChosen(h);
+      addCustomSwatchColor(h);
       closeCustomColorDialog();
-      if (typeof syncJsColorPickerSelection === 'function') syncJsColorPickerSelection();
     });
   }
+
+  if (btnClearCustom) {
+    btnClearCustom.addEventListener('click', function (e) {
+      e.stopPropagation();
+      clearCustomSwatchColors();
+    });
+  }
+
+  renderCustomSwatchRow();
   if (btnCancel) {
     btnCancel.addEventListener('click', function (e) {
       e.stopPropagation();
@@ -556,7 +588,8 @@ function initJsColorPicker(onColorChosen, closeFontPicker) {
 }
 
 window.normalizeHex6 = normalizeHex6;
-window.buildDocStyleSwatchHexes = buildDocStyleSwatchHexes;
+window.buildPresetSwatchHexes = buildPresetSwatchHexes;
+window.renderCustomSwatchRow = renderCustomSwatchRow;
 window.rgbToHsv = rgbToHsv;
 window.hsvToRgb = hsvToRgb;
 window.initJsColorPicker = initJsColorPicker;

@@ -77,6 +77,46 @@ function runSettingsServiceTests() {
     }
   });
 
+  results.push('\ncustomSwatchColors');
+
+  it('customSwatchColors defaults to empty array', function () {
+    PropertiesService.getUserProperties().deleteProperty('setting_customSwatchColors');
+    var s = getSettings();
+    expect(Array.isArray(s.customSwatchColors)).toBeTruthy();
+    expect(s.customSwatchColors.length).toBe(0);
+  });
+
+  it('saveSetting_ persists customSwatchColors as JSON', function () {
+    PropertiesService.getUserProperties().deleteProperty('setting_customSwatchColors');
+    saveSetting_('customSwatchColors', ['#FF0000', '#00FF00']);
+    var s = getSettings();
+    expect(s.customSwatchColors.length).toBe(2);
+    expect(s.customSwatchColors[0]).toBe('#FF0000');
+    expect(s.customSwatchColors[1]).toBe('#00FF00');
+    PropertiesService.getUserProperties().deleteProperty('setting_customSwatchColors');
+  });
+
+  it('invalid customSwatchColors JSON yields empty array', function () {
+    PropertiesService.getUserProperties().setProperty('setting_customSwatchColors', 'not-json');
+    var s = getSettings();
+    expect(Array.isArray(s.customSwatchColors)).toBeTruthy();
+    expect(s.customSwatchColors.length).toBe(0);
+    PropertiesService.getUserProperties().deleteProperty('setting_customSwatchColors');
+  });
+
+  it('customSwatchColors read caps at five entries', function () {
+    var many = ['#111111', '#222222', '#333333', '#444444', '#555555', '#666666', '#777777'];
+    PropertiesService.getUserProperties().setProperty(
+      'setting_customSwatchColors',
+      JSON.stringify(many)
+    );
+    var s = getSettings();
+    expect(s.customSwatchColors.length).toBe(5);
+    expect(s.customSwatchColors[0]).toBe('#111111');
+    expect(s.customSwatchColors[4]).toBe('#555555');
+    PropertiesService.getUserProperties().deleteProperty('setting_customSwatchColors');
+  });
+
   // ─── AI search daily limit ────────────────────────────────────────────────
 
   results.push('\nAI_SEARCH_DAILY_LIMIT');

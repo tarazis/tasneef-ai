@@ -24,6 +24,18 @@
     <input type="color" id="color-picker" value="#000000" title="Text color" class="color-picker-hidden">
     <div id="color-picker-popover" class="color-picker-popover hidden" role="dialog" aria-label="Text color" aria-hidden="true">
       <div id="color-swatch-grid" class="color-swatch-grid"></div>
+      <div id="color-custom-row" class="color-custom-row hidden">
+        <span class="color-custom-row-label">Saved colors</span>
+        <div class="color-custom-row-inner">
+          <div id="color-custom-swatches" class="color-custom-swatches"></div>
+          <button type="button" class="color-custom-clear-btn" id="btn-clear-custom-swatches" title="Clear saved colors" aria-label="Clear saved custom colors">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
+              <path d="M18 6 6 18"/>
+              <path d="m6 6 12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
       <div class="color-picker-custom">
         <span class="color-picker-custom-label">Custom</span>
         <div class="color-picker-custom-actions">

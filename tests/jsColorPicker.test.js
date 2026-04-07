@@ -20,14 +20,23 @@ function normalizeHex6(value) {
   return '#' + s.toUpperCase();
 }
 
-function hexToRgb(hex) {
-  var n = normalizeHex6(hex);
-  if (!n) return null;
-  return {
-    r: parseInt(n.slice(1, 3), 16),
-    g: parseInt(n.slice(3, 5), 16),
-    b: parseInt(n.slice(5, 7), 16)
-  };
+var PRESET_SWATCH_HEXES_RAW = [
+  '#EE7EA0', '#FFA9BA', '#FFD7D6', '#FF9797', '#EA7D70', '#F65353', '#D20000',
+  '#FD5E00', '#F58553', '#FFA07A', '#FBBF9B', '#FFAF6E', '#F59A23', '#FCB55C',
+  '#FFCC80', '#FFD6A2', '#EEB649', '#CE8540', '#FEF7B5', '#F6DE6C', '#F7CE15',
+  '#BCC07B', '#DBE098', '#C1DB9E', '#91CA57', '#669E63', '#007355', '#007D75',
+  '#75B39C', '#ADD2CA', '#D5E2D3', '#7CCED2', '#D5EDF8', '#ABCDDE', '#65C0E6',
+  '#1EB0E6', '#03468F', '#7D8BE0', '#B5BEF5', '#CDBDEB', '#E1CEE5', '#EFD5FF',
+  '#F6E7FF', '#9A81B0', '#7851A5', '#E6B1D3', '#B19F9A', '#E1CFCA', '#F1ECEA',
+  '#E5DACA', '#C9A98D', '#8E715B', '#4F3F3E', '#D2D2D2', '#AAAAAA', '#363636'
+];
+
+function buildPresetSwatchHexes() {
+  var out = [];
+  for (var i = 0; i < PRESET_SWATCH_HEXES_RAW.length; i++) {
+    out.push(normalizeHex6(PRESET_SWATCH_HEXES_RAW[i]));
+  }
+  return out;
 }
 
 function rgbToHex(r, g, b) {
@@ -98,68 +107,16 @@ function hsvToRgb(h, s, v) {
   };
 }
 
-function mixRgb(c0, c1, t) {
-  return {
-    r: c0.r + (c1.r - c0.r) * t,
-    g: c0.g + (c1.g - c0.g) * t,
-    b: c0.b + (c1.b - c0.b) * t
-  };
-}
-
-function buildDocStyleSwatchHexes() {
-  var out = [];
-  var white = { r: 255, g: 255, b: 255 };
-  var black = { r: 0, g: 0, b: 0 };
-  var i;
-  var c;
-  var t;
-  for (i = 0; i < 10; i++) {
-    t = i / 9;
-    c = mixRgb(black, white, t);
-    out.push(rgbToHex(c.r, c.g, c.b));
-  }
-  var primaries = [
-    '#7F1D1D',
-    '#E53935',
-    '#FB8C00',
-    '#FDD835',
-    '#43A047',
-    '#00ACC1',
-    '#29B6F6',
-    '#1E88E5',
-    '#8E24AA',
-    '#D81B60'
-  ];
-  for (i = 0; i < primaries.length; i++) {
-    out.push(normalizeHex6(primaries[i]));
-  }
-  for (i = 0; i < primaries.length; i++) {
-    c = hexToRgb(primaries[i]);
-    c = mixRgb(c, white, 0.88);
-    out.push(rgbToHex(c.r, c.g, c.b));
-  }
-  var shadeSteps = [0.22, 0.38, 0.52, 0.68, 0.82];
-  var row;
-  var s;
-  for (row = 0; row < shadeSteps.length; row++) {
-    s = shadeSteps[row];
-    for (i = 0; i < primaries.length; i++) {
-      c = hexToRgb(primaries[i]);
-      c = mixRgb(c, black, s);
-      out.push(rgbToHex(c.r, c.g, c.b));
-    }
-  }
-  return out;
-}
-
 assert.strictEqual(normalizeHex6('#abc'), '#AABBCC');
 assert.strictEqual(normalizeHex6('aabbcc'), '#AABBCC');
 assert.strictEqual(normalizeHex6('#00FF00'), '#00FF00');
 assert.strictEqual(normalizeHex6(''), null);
 assert.strictEqual(normalizeHex6(null), null);
 
-var palette = buildDocStyleSwatchHexes();
-assert.strictEqual(palette.length, 80);
+var palette = buildPresetSwatchHexes();
+assert.strictEqual(palette.length, 56);
+assert.strictEqual(palette[0], '#EE7EA0');
+assert.strictEqual(palette[55], '#363636');
 var hexRe = /^#[0-9A-F]{6}$/;
 for (var j = 0; j < palette.length; j++) {
   assert.ok(hexRe.test(palette[j]), 'invalid hex at ' + j + ': ' + palette[j]);

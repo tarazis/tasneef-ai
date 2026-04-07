@@ -15,7 +15,8 @@ var SETTINGS_DEFAULTS = {
   fontVariant: 'regular',    // Google Fonts API variant token
   fontSize: 18,
   bold: false,
-  textColor: '#000000'
+  textColor: '#000000',
+  customSwatchColors: []     // max 5 hex strings, persisted as JSON in User Properties
 };
 
 var PROPERTY_KEYS = {
@@ -36,6 +37,12 @@ function getSettings() {
 
   for (var key in SETTINGS_DEFAULTS) {
     var storedKey = PROPERTY_KEYS.SETTINGS_PREFIX + key;
+    if (key === 'customSwatchColors') {
+      settings[key] = props.hasOwnProperty(storedKey)
+        ? _parseCustomSwatchColorsFromStored_(props[storedKey])
+        : [];
+      continue;
+    }
     if (props.hasOwnProperty(storedKey)) {
       settings[key] = _coerceValue(props[storedKey], SETTINGS_DEFAULTS[key]);
     } else {
@@ -56,8 +63,13 @@ function saveSetting_(key, value) {
   if (!SETTINGS_DEFAULTS.hasOwnProperty(key)) {
     throw new Error('Unknown setting key: ' + key);
   }
-  PropertiesService.getUserProperties()
-    .setProperty(PROPERTY_KEYS.SETTINGS_PREFIX + key, String(value));
+  var storedKey = PROPERTY_KEYS.SETTINGS_PREFIX + key;
+  if (key === 'customSwatchColors') {
+    var clean = _sanitizeCustomSwatchArray_(Array.isArray(value) ? value : []);
+    PropertiesService.getUserProperties().setProperty(storedKey, JSON.stringify(clean));
+    return;
+  }
+  PropertiesService.getUserProperties().setProperty(storedKey, String(value));
 }
 
 /**
@@ -156,5 +168,50 @@ function _coerceValue(stored, defaultValue) {
     case 'boolean': return stored === 'true';
     case 'number':  return Number(stored);
     default:        return stored;
+  }
+}
+
+/**
+ * @param {*} value
+ * @return {string|null} #RRGGBB or null
+ */
+function normalizeHex6ForSettings_(value) {
+  if (value == null) return null;
+  var s = String(value).trim();
+  if (s.charAt(0) === '#') s = s.slice(1);
+  if (s.length === 3) {
+    s = s.charAt(0) + s.charAt(0) + s.charAt(1) + s.charAt(1) + s.charAt(2) + s.charAt(2);
+  }
+  if (!/^[0-9a-fA-F]{6}$/.test(s)) return null;
+  return '#' + s.toUpperCase();
+}
+
+/**
+ * @param {*} value - array-like of hex strings
+ * @return {string[]} at most 5 normalized hex strings
+ */
+function _sanitizeCustomSwatchArray_(value) {
+  var out = [];
+  if (!value || typeof value.length !== 'number') return out;
+  for (var i = 0; i < value.length; i++) {
+    var h = normalizeHex6ForSettings_(value[i]);
+    if (h) out.push(h);
+    if (out.length >= 5) break;
+  }
+  return out;
+}
+
+/**
+ * @param {string} raw - JSON array string from User Properties
+ * @return {string[]}
+ */
+function _parseCustomSwatchColorsFromStored_(raw) {
+  if (!raw) return [];
+  try {
+    var parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.length !== 'number') return [];
+    return _sanitizeCustomSwatchArray_(parsed);
+  } catch (e) {
+    return [];
   }
 }

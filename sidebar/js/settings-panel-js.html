@@ -95,7 +95,11 @@ function onSettingsLoaded(settings) {
   formatState.fontSize = settings.fontSize || 18;
   formatState.bold = settings.bold || false;
   formatState.textColor = settings.textColor || '#000000';
+  formatState.customSwatchColors = Array.isArray(settings.customSwatchColors)
+    ? settings.customSwatchColors.slice()
+    : [];
   applyFormatStateToUI();
+  if (typeof renderCustomSwatchRow === 'function') renderCustomSwatchRow();
   if (window._fontCatalog && window._fontCatalog.length && window.reconcileFontCatalogState) {
     window.reconcileFontCatalogState();
   }
