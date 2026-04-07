@@ -132,7 +132,7 @@ function insertAyah(ayahData, formatState, settings) {
   var surahNameEn = ayahData.surahNameEnglish || '';
   var ayahNumAr = toArabicIndic(ayahData.ayah);
 
-  /** U+00A0 between ornate parens and ayah (non-breaking; matches preview). */
+  /** U+00A0: ornate Quranic parens (matches preview); Arabic :/ayah and range hyphen; English name/num only. */
   var qNbsp = '\u00A0';
   var paragraphsToInsert = [];
   if (showTranslation && translationText) {
@@ -142,13 +142,13 @@ function insertAyah(ayahData, formatState, settings) {
       rtl: true
     });
     paragraphsToInsert.push({
-      text: '\u201C' + translationText + '\u201D (' + surahNameEn + ' ' + ayahData.surah + ':' + ayahData.ayah + ')',
+      text: '\u201C' + translationText + '\u201D (' + surahNameEn + qNbsp + ayahData.surah + ':' + ayahData.ayah + ')',
       align: DocumentApp.HorizontalAlignment.CENTER,
       useEnglishTranslationFont: true
     });
   } else {
     paragraphsToInsert.push({
-      text: '\uFD3F' + qNbsp + arabicText + qNbsp + '\uFD3E [' + surahNameAr + ': ' + ayahNumAr + ']',
+      text: '\uFD3F' + qNbsp + arabicText + qNbsp + '\uFD3E [' + surahNameAr + ':' + qNbsp + ayahNumAr + ']',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true
     });
@@ -193,7 +193,7 @@ function insertAyahRange(rangeData, formatState, settings) {
     });
     paragraphsToInsert.push({
       text: '\u201C' + translationText + '\u201D (' +
-            surahNameEn + ' ' + rangeData.surah + ':' +
+            surahNameEn + qNbsp + rangeData.surah + ':' +
             rangeData.ayahStart + '-' + rangeData.ayahEnd + ')',
       align: DocumentApp.HorizontalAlignment.CENTER,
       useEnglishTranslationFont: true
@@ -201,7 +201,7 @@ function insertAyahRange(rangeData, formatState, settings) {
   } else {
     paragraphsToInsert.push({
       text: '\uFD3F' + qNbsp + arabicText + qNbsp + '\uFD3E [' +
-            surahNameAr + ': ' + ayahStartAr + ' - ' + ayahEndAr + ']',
+            surahNameAr + ':' + qNbsp + ayahStartAr + qNbsp + '-' + qNbsp + ayahEndAr + ']',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true
     });

@@ -95,18 +95,34 @@ function buildGoogleFontsPreviewHref(family, variantTokens) {
     pairs.join(';') + '&display=swap';
 }
 
-function ensureGoogleFontsPreviewStylesheet(family, variantTokens) {
-  if (!family || !variantTokens || !variantTokens.length) return;
+/**
+ * Injects Google Fonts CSS for sidebar preview. Invokes onReady after the stylesheet
+ * is cached (sync) or after load/error when a new link is appended.
+ * @param {string} family
+ * @param {Array<string>} variantTokens
+ * @param {function()=} onReady
+ */
+function ensureGoogleFontsPreviewStylesheet(family, variantTokens, onReady) {
+  var done = typeof onReady === 'function' ? onReady : function () {};
+  if (!family || !variantTokens || !variantTokens.length) {
+    done();
+    return;
+  }
   var id = 'gf-preview-' + family.replace(/[^a-zA-Z0-9]+/g, '-');
   var href = buildGoogleFontsPreviewHref(family, variantTokens);
   var existing = document.getElementById(id);
-  if (existing && existing.getAttribute('data-href') === href) return;
+  if (existing && existing.getAttribute('data-href') === href) {
+    done();
+    return;
+  }
   if (existing) existing.remove();
   var link = document.createElement('link');
   link.id = id;
   link.rel = 'stylesheet';
   link.href = href;
   link.setAttribute('data-href', href);
+  link.onload = function () { done(); };
+  link.onerror = function () { done(); };
   document.head.appendChild(link);
 }
 
@@ -132,6 +148,7 @@ function previewTextColorCss(fs) {
  * Inline style for Arabic preview (.arabic) from formatState.
  * Bold/weight rules align with FormatService.applyFormat (Docs).
  * @param {Object} fs - formatState-like { fontName, fontVariant, fontSize?, bold?, textColor? }
+ *   fontSize is in points (matches DocumentApp Text.setFontSize / Google Docs).
  * @return {string}
  */
 function arabicPreviewFontStyle(fs) {
@@ -147,7 +164,7 @@ function arabicPreviewFontStyle(fs) {
   var color = previewTextColorCss(fs);
   return "font-family:'" + safeFam + "',serif;font-weight:" + w +
     ';font-style:' + (p.italic ? 'italic' : 'normal') +
-    ';font-size:' + sz + 'px;color:' + color;
+    ';font-size:' + sz + 'pt;color:' + color;
 }
 
 var _settleArabicPreviewFontsTimer = null;
@@ -181,7 +198,7 @@ function settleArabicPreviewFonts() {
   if (isNaN(sz) || sz < 1) sz = 18;
   var p = parseGoogleFontVariantClient(fs && fs.fontVariant ? fs.fontVariant : 'regular');
 
-  var styleSpec = (p.italic ? 'italic ' : 'normal ') + p.weight + ' ' + sz + 'px "' +
+  var styleSpec = (p.italic ? 'italic ' : 'normal ') + p.weight + ' ' + sz + 'pt "' +
     String(fam).replace(/"/g, '') + '"';
 
   if (document.fonts && document.fonts.check && document.fonts.check(styleSpec)) {
@@ -204,7 +221,7 @@ function settleArabicPreviewFonts() {
    * fonts.load() can resolve slightly before the first composited frame uses the face.
    * Brief delay + double rAF nudges reveal after raster; longer CSS transition only smooths opacity.
    */
-  var PREVIEW_FONT_POST_LOAD_MS = 100;
+  var PREVIEW_FONT_POST_LOAD_MS = 200;
 
   function doReveal() {
     setTimeout(function() {

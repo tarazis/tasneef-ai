@@ -125,7 +125,7 @@ function runDocumentServiceTests() {
         rtl: true
       },
       {
-        text: '"translation" (Al-Fatiha 1:1)',
+        text: '"translation" (Al-Fatiha\u00A01:1)',
         align: DocumentApp.HorizontalAlignment.CENTER,
         useEnglishTranslationFont: true
       }
@@ -301,7 +301,7 @@ function runDocumentServiceTests() {
     expect(applyFormatCalls[0]).toBe(fs);
     expect(applyFormatCalls[1].fontName).toBe('Figtree');
     expect(applyFormatCalls[1].fontVariant).toBe('regular');
-    expect(applyFormatCalls[1].fontSize).toBe(10);
+    expect(applyFormatCalls[1].fontSize).toBe(11);
     expect(applyFormatCalls[1].bold).toBe(false);
     expect(applyFormatCalls[1].textColor).toBe('#112233');
   });
@@ -317,7 +317,7 @@ function runDocumentServiceTests() {
     expect(body._children.length).toBe(4);
     expect(body._children[1]._text).toBe('\uFD3F\u00A0arabic\u00A0\uFD3E');
     expect(body._children[1]._ltr).toBe(false);
-    expect(body._children[2]._text).toBe('"translation" (Al-Fatiha 1:1)');
+    expect(body._children[2]._text).toBe('"translation" (Al-Fatiha\u00A01:1)');
     expect(body._children[2]._ltr).toBe(null);
     expect(body._children[3]._text).toBe('');
     expect(body._children[3]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
@@ -334,7 +334,7 @@ function runDocumentServiceTests() {
     // [existing, arabic, translation, after] — no cleanup
     expect(body._children.length).toBe(4);
     expect(body._children[1]._text).toBe('\uFD3F\u00A0arabic\u00A0\uFD3E');
-    expect(body._children[2]._text).toBe('"translation" (Al-Fatiha 1:1)');
+    expect(body._children[2]._text).toBe('"translation" (Al-Fatiha\u00A01:1)');
     expect(body._children[3]._text).toBe('after');
     expect(body._children[3]._heading).toBe(null);
   });
