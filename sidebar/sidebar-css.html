@@ -341,7 +341,7 @@
   .tab-btn:hover { color: #333; }
   .tab-btn.active { color: #2e7d32; border-bottom-color: #2e7d32; }
 
-  /* AI tab: Lucide-style sparkles (1em) left of label; color inherits = same as tab text */
+  /* AI tab: sparkles + label use active-tab green (#2e7d32) even when not selected */
   .tab-btn--ai {
     display: flex;
     flex-direction: row;
@@ -349,6 +349,10 @@
     justify-content: center;
     gap: 3px;
     white-space: nowrap;
+    color: #2e7d32;
+  }
+  .tab-btn--ai:hover {
+    color: #2e7d32;
   }
   .tab-btn--ai .tab-btn-ai-icon {
     display: inline-flex;
@@ -379,12 +383,6 @@
     line-height: 1.2;
     padding: 0;
   }
-  .tab-btn--ai:hover .tab-btn-ai-label {
-    text-shadow: 0 0 6px rgba(46, 125, 50, 0.4), 0 0 12px rgba(67, 160, 71, 0.22);
-  }
-  .tab-btn--ai.active:hover .tab-btn-ai-label {
-    text-shadow: 0 0 8px rgba(46, 125, 50, 0.5), 0 0 16px rgba(67, 160, 71, 0.28);
-  }
 
   @media (prefers-reduced-motion: reduce) {
     .tab-btn--ai .tab-btn-ai-icon,
@@ -394,10 +392,6 @@
     .tab-btn--ai:hover .tab-btn-ai-icon svg,
     .tab-btn--ai.active:hover .tab-btn-ai-icon svg {
       filter: none;
-    }
-    .tab-btn--ai:hover .tab-btn-ai-label,
-    .tab-btn--ai.active:hover .tab-btn-ai-label {
-      text-shadow: none;
     }
   }
 
