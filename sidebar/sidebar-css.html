@@ -347,7 +347,7 @@
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 2px;
+    gap: 5px;
     white-space: nowrap;
   }
   .tab-btn--ai .tab-btn-ai-icon {
@@ -357,8 +357,9 @@
     flex-shrink: 0;
     line-height: 0;
     color: inherit;
-    margin-inline-end: -2px;
-    animation: spin 8s linear infinite;
+  }
+  .tab-btn--ai:hover .tab-btn-ai-icon {
+    animation: spin 4s linear infinite;
   }
   .tab-btn--ai .tab-btn-ai-icon svg {
     width: 1em;
@@ -378,7 +379,8 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .tab-btn--ai .tab-btn-ai-icon {
+    .tab-btn--ai .tab-btn-ai-icon,
+    .tab-btn--ai:hover .tab-btn-ai-icon {
       animation: none;
     }
     .tab-btn--ai .tab-btn-ai-icon svg,
