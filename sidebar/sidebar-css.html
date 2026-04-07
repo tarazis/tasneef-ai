@@ -347,7 +347,7 @@
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 5px;
+    gap: 3px;
     white-space: nowrap;
   }
   .tab-btn--ai .tab-btn-ai-icon {
@@ -366,9 +366,11 @@
     height: 1em;
     display: block;
     flex-shrink: 0;
+  }
+  .tab-btn--ai:hover .tab-btn-ai-icon svg {
     filter: drop-shadow(0 0 2px rgba(46, 125, 50, 0.5)) drop-shadow(0 0 6px rgba(46, 125, 50, 0.35)) drop-shadow(0 0 10px rgba(67, 160, 71, 0.25));
   }
-  .tab-btn--ai.active .tab-btn-ai-icon svg {
+  .tab-btn--ai.active:hover .tab-btn-ai-icon svg {
     filter: drop-shadow(0 0 3px rgba(46, 125, 50, 0.65)) drop-shadow(0 0 8px rgba(46, 125, 50, 0.45)) drop-shadow(0 0 14px rgba(67, 160, 71, 0.35));
   }
   .tab-btn--ai .tab-btn-ai-label {
@@ -383,8 +385,8 @@
     .tab-btn--ai:hover .tab-btn-ai-icon {
       animation: none;
     }
-    .tab-btn--ai .tab-btn-ai-icon svg,
-    .tab-btn--ai.active .tab-btn-ai-icon svg {
+    .tab-btn--ai:hover .tab-btn-ai-icon svg,
+    .tab-btn--ai.active:hover .tab-btn-ai-icon svg {
       filter: none;
     }
   }
