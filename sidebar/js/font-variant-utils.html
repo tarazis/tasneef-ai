@@ -200,14 +200,24 @@ function settleArabicPreviewFonts() {
     }
   }
 
+  /**
+   * fonts.load() can resolve slightly before the first composited frame uses the face.
+   * Brief delay + double rAF nudges reveal after raster; longer CSS transition only smooths opacity.
+   */
+  var PREVIEW_FONT_POST_LOAD_MS = 100;
+
   function doReveal() {
-    requestAnimationFrame(reveal);
+    setTimeout(function() {
+      requestAnimationFrame(function() {
+        requestAnimationFrame(reveal);
+      });
+    }, PREVIEW_FONT_POST_LOAD_MS);
   }
 
   if (document.fonts && document.fonts.load) {
     document.fonts.load(styleSpec).then(doReveal, doReveal);
   } else {
-    setTimeout(doReveal, 120);
+    setTimeout(doReveal, 140);
   }
 }
 </script>

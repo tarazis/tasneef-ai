@@ -406,11 +406,12 @@
   .result-card .arabic {
     font-size: 18px; direction: rtl; text-align: right; font-family: Amiri, serif; margin: 8px 0; line-height: 1.8;
     animation: arabic-font-in 0.2s ease;
-    transition: opacity 0.28s ease;
+    transition: opacity 0.42s ease-out;
   }
   .result-card .arabic.font-preview-pending {
     animation: none;
     opacity: 0;
+    transition: none;
   }
   .result-card .arabic.range-block { line-height: 2.2; white-space: normal; word-break: normal; }
   .result-card mark { background: #fff59d; padding: 0 2px; }
