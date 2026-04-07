@@ -13,8 +13,17 @@ function updateFontPickerLabel() {
   el.textContent = formatState.fontName || 'Amiri';
 }
 
-function refreshArabicPreviewFontFace() {
-  if (!window._fontCatalog || !formatState.fontName) return;
+/**
+ * Ensures the Google Fonts stylesheet for the current family; calls onReady when
+ * the link is already satisfied or after load/error (see ensureGoogleFontsPreviewStylesheet).
+ * @param {function()=} onReady
+ */
+function refreshArabicPreviewFontFace(onReady) {
+  var done = typeof onReady === 'function' ? onReady : function () {};
+  if (!window._fontCatalog || !formatState.fontName) {
+    done();
+    return;
+  }
   var entry = null;
   for (var i = 0; i < window._fontCatalog.length; i++) {
     if (window._fontCatalog[i].family === formatState.fontName) {
@@ -23,7 +32,9 @@ function refreshArabicPreviewFontFace() {
     }
   }
   if (entry && entry.variants && entry.variants.length) {
-    ensureGoogleFontsPreviewStylesheet(entry.family, entry.variants);
+    ensureGoogleFontsPreviewStylesheet(entry.family, entry.variants, done);
+  } else {
+    done();
   }
 }
 
@@ -76,13 +87,14 @@ function selectFontAndVariant(family, variant, closeMenu) {
   formatState.fontName = family;
   formatState.fontVariant = variant || 'regular';
   updateFontPickerLabel();
-  refreshArabicPreviewFontFace();
   syncFontPickerSelectionClasses();
   debouncedSave();
   if (closeMenu) closeFontPicker();
-  if (typeof window.refreshAllResultCardPreviews === 'function') {
-    window.refreshAllResultCardPreviews();
-  }
+  refreshArabicPreviewFontFace(function () {
+    if (typeof window.refreshAllResultCardPreviews === 'function') {
+      window.refreshAllResultCardPreviews();
+    }
+  });
 }
 
 function buildFontPickerDom() {
@@ -144,16 +156,17 @@ function reconcileFontCatalogState() {
     changed = true;
   }
   updateFontPickerLabel();
-  refreshArabicPreviewFontFace();
   syncFontPickerSelectionClasses();
   if (changed) {
     google.script.run
       .withFailureHandler(function () {})
       .saveSettings({ fontName: formatState.fontName, fontVariant: formatState.fontVariant });
-    if (typeof window.refreshAllResultCardPreviews === 'function') {
+  }
+  refreshArabicPreviewFontFace(function () {
+    if (changed && typeof window.refreshAllResultCardPreviews === 'function') {
       window.refreshAllResultCardPreviews();
     }
-  }
+  });
 }
 
 function onFontCatalogLoaded(result) {

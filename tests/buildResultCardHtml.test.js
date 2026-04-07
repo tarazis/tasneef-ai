@@ -75,7 +75,7 @@ function arabicPreviewFontStyle(fs) {
   var color = previewTextColorCss(fs);
   return 'font-family:\'' + safeFam + '\',serif;font-weight:' + w +
     ';font-style:' + (p.italic ? 'italic' : 'normal') +
-    ';font-size:' + sz + 'px;color:' + color;
+    ';font-size:' + sz + 'pt;color:' + color;
 }
 
 // ─── isConsecutiveRange ───────────────────────────────────────────────────────
@@ -581,7 +581,7 @@ function runTests() {
       textColor: '#2e7d32'
     };
     var html = buildCardHtml(r, fs);
-    assert.ok(html.indexOf('font-size:24px') >= 0, 'font size in inline style');
+    assert.ok(html.indexOf('font-size:24pt') >= 0, 'font size in inline style (points, matches Docs)');
     assert.ok(html.indexOf('color:#2E7D32') >= 0 || html.indexOf('color:#2e7d32') >= 0, 'color in inline style');
   });
 
