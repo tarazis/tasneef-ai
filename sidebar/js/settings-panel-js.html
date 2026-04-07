@@ -109,6 +109,10 @@ function initSettingsPanelHandlers() {
 
       google.script.run
         .withSuccessHandler(function() {
+          if (typeof _settings !== 'object' || !_settings) {
+            _settings = {};
+          }
+          _settings.showTranslation = showTranslation;
           btnSave.disabled = false;
           btnSave.textContent = 'Save';
           showSavedMessage('Settings saved!', false);
