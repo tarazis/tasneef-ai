@@ -39,30 +39,27 @@
   .tab-btn:hover { color: #333; }
   .tab-btn.active { color: #2e7d32; border-bottom-color: #2e7d32; }
 
-  /* Sparkles sit in a corner badge so the label can use the full tab width (single line). */
+  /* AI tab: one flex row — label + sparkles centered as a group, vertically aligned */
   .tab-btn--ai {
-    position: relative;
     display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
+    gap: 6px;
     white-space: nowrap;
   }
   .tab-btn--ai .tab-btn-ai-label {
+    flex-shrink: 0;
     white-space: nowrap;
-    text-align: center;
     line-height: 1.2;
-    /* Reserve top-right for sparkle cluster + extra gap before stars */
-    padding: 0 40px 0 2px;
+    padding: 0;
   }
   .tab-btn--ai .tab-btn-ai-sparkles {
-    position: absolute;
-    top: 4px;
-    right: 3px;
     display: inline-flex;
-    align-items: flex-start;
+    align-items: center;
+    flex-shrink: 0;
     gap: 0;
     line-height: 0;
-    pointer-events: none;
   }
   .tab-btn--ai .tab-ai-sparkle { display: inline-flex; align-items: center; justify-content: center; transform-origin: center center; color: #66bb6a; opacity: 0.65; transition: opacity 0.2s ease, color 0.2s ease; }
   .tab-btn--ai .tab-ai-sparkle svg { width: 18px; height: 18px; flex-shrink: 0; display: block; }
