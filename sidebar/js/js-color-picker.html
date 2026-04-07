@@ -1,7 +1,7 @@
 <script>
 /**
- * Docs-style swatch palette + popover behavior for the format bar.
- * Pure helpers are duplicated in tests/jsColorPicker.test.js (Node).
+ * Docs-style swatch palette + custom color dialog for the format bar.
+ * Pure helpers duplicated in tests/jsColorPicker.test.js (Node).
  */
 
 function normalizeHex6(value) {
@@ -32,6 +32,65 @@ function rgbToHex(r, g, b) {
     return s.length === 1 ? '0' + s : s;
   }
   return ('#' + h2(r) + h2(g) + h2(b)).toUpperCase();
+}
+
+function rgbToHsv(r, g, b) {
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  var max = Math.max(r, g, b);
+  var min = Math.min(r, g, b);
+  var d = max - min;
+  var h = 0;
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+  }
+  h *= 360;
+  var s = max === 0 ? 0 : d / max;
+  var v = max;
+  return { h: h, s: s, v: v };
+}
+
+function hsvToRgb(h, s, v) {
+  h = ((h % 360) + 360) % 360;
+  var c = v * s;
+  var x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  var m = v - c;
+  var rp;
+  var gp;
+  var bp;
+  if (h < 60) {
+    rp = c;
+    gp = x;
+    bp = 0;
+  } else if (h < 120) {
+    rp = x;
+    gp = c;
+    bp = 0;
+  } else if (h < 180) {
+    rp = 0;
+    gp = c;
+    bp = x;
+  } else if (h < 240) {
+    rp = 0;
+    gp = x;
+    bp = c;
+  } else if (h < 300) {
+    rp = x;
+    gp = 0;
+    bp = c;
+  } else {
+    rp = c;
+    gp = 0;
+    bp = x;
+  }
+  return {
+    r: Math.round((rp + m) * 255),
+    g: Math.round((gp + m) * 255),
+    b: Math.round((bp + m) * 255)
+  };
 }
 
 function mixRgb(c0, c1, t) {
@@ -79,8 +138,8 @@ function buildDocStyleSwatchHexes() {
     out.push(rgbToHex(c.r, c.g, c.b));
   }
   var shadeSteps = [0.22, 0.38, 0.52, 0.68, 0.82];
-  var s;
   var row;
+  var s;
   for (row = 0; row < shadeSteps.length; row++) {
     s = shadeSteps[row];
     for (i = 0; i < primaries.length; i++) {
@@ -101,6 +160,13 @@ function swatchNeedsLightOutline(hex) {
 
 var _jsColorPickerDocHandler = null;
 var _jsColorPickerInitialized = false;
+
+var _customH = 0;
+var _customS = 1;
+var _customV = 1;
+var _customInputsSilent = false;
+var _customMoveHandler = null;
+var _customUpHandler = null;
 
 function closeJsColorPickerPopover() {
   var pop = document.getElementById('color-picker-popover');
@@ -158,9 +224,186 @@ function syncJsColorPickerSelection() {
   }
 }
 
+function closeCustomColorDialog() {
+  var dlg = document.getElementById('custom-color-dialog');
+  if (dlg) {
+    dlg.classList.add('hidden');
+    dlg.setAttribute('aria-hidden', 'true');
+  }
+  detachCustomColorDrag();
+}
+
+function detachCustomColorDrag() {
+  if (_customMoveHandler) {
+    window.removeEventListener('mousemove', _customMoveHandler);
+    window.removeEventListener('mouseup', _customUpHandler);
+    window.removeEventListener('touchmove', _customMoveHandler);
+    window.removeEventListener('touchend', _customUpHandler);
+    window.removeEventListener('touchcancel', _customUpHandler);
+    _customMoveHandler = null;
+    _customUpHandler = null;
+  }
+}
+
+function applyCustomHueVar() {
+  var sv = document.getElementById('custom-color-sv');
+  var thumb = document.getElementById('custom-color-hue-thumb');
+  var hStr = String(Math.round(_customH));
+  if (sv) sv.style.setProperty('--custom-hue', hStr);
+  if (thumb) thumb.style.setProperty('--custom-hue', hStr);
+}
+
+function refreshCustomColorUI() {
+  applyCustomHueVar();
+  var rgb = hsvToRgb(_customH, _customS, _customV);
+  var hex = rgbToHex(rgb.r, rgb.g, rgb.b);
+  var preview = document.getElementById('custom-color-preview');
+  if (preview) preview.style.backgroundColor = hex;
+  var handle = document.getElementById('custom-color-sv-handle');
+  if (handle) {
+    handle.style.left = _customS * 100 + '%';
+    handle.style.top = (1 - _customV) * 100 + '%';
+  }
+  var hueThumb = document.getElementById('custom-color-hue-thumb');
+  if (hueThumb) hueThumb.style.left = (_customH / 360) * 100 + '%';
+  var track = document.getElementById('custom-color-hue-track');
+  if (track) track.setAttribute('aria-valuenow', String(Math.round(_customH)));
+  _customInputsSilent = true;
+  var hexIn = document.getElementById('custom-color-hex');
+  var rIn = document.getElementById('custom-color-r');
+  var gIn = document.getElementById('custom-color-g');
+  var bIn = document.getElementById('custom-color-b');
+  if (hexIn) hexIn.value = hex;
+  if (rIn) rIn.value = String(rgb.r);
+  if (gIn) gIn.value = String(rgb.g);
+  if (bIn) bIn.value = String(rgb.b);
+  _customInputsSilent = false;
+}
+
+function setCustomColorFromHexInput() {
+  var hexIn = document.getElementById('custom-color-hex');
+  if (!hexIn || _customInputsSilent) return;
+  var raw = hexIn.value.trim();
+  if (raw.charAt(0) !== '#') raw = '#' + raw;
+  var n = normalizeHex6(raw);
+  if (!n) return;
+  var rgb = hexToRgb(n);
+  if (!rgb) return;
+  var hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
+  _customH = hsv.h;
+  _customS = hsv.s;
+  _customV = hsv.v;
+  refreshCustomColorUI();
+}
+
+function setCustomColorFromRgbInputs() {
+  if (_customInputsSilent) return;
+  var rIn = document.getElementById('custom-color-r');
+  var gIn = document.getElementById('custom-color-g');
+  var bIn = document.getElementById('custom-color-b');
+  if (!rIn || !gIn || !bIn) return;
+  var r = parseInt(rIn.value, 10);
+  var g = parseInt(gIn.value, 10);
+  var b = parseInt(bIn.value, 10);
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return;
+  r = Math.max(0, Math.min(255, r));
+  g = Math.max(0, Math.min(255, g));
+  b = Math.max(0, Math.min(255, b));
+  var hsv = rgbToHsv(r, g, b);
+  _customH = hsv.h;
+  _customS = hsv.s;
+  _customV = hsv.v;
+  refreshCustomColorUI();
+}
+
+function openCustomColorDialog() {
+  var dlg = document.getElementById('custom-color-dialog');
+  if (!dlg) return;
+  closeJsColorPickerPopover();
+  var startHex = '#000000';
+  if (typeof formatState !== 'undefined' && formatState.textColor) {
+    var n = normalizeHex6(formatState.textColor);
+    if (n) startHex = n;
+  }
+  var rgb = hexToRgb(startHex);
+  if (!rgb) rgb = { r: 0, g: 0, b: 0 };
+  var hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
+  _customH = hsv.h;
+  _customS = hsv.s;
+  _customV = hsv.v;
+  refreshCustomColorUI();
+  dlg.classList.remove('hidden');
+  dlg.setAttribute('aria-hidden', 'false');
+}
+
+function bindCustomColorPointer(svEl, hueTrack) {
+  function clientFromEvent(e) {
+    return e.touches && e.touches[0] ? e.touches[0] : e;
+  }
+
+  function onSvMove(clientX, clientY) {
+    var rect = svEl.getBoundingClientRect();
+    var x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    var y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+    _customS = x;
+    _customV = 1 - y;
+    refreshCustomColorUI();
+  }
+
+  function onHueMove(clientX, clientY) {
+    var rect = hueTrack.getBoundingClientRect();
+    var x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    _customH = x * 360;
+    refreshCustomColorUI();
+  }
+
+  function startSv(e) {
+    e.preventDefault();
+    detachCustomColorDrag();
+    var c = clientFromEvent(e);
+    onSvMove(c.clientX, c.clientY);
+    _customMoveHandler = function (ev) {
+      var cl = clientFromEvent(ev);
+      if (cl) onSvMove(cl.clientX, cl.clientY);
+    };
+    _customUpHandler = function () {
+      detachCustomColorDrag();
+    };
+    window.addEventListener('mousemove', _customMoveHandler);
+    window.addEventListener('mouseup', _customUpHandler);
+    window.addEventListener('touchmove', _customMoveHandler, { passive: false });
+    window.addEventListener('touchend', _customUpHandler);
+    window.addEventListener('touchcancel', _customUpHandler);
+  }
+
+  function startHue(e) {
+    e.preventDefault();
+    detachCustomColorDrag();
+    var c = clientFromEvent(e);
+    onHueMove(c.clientX, c.clientY);
+    _customMoveHandler = function (ev) {
+      var cl = clientFromEvent(ev);
+      if (cl) onHueMove(cl.clientX, cl.clientY);
+    };
+    _customUpHandler = function () {
+      detachCustomColorDrag();
+    };
+    window.addEventListener('mousemove', _customMoveHandler);
+    window.addEventListener('mouseup', _customUpHandler);
+    window.addEventListener('touchmove', _customMoveHandler, { passive: false });
+    window.addEventListener('touchend', _customUpHandler);
+    window.addEventListener('touchcancel', _customUpHandler);
+  }
+
+  svEl.addEventListener('mousedown', startSv);
+  svEl.addEventListener('touchstart', startSv, { passive: false });
+  hueTrack.addEventListener('mousedown', startHue);
+  hueTrack.addEventListener('touchstart', startHue, { passive: false });
+}
+
 /**
- * @param {function(string): void} onColorChosen - normalized #RRGGBB; should save settings and refresh UI
- * @param {function(): void} [closeFontPicker] - when opening the color popover
+ * @param {function(string): void} onColorChosen
+ * @param {function(): void} [closeFontPicker]
  */
 function initJsColorPicker(onColorChosen, closeFontPicker) {
   if (_jsColorPickerInitialized) return;
@@ -170,7 +413,17 @@ function initJsColorPicker(onColorChosen, closeFontPicker) {
   var colorTrigger = document.getElementById('color-trigger');
   var nativeInput = document.getElementById('color-picker');
   var btnCustom = document.getElementById('btn-color-custom');
-  var btnEye = document.getElementById('btn-color-eyedropper');
+  var customDlg = document.getElementById('custom-color-dialog');
+  var customPanel = customDlg ? customDlg.querySelector('.custom-color-dialog-panel') : null;
+  var svEl = document.getElementById('custom-color-sv');
+  var hueTrack = document.getElementById('custom-color-hue-track');
+  var btnOk = document.getElementById('btn-custom-ok');
+  var btnCancel = document.getElementById('btn-custom-cancel');
+  var hexIn = document.getElementById('custom-color-hex');
+  var rIn = document.getElementById('custom-color-r');
+  var gIn = document.getElementById('custom-color-g');
+  var bIn = document.getElementById('custom-color-b');
+  var btnEye = document.getElementById('btn-custom-eyedropper');
 
   if (!grid || !colorTrigger || !nativeInput) return;
 
@@ -220,10 +473,55 @@ function initJsColorPicker(onColorChosen, closeFontPicker) {
   if (btnCustom) {
     btnCustom.addEventListener('click', function (e) {
       e.stopPropagation();
-      closeJsColorPickerPopover();
-      nativeInput.click();
+      openCustomColorDialog();
     });
   }
+
+  if (customDlg && customPanel) {
+    customDlg.addEventListener('click', function (e) {
+      if (e.target === customDlg) closeCustomColorDialog();
+    });
+    customPanel.addEventListener('click', function (e) {
+      e.stopPropagation();
+    });
+  }
+
+  if (svEl && hueTrack) {
+    bindCustomColorPointer(svEl, hueTrack);
+  }
+
+  if (btnOk) {
+    btnOk.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var rgb = hsvToRgb(_customH, _customS, _customV);
+      var h = rgbToHex(rgb.r, rgb.g, rgb.b);
+      nativeInput.value = h;
+      if (typeof onColorChosen === 'function') onColorChosen(h);
+      closeCustomColorDialog();
+      if (typeof syncJsColorPickerSelection === 'function') syncJsColorPickerSelection();
+    });
+  }
+  if (btnCancel) {
+    btnCancel.addEventListener('click', function (e) {
+      e.stopPropagation();
+      closeCustomColorDialog();
+    });
+  }
+
+  if (hexIn) {
+    hexIn.addEventListener('input', function () {
+      if (!_customInputsSilent) setCustomColorFromHexInput();
+    });
+    hexIn.addEventListener('change', function () {
+      setCustomColorFromHexInput();
+    });
+  }
+  function onRgbInput() {
+    if (!_customInputsSilent) setCustomColorFromRgbInputs();
+  }
+  if (rIn) rIn.addEventListener('input', onRgbInput);
+  if (gIn) gIn.addEventListener('input', onRgbInput);
+  if (bIn) bIn.addEventListener('input', onRgbInput);
 
   if (btnEye) {
     if (typeof window.EyeDropper === 'function') {
@@ -234,11 +532,13 @@ function initJsColorPicker(onColorChosen, closeFontPicker) {
         ed.open()
           .then(function (result) {
             var h = normalizeHex6(result.sRGBHex);
-            if (h && typeof onColorChosen === 'function') {
-              onColorChosen(h);
-              nativeInput.value = h;
-            }
-            closeJsColorPickerPopover();
+            var rgb = hexToRgb(h);
+            if (!rgb) return;
+            var hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
+            _customH = hsv.h;
+            _customS = hsv.s;
+            _customV = hsv.v;
+            refreshCustomColorUI();
           })
           .catch(function () {});
       });
@@ -247,21 +547,22 @@ function initJsColorPicker(onColorChosen, closeFontPicker) {
     }
   }
 
-  function onNativeChange() {
-    var h = normalizeHex6(nativeInput.value);
-    if (!h) return;
-    if (typeof onColorChosen === 'function') onColorChosen(h);
-    syncJsColorPickerSelection();
-  }
-  nativeInput.addEventListener('input', onNativeChange);
-  nativeInput.addEventListener('change', onNativeChange);
+  document.addEventListener('keydown', function customColorEsc(e) {
+    if (e.key !== 'Escape') return;
+    var dlg = document.getElementById('custom-color-dialog');
+    if (!dlg || dlg.classList.contains('hidden')) return;
+    closeCustomColorDialog();
+  });
 }
 
 window.normalizeHex6 = normalizeHex6;
 window.buildDocStyleSwatchHexes = buildDocStyleSwatchHexes;
+window.rgbToHsv = rgbToHsv;
+window.hsvToRgb = hsvToRgb;
 window.initJsColorPicker = initJsColorPicker;
 window.closeJsColorPickerPopover = closeJsColorPickerPopover;
 window.openJsColorPickerPopover = openJsColorPickerPopover;
 window.toggleJsColorPickerPopover = toggleJsColorPickerPopover;
 window.syncJsColorPickerSelection = syncJsColorPickerSelection;
+window.closeCustomColorDialog = closeCustomColorDialog;
 </script>

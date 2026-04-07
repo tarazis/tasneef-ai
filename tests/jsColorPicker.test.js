@@ -39,6 +39,65 @@ function rgbToHex(r, g, b) {
   return ('#' + h2(r) + h2(g) + h2(b)).toUpperCase();
 }
 
+function rgbToHsv(r, g, b) {
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  var max = Math.max(r, g, b);
+  var min = Math.min(r, g, b);
+  var d = max - min;
+  var h = 0;
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+  }
+  h *= 360;
+  var s = max === 0 ? 0 : d / max;
+  var v = max;
+  return { h: h, s: s, v: v };
+}
+
+function hsvToRgb(h, s, v) {
+  h = ((h % 360) + 360) % 360;
+  var c = v * s;
+  var x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  var m = v - c;
+  var rp;
+  var gp;
+  var bp;
+  if (h < 60) {
+    rp = c;
+    gp = x;
+    bp = 0;
+  } else if (h < 120) {
+    rp = x;
+    gp = c;
+    bp = 0;
+  } else if (h < 180) {
+    rp = 0;
+    gp = c;
+    bp = x;
+  } else if (h < 240) {
+    rp = 0;
+    gp = x;
+    bp = c;
+  } else if (h < 300) {
+    rp = x;
+    gp = 0;
+    bp = c;
+  } else {
+    rp = c;
+    gp = 0;
+    bp = x;
+  }
+  return {
+    r: Math.round((rp + m) * 255),
+    g: Math.round((gp + m) * 255),
+    b: Math.round((bp + m) * 255)
+  };
+}
+
 function mixRgb(c0, c1, t) {
   return {
     r: c0.r + (c1.r - c0.r) * t,
@@ -105,5 +164,21 @@ var hexRe = /^#[0-9A-F]{6}$/;
 for (var j = 0; j < palette.length; j++) {
   assert.ok(hexRe.test(palette[j]), 'invalid hex at ' + j + ': ' + palette[j]);
 }
+
+function assertRgbRoundtrip(r, g, b) {
+  var hsv = rgbToHsv(r, g, b);
+  var out = hsvToRgb(hsv.h, hsv.s, hsv.v);
+  assert.ok(Math.abs(out.r - r) <= 1, 'r ' + r + ' got ' + out.r);
+  assert.ok(Math.abs(out.g - g) <= 1, 'g ' + g + ' got ' + out.g);
+  assert.ok(Math.abs(out.b - b) <= 1, 'b ' + b + ' got ' + out.b);
+}
+
+assertRgbRoundtrip(255, 0, 0);
+assertRgbRoundtrip(0, 255, 0);
+assertRgbRoundtrip(0, 0, 255);
+assertRgbRoundtrip(110, 12, 12);
+assertRgbRoundtrip(128, 128, 128);
+assertRgbRoundtrip(0, 0, 0);
+assertRgbRoundtrip(255, 255, 255);
 
 console.log('jsColorPicker tests passed');

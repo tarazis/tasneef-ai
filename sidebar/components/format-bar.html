@@ -33,14 +33,51 @@
               <path d="M12 8v8M8 12h8"/>
             </svg>
           </button>
-          <button type="button" class="color-picker-icon-btn" id="btn-color-eyedropper" title="Pick color from screen" aria-label="Pick color from screen">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        </div>
+      </div>
+    </div>
+    <div id="custom-color-dialog" class="custom-color-dialog hidden" role="dialog" aria-labelledby="custom-color-dialog-title" aria-modal="true" aria-hidden="true">
+      <div class="custom-color-dialog-panel">
+        <h2 class="custom-color-dialog-title" id="custom-color-dialog-title">Custom color</h2>
+        <div class="custom-color-sv" id="custom-color-sv" tabindex="0" aria-label="Saturation and brightness">
+          <div class="custom-color-sv-layers" id="custom-color-sv-layers"></div>
+          <div class="custom-color-sv-handle" id="custom-color-sv-handle" aria-hidden="true"></div>
+        </div>
+        <div class="custom-color-hue-row">
+          <div class="custom-color-preview" id="custom-color-preview" aria-hidden="true"></div>
+          <button type="button" class="custom-color-eyedropper-btn" id="btn-custom-eyedropper" title="Pick color from screen" aria-label="Pick color from screen">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
               <path d="M4 21l6-6"/>
               <path d="M14 7l3 3"/>
               <path d="M6.5 12.5 12 7l5 5-5.5 5.5a2.12 2.12 0 0 1-3-3L6.5 12.5z"/>
               <path d="m9 10 5 5"/>
             </svg>
           </button>
+          <div class="custom-color-hue-track" id="custom-color-hue-track" role="slider" aria-label="Hue" aria-valuemin="0" aria-valuemax="360" tabindex="0">
+            <div class="custom-color-hue-thumb" id="custom-color-hue-thumb"></div>
+          </div>
+        </div>
+        <div class="custom-color-fields">
+          <div class="custom-color-field custom-color-field--hex">
+            <label for="custom-color-hex">Hex</label>
+            <input type="text" id="custom-color-hex" class="custom-color-input" spellcheck="false" autocomplete="off" maxlength="7">
+          </div>
+          <div class="custom-color-field">
+            <label for="custom-color-r">R</label>
+            <input type="text" id="custom-color-r" class="custom-color-input" inputmode="numeric" maxlength="3">
+          </div>
+          <div class="custom-color-field">
+            <label for="custom-color-g">G</label>
+            <input type="text" id="custom-color-g" class="custom-color-input" inputmode="numeric" maxlength="3">
+          </div>
+          <div class="custom-color-field">
+            <label for="custom-color-b">B</label>
+            <input type="text" id="custom-color-b" class="custom-color-input" inputmode="numeric" maxlength="3">
+          </div>
+        </div>
+        <div class="custom-color-footer">
+          <button type="button" class="custom-color-btn-cancel" id="btn-custom-cancel">Cancel</button>
+          <button type="button" class="custom-color-btn-ok" id="btn-custom-ok">OK</button>
         </div>
       </div>
     </div>
