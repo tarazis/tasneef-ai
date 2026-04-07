@@ -38,8 +38,31 @@
   .tab-btn:hover { color: #333; }
   .tab-btn.active { color: #2e7d32; border-bottom-color: #2e7d32; }
 
-  .tab-btn--ai { display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
-  .tab-btn--ai .tab-btn-ai-sparkles { display: inline-flex; align-items: center; gap: 3px; line-height: 0; }
+  /* Sparkles sit in a corner badge so the label can use the full tab width (single line). */
+  .tab-btn--ai {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+  }
+  .tab-btn--ai .tab-btn-ai-label {
+    white-space: nowrap;
+    text-align: center;
+    line-height: 1.2;
+    /* Reserve top-right for sparkle cluster (~18+14px + gap); keeps "AI Search" one line */
+    padding: 0 30px 0 2px;
+  }
+  .tab-btn--ai .tab-btn-ai-sparkles {
+    position: absolute;
+    top: 4px;
+    right: 2px;
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 2px;
+    line-height: 0;
+    pointer-events: none;
+  }
   .tab-btn--ai .tab-ai-sparkle { display: inline-flex; align-items: center; justify-content: center; transform-origin: center center; color: #66bb6a; opacity: 0.65; transition: opacity 0.2s ease, color 0.2s ease; }
   .tab-btn--ai .tab-ai-sparkle svg { width: 18px; height: 18px; flex-shrink: 0; display: block; }
   .tab-btn--ai .tab-ai-sparkle--sm svg { width: 14px; height: 14px; }
