@@ -3,6 +3,36 @@
 //   applyFormatStateToUI (format-bar.html)
 // Header "New chat" calls clearAISearch (tab-ai-search-js.html)
 
+var settingsPanelLoadGen = 0;
+
+function setSettingsPanelLoading(isLoading) {
+  var loading = document.getElementById('settings-panel-loading');
+  var body = document.getElementById('settings-panel-body');
+  if (loading) {
+    loading.classList.toggle('hidden', !isLoading);
+    loading.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+  }
+  if (body) body.classList.toggle('hidden', isLoading);
+}
+
+function applyTranslationCheckboxFromPayload(s) {
+  var trans = document.getElementById('insert-translation');
+  if (!trans) return;
+  var showTrans = true;
+  if (s && typeof s.showTranslation !== 'undefined') {
+    showTrans = s.showTranslation !== false;
+  } else if (typeof _settings !== 'undefined' && _settings && typeof _settings.showTranslation !== 'undefined') {
+    showTrans = _settings.showTranslation !== false;
+  }
+  trans.checked = showTrans;
+}
+
+function dismissSettingsOverlay(overlay) {
+  settingsPanelLoadGen++;
+  overlay.classList.add('hidden');
+  refreshSettings();
+}
+
 function initSettings() {
   var btnSettings = document.getElementById('btn-settings');
   var btnNewAiChat = document.getElementById('btn-new-ai-chat');
@@ -11,8 +41,10 @@ function initSettings() {
 
   if (btnSettings && overlay) {
     btnSettings.addEventListener('click', function() {
+      var gen = ++settingsPanelLoadGen;
       overlay.classList.remove('hidden');
-      loadSettingsIntoPanel();
+      setSettingsPanelLoading(true);
+      loadSettingsIntoPanel(gen);
     });
   }
   if (btnNewAiChat) {
@@ -22,15 +54,13 @@ function initSettings() {
   }
   if (btnBack && overlay) {
     btnBack.addEventListener('click', function() {
-      overlay.classList.add('hidden');
-      refreshSettings();
+      dismissSettingsOverlay(overlay);
     });
   }
   if (overlay) {
     overlay.addEventListener('click', function(e) {
       if (e.target === overlay) {
-        overlay.classList.add('hidden');
-        refreshSettings();
+        dismissSettingsOverlay(overlay);
       }
     });
   }
@@ -42,13 +72,18 @@ function refreshSettings() {
   }).getSettings();
 }
 
-function loadSettingsIntoPanel() {
+function loadSettingsIntoPanel(gen) {
   google.script.run
     .withSuccessHandler(function(s) {
-      var trans = document.getElementById('insert-translation');
-      if (trans) trans.checked = s.showTranslation !== false;
+      if (gen !== settingsPanelLoadGen) return;
+      applyTranslationCheckboxFromPayload(s);
+      setSettingsPanelLoading(false);
     })
-    .withFailureHandler(function() {})
+    .withFailureHandler(function() {
+      if (gen !== settingsPanelLoadGen) return;
+      applyTranslationCheckboxFromPayload(null);
+      setSettingsPanelLoading(false);
+    })
     .getSettings();
 }
 

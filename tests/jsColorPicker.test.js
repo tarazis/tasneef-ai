@@ -28,7 +28,7 @@ var PRESET_SWATCH_HEXES_RAW = [
   '#75B39C', '#ADD2CA', '#D5E2D3', '#7CCED2', '#D5EDF8', '#ABCDDE', '#65C0E6',
   '#1EB0E6', '#03468F', '#7D8BE0', '#B5BEF5', '#CDBDEB', '#E1CEE5', '#EFD5FF',
   '#F6E7FF', '#9A81B0', '#7851A5', '#E6B1D3', '#B19F9A', '#E1CFCA', '#F1ECEA',
-  '#E5DACA', '#C9A98D', '#8E715B', '#4F3F3E', '#D2D2D2', '#AAAAAA', '#363636'
+  '#E5DACA', '#C9A98D', '#8E715B', '#4F3F3E', '#D2D2D2', '#AAAAAA', '#000000'
 ];
 
 function buildPresetSwatchHexes() {
@@ -116,7 +116,7 @@ assert.strictEqual(normalizeHex6(null), null);
 var palette = buildPresetSwatchHexes();
 assert.strictEqual(palette.length, 56);
 assert.strictEqual(palette[0], '#EE7EA0');
-assert.strictEqual(palette[55], '#363636');
+assert.strictEqual(palette[55], '#000000');
 var hexRe = /^#[0-9A-F]{6}$/;
 for (var j = 0; j < palette.length; j++) {
   assert.ok(hexRe.test(palette[j]), 'invalid hex at ' + j + ': ' + palette[j]);

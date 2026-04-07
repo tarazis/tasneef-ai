@@ -347,7 +347,7 @@
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 2px;
     white-space: nowrap;
   }
   .tab-btn--ai .tab-btn-ai-icon {
@@ -357,18 +357,34 @@
     flex-shrink: 0;
     line-height: 0;
     color: inherit;
+    margin-inline-end: -2px;
+    animation: spin 8s linear infinite;
   }
   .tab-btn--ai .tab-btn-ai-icon svg {
     width: 1em;
     height: 1em;
     display: block;
     flex-shrink: 0;
+    filter: drop-shadow(0 0 2px rgba(46, 125, 50, 0.5)) drop-shadow(0 0 6px rgba(46, 125, 50, 0.35)) drop-shadow(0 0 10px rgba(67, 160, 71, 0.25));
+  }
+  .tab-btn--ai.active .tab-btn-ai-icon svg {
+    filter: drop-shadow(0 0 3px rgba(46, 125, 50, 0.65)) drop-shadow(0 0 8px rgba(46, 125, 50, 0.45)) drop-shadow(0 0 14px rgba(67, 160, 71, 0.35));
   }
   .tab-btn--ai .tab-btn-ai-label {
     flex-shrink: 0;
     white-space: nowrap;
     line-height: 1.2;
     padding: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tab-btn--ai .tab-btn-ai-icon {
+      animation: none;
+    }
+    .tab-btn--ai .tab-btn-ai-icon svg,
+    .tab-btn--ai.active .tab-btn-ai-icon svg {
+      filter: none;
+    }
   }
 
   /* Tab content area — fills space below nav */
@@ -459,6 +475,8 @@
   .settings-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }
   .settings-overlay.hidden { display: none; }
   .settings-panel { background: #fff; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); max-width: 320px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 20px; }
+  .settings-panel-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 120px; padding: 8px 0 16px; }
+  .settings-panel-loading .startup-spinner { flex-shrink: 0; }
   .settings-panel h2 { margin: 0 0 16px; font-size: 18px; display: flex; align-items: center; gap: 8px; }
   .settings-panel .back-btn { padding: 4px; border: none; background: none; cursor: pointer; color: #666; }
   .settings-panel .back-btn:hover { color: #333; }
