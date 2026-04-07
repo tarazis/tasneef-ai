@@ -2,6 +2,7 @@
 // Depends on: formatState, SAVE_DEBOUNCE_MS (shared-state.html),
 //   pickDefaultRegularVariant, ensureGoogleFontsPreviewStylesheet, arabicPreviewFontStyle (font-variant-utils.html)
 // Reads window._activeTab, window._refreshDirectInsert (sidebar-js.html)
+// initJsColorPicker, syncJsColorPickerSelection (js-color-picker.html)
 
 var saveDebounceTimer = null;
 window._fontCatalog = null;
@@ -40,6 +41,7 @@ function onFontPickerDocClick(e) {
 }
 
 function openFontPicker() {
+  if (typeof closeJsColorPickerPopover === 'function') closeJsColorPickerPopover();
   var drop = document.getElementById('font-picker-dropdown');
   var trig = document.getElementById('font-picker-trigger');
   if (!drop || !trig) return;
@@ -196,8 +198,14 @@ function applyFormatStateToUI() {
     }
   }
   if (boldBtn) boldBtn.classList.toggle('active', formatState.bold);
-  if (colorPicker) colorPicker.value = formatState.textColor;
-  if (colorTrigger) colorTrigger.style.backgroundColor = formatState.textColor;
+  var tc = formatState.textColor || '#000000';
+  if (typeof normalizeHex6 === 'function') {
+    var norm = normalizeHex6(tc);
+    if (norm) tc = norm;
+  }
+  if (colorPicker) colorPicker.value = tc;
+  if (colorTrigger) colorTrigger.style.backgroundColor = tc;
+  if (typeof syncJsColorPickerSelection === 'function') syncJsColorPickerSelection();
 }
 
 window.reconcileFontCatalogState = reconcileFontCatalogState;
@@ -234,18 +242,16 @@ function initFormatBar() {
       }
     });
   }
-  if (colorTrigger && colorPicker) {
-    colorTrigger.addEventListener('click', function () { colorPicker.click(); });
-    function onColorChange() {
-      formatState.textColor = colorPicker.value;
-      colorTrigger.style.backgroundColor = colorPicker.value;
-      debouncedSave();
-      if (window._activeTab === 'direct-insert' && window._refreshDirectInsert) {
-        window._refreshDirectInsert();
-      }
+  function onFormatBarColorChosen(hex) {
+    formatState.textColor = hex;
+    if (colorTrigger) colorTrigger.style.backgroundColor = hex;
+    debouncedSave();
+    if (window._activeTab === 'direct-insert' && window._refreshDirectInsert) {
+      window._refreshDirectInsert();
     }
-    colorPicker.addEventListener('input', onColorChange);
-    colorPicker.addEventListener('change', onColorChange);
+  }
+  if (typeof initJsColorPicker === 'function') {
+    initJsColorPicker(onFormatBarColorChosen, closeFontPicker);
   }
 }
 </script>

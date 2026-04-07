@@ -2,7 +2,8 @@
   "name": "tasneef-ai",
   "private": true,
   "scripts": {
-    "test": "npm run test:client && npm run test:normalize && npm run test:card && npm run test:font",
+    "test": "npm run test:client && npm run test:normalize && npm run test:card && npm run test:font && npm run test:colorpicker",
+    "test:colorpicker": "node tests/jsColorPicker.test.js",
     "test:font": "node tests/fontVariant.test.js",
     "test:client": "node tests/makeClientCache.test.js",
     "test:normalize": "node tests/normalizeArabic.test.js",

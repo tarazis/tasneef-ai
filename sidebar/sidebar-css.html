@@ -32,6 +32,78 @@
   .format-bar .color-trigger { width: 28px; height: 28px; padding: 0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #000; }
   .format-bar .color-picker-hidden { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
 
+  .format-bar .color-picker-popover {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    width: min(302px, calc(100vw - 32px));
+    padding: 10px 10px 8px;
+    background: #fff;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(60, 64, 67, 0.25);
+    z-index: 320;
+  }
+  .format-bar .color-swatch-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 6px 5px;
+    margin-bottom: 10px;
+  }
+  .format-bar .color-swatch {
+    width: 100%;
+    aspect-ratio: 1;
+    max-width: 22px;
+    max-height: 22px;
+    margin: 0 auto;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    box-sizing: border-box;
+    vertical-align: middle;
+  }
+  .format-bar .color-swatch--outline {
+    border: 1px solid #ccc;
+  }
+  .format-bar .color-swatch:hover {
+    box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.5);
+  }
+  .format-bar .color-swatch.is-selected {
+    box-shadow: 0 0 0 2px #1a73e8, 0 1px 3px rgba(0, 0, 0, 0.25);
+  }
+  .format-bar .color-picker-custom-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #5f6368;
+    margin-bottom: 6px;
+  }
+  .format-bar .color-picker-custom-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .format-bar .color-picker-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: #5f6368;
+    cursor: pointer;
+  }
+  .format-bar .color-picker-icon-btn:hover {
+    background: #f1f3f4;
+    color: #202124;
+  }
+
   /* Tab navigation */
   .tab-nav { display: flex; border-bottom: 2px solid #e0e0e0; flex-shrink: 0; padding: 0 8px; }
   /* flex-basis 0 + min-width 0 so each tab gets equal width and the active underline spans the full column */
