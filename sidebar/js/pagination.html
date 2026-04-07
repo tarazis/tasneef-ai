@@ -75,6 +75,9 @@ function pagRenderPage(tabId, containerEl, emptyEl, emptyMsg) {
   if (end < state.results.length) {
     pagAppendShowMoreButton(tabId, containerEl, emptyEl, emptyMsg, state.results.length - end);
   }
+  if (typeof scheduleSettleArabicPreviewFonts === 'function') {
+    scheduleSettleArabicPreviewFonts();
+  }
 }
 
 /**
@@ -107,6 +110,9 @@ function pagRebuildVisibleCards(tabId, containerEl, emptyEl, emptyMsg) {
 
   if (n < state.results.length) {
     pagAppendShowMoreButton(tabId, containerEl, emptyEl, emptyMsg, state.results.length - n);
+  }
+  if (typeof scheduleSettleArabicPreviewFonts === 'function') {
+    scheduleSettleArabicPreviewFonts();
   }
 }
 

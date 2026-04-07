@@ -132,10 +132,12 @@ function insertAyah(ayahData, formatState, settings) {
   var surahNameEn = ayahData.surahNameEnglish || '';
   var ayahNumAr = toArabicIndic(ayahData.ayah);
 
+  /** U+00A0 between ornate parens and ayah (non-breaking; matches preview). */
+  var qNbsp = '\u00A0';
   var paragraphsToInsert = [];
   if (showTranslation && translationText) {
     paragraphsToInsert.push({
-      text: '\uFD3F ' + arabicText + ' \uFD3E',
+      text: '\uFD3F' + qNbsp + arabicText + qNbsp + '\uFD3E',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true
     });
@@ -146,7 +148,7 @@ function insertAyah(ayahData, formatState, settings) {
     });
   } else {
     paragraphsToInsert.push({
-      text: '\uFD3F ' + arabicText + ' \uFD3E [' + surahNameAr + ': ' + ayahNumAr + ']',
+      text: '\uFD3F' + qNbsp + arabicText + qNbsp + '\uFD3E [' + surahNameAr + ': ' + ayahNumAr + ']',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true
     });
@@ -181,10 +183,11 @@ function insertAyahRange(rangeData, formatState, settings) {
   var ayahStartAr     = toArabicIndic(rangeData.ayahStart);
   var ayahEndAr       = toArabicIndic(rangeData.ayahEnd);
 
+  var qNbsp = '\u00A0';
   var paragraphsToInsert = [];
   if (showTranslation && translationText) {
     paragraphsToInsert.push({
-      text: '\uFD3F ' + arabicText + ' \uFD3E',
+      text: '\uFD3F' + qNbsp + arabicText + qNbsp + '\uFD3E',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true
     });
@@ -197,7 +200,7 @@ function insertAyahRange(rangeData, formatState, settings) {
     });
   } else {
     paragraphsToInsert.push({
-      text: '\uFD3F ' + arabicText + ' \uFD3E [' +
+      text: '\uFD3F' + qNbsp + arabicText + qNbsp + '\uFD3E [' +
             surahNameAr + ': ' + ayahStartAr + ' - ' + ayahEndAr + ']',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true

@@ -40,6 +40,9 @@ function renderPreview(containerEl, results) {
   }
 
   containerEl.appendChild(card);
+  if (typeof scheduleSettleArabicPreviewFonts === 'function') {
+    scheduleSettleArabicPreviewFonts();
+  }
 }
 
 /**

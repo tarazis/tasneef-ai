@@ -149,4 +149,65 @@ function arabicPreviewFontStyle(fs) {
     ';font-style:' + (p.italic ? 'italic' : 'normal') +
     ';font-size:' + sz + 'px;color:' + color;
 }
+
+var _settleArabicPreviewFontsTimer = null;
+
+/**
+ * Coalesces multiple preview DOM updates in one task (e.g. refreshAllResultCardPreviews).
+ */
+function scheduleSettleArabicPreviewFonts() {
+  if (_settleArabicPreviewFontsTimer != null) {
+    clearTimeout(_settleArabicPreviewFontsTimer);
+  }
+  _settleArabicPreviewFontsTimer = setTimeout(function() {
+    _settleArabicPreviewFontsTimer = null;
+    settleArabicPreviewFonts();
+  }, 0);
+}
+
+/**
+ * For non-Amiri preview fonts, hide Arabic lines until FontFaceSet can draw them, then fade in.
+ * Amiri is local/stacked — no flash, so we skip the pending state.
+ */
+function settleArabicPreviewFonts() {
+  var nodes = document.querySelectorAll('.result-card .arabic');
+  if (!nodes.length) return;
+
+  var fs = window.getFormatState ? window.getFormatState() : null;
+  var fam = (fs && fs.fontName) || 'Amiri';
+  if (fam === 'Amiri') return;
+
+  var sz = fs && parseInt(fs.fontSize, 10);
+  if (isNaN(sz) || sz < 1) sz = 18;
+  var p = parseGoogleFontVariantClient(fs && fs.fontVariant ? fs.fontVariant : 'regular');
+
+  var styleSpec = (p.italic ? 'italic ' : 'normal ') + p.weight + ' ' + sz + 'px "' +
+    String(fam).replace(/"/g, '') + '"';
+
+  if (document.fonts && document.fonts.check && document.fonts.check(styleSpec)) {
+    return;
+  }
+
+  var i;
+  for (i = 0; i < nodes.length; i++) {
+    nodes[i].classList.add('font-preview-pending');
+  }
+
+  function reveal() {
+    var pending = document.querySelectorAll('.result-card .arabic.font-preview-pending');
+    for (var j = 0; j < pending.length; j++) {
+      pending[j].classList.remove('font-preview-pending');
+    }
+  }
+
+  function doReveal() {
+    requestAnimationFrame(reveal);
+  }
+
+  if (document.fonts && document.fonts.load) {
+    document.fonts.load(styleSpec).then(doReveal, doReveal);
+  } else {
+    setTimeout(doReveal, 120);
+  }
+}
 </script>

@@ -111,7 +111,7 @@ function runDocumentServiceTests() {
 
   function singleArabicParagraph() {
     return [{
-      text: '\uFD3F test \uFD3E',
+      text: '\uFD3F\u00A0test\u00A0\uFD3E',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true
     }];
@@ -120,7 +120,7 @@ function runDocumentServiceTests() {
   function arabicAndTranslation() {
     return [
       {
-        text: '\uFD3F arabic \uFD3E',
+        text: '\uFD3F\u00A0arabic\u00A0\uFD3E',
         align: DocumentApp.HorizontalAlignment.CENTER,
         rtl: true
       },
@@ -154,7 +154,7 @@ function runDocumentServiceTests() {
 
     // [content, cleanup]
     expect(body._children.length).toBe(2);
-    expect(body._children[0]._text).toBe('\uFD3F test \uFD3E');
+    expect(body._children[0]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
     expect(body._children[0]._ltr).toBe(false);
     expect(body._children[1]._text).toBe('');
     expect(body._children[1]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
@@ -171,7 +171,7 @@ function runDocumentServiceTests() {
     // [existing, content, cleanup]
     expect(body._children.length).toBe(3);
     expect(body._children[0]._text).toBe('existing text');
-    expect(body._children[1]._text).toBe('\uFD3F test \uFD3E');
+    expect(body._children[1]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
     expect(body._children[2]._text).toBe('');
     expect(body._children[2]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
     expect(body._children[2]._ltr).toBe(true);
@@ -186,7 +186,7 @@ function runDocumentServiceTests() {
     // Insert at 0, remove original first → [content, '', '']
     // Content is NOT last child → no cleanup
     expect(body._children.length).toBe(3);
-    expect(body._children[0]._text).toBe('\uFD3F test \uFD3E');
+    expect(body._children[0]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
     expect(body._children[1]._text).toBe('');
     expect(body._children[1]._heading).toBe(null);
     expect(body._children[2]._text).toBe('');
@@ -201,7 +201,7 @@ function runDocumentServiceTests() {
     // Original empty removed, content is only child → cleanup added
     // [content, cleanup]
     expect(body._children.length).toBe(2);
-    expect(body._children[0]._text).toBe('\uFD3F test \uFD3E');
+    expect(body._children[0]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
     expect(body._children[1]._text).toBe('');
     expect(body._children[1]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
   });
@@ -215,7 +215,7 @@ function runDocumentServiceTests() {
 
     // [first, last, content, cleanup]
     expect(body._children.length).toBe(4);
-    expect(body._children[2]._text).toBe('\uFD3F test \uFD3E');
+    expect(body._children[2]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
     expect(body._children[3]._text).toBe('');
     expect(body._children[3]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
     expect(body._children[3]._ltr).toBe(true);
@@ -234,7 +234,7 @@ function runDocumentServiceTests() {
     expect(body._children.length).toBe(4);
     expect(body._children[0]._text).toBe('first');
     expect(body._children[1]._text).toBe('second');
-    expect(body._children[2]._text).toBe('\uFD3F test \uFD3E');
+    expect(body._children[2]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
     expect(body._children[3]._text).toBe('');
     expect(body._children[3]._heading).toBe(null);
   });
@@ -249,7 +249,7 @@ function runDocumentServiceTests() {
     // [first, content, second, third] — content is NOT last → no cleanup
     expect(body._children.length).toBe(4);
     expect(body._children[0]._text).toBe('first');
-    expect(body._children[1]._text).toBe('\uFD3F test \uFD3E');
+    expect(body._children[1]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
     expect(body._children[2]._text).toBe('second');
     expect(body._children[3]._text).toBe('third');
   });
@@ -263,7 +263,7 @@ function runDocumentServiceTests() {
 
     // [first, content, '   '] — spaces paragraph after → no cleanup
     expect(body._children.length).toBe(3);
-    expect(body._children[1]._text).toBe('\uFD3F test \uFD3E');
+    expect(body._children[1]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
     expect(body._children[2]._text).toBe('   ');
     expect(body._children[2]._heading).toBe(null);
   });
@@ -315,7 +315,7 @@ function runDocumentServiceTests() {
 
     // [existing, arabic, translation, cleanup]
     expect(body._children.length).toBe(4);
-    expect(body._children[1]._text).toBe('\uFD3F arabic \uFD3E');
+    expect(body._children[1]._text).toBe('\uFD3F\u00A0arabic\u00A0\uFD3E');
     expect(body._children[1]._ltr).toBe(false);
     expect(body._children[2]._text).toBe('"translation" (Al-Fatiha 1:1)');
     expect(body._children[2]._ltr).toBe(null);
@@ -333,7 +333,7 @@ function runDocumentServiceTests() {
 
     // [existing, arabic, translation, after] — no cleanup
     expect(body._children.length).toBe(4);
-    expect(body._children[1]._text).toBe('\uFD3F arabic \uFD3E');
+    expect(body._children[1]._text).toBe('\uFD3F\u00A0arabic\u00A0\uFD3E');
     expect(body._children[2]._text).toBe('"translation" (Al-Fatiha 1:1)');
     expect(body._children[3]._text).toBe('after');
     expect(body._children[3]._heading).toBe(null);

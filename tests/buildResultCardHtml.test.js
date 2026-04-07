@@ -32,7 +32,8 @@ function escapeHtml(s) {
 }
 
 function wrapArabicPreviewWithQuranicBraces(innerHtmlFragment) {
-  return '\uFD3F ' + innerHtmlFragment + ' \uFD3E';
+  var nb = '\u00A0';
+  return '\uFD3F' + nb + innerHtmlFragment + nb + '\uFD3E';
 }
 
 function parseGoogleFontVariantClient(token) {
@@ -549,6 +550,7 @@ function runTests() {
     var openIdx = html.indexOf('\uFD3F');
     var closeIdx = html.indexOf('\uFD3E');
     assert.ok(openIdx >= 0 && closeIdx > openIdx, 'U+FD3F / U+FD3E present in order');
+    assert.ok(html.indexOf('\uFD3F\u00A0') === openIdx, 'NBSP after opening brace (not regular space)');
     assert.ok(html.indexOf('بسم الله') > openIdx && html.indexOf('بسم الله') < closeIdx, 'Arabic between braces');
   });
 

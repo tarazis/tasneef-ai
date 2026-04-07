@@ -10,9 +10,10 @@ function escapeHtml(s) {
   return d.innerHTML;
 }
 
-/** Same ornate parentheses as DocumentService.insertAyah / insertAyahRange (\uFD3F … \uFD3E). */
+/** Same ornate parentheses + U+00A0 as DocumentService (NBSP between brace and ayah). */
 function wrapArabicPreviewWithQuranicBraces(innerHtmlFragment) {
-  return '\uFD3F ' + innerHtmlFragment + ' \uFD3E';
+  var nb = '\u00A0';
+  return '\uFD3F' + nb + innerHtmlFragment + nb + '\uFD3E';
 }
 
 var _ARABIC_INDIC = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
@@ -69,7 +70,7 @@ function buildRangeData(results) {
  * and a .btn-toggle-translation link to show/hide it.
  *
  * Card structure:
- *   .ref-arabic | .arabic[.range-block] (U+FD3F … U+FD3E around Arabic, same as insert) | .ref-english | …
+ *   .ref-arabic | .arabic[.range-block] (U+FD3F U+00A0 … U+00A0 U+FD3E, same as insert) | .ref-english | …
  *
  * @param {Object} cardData
  *   Single: { surah, ayah, surahNameArabic, surahNameEnglish, arabicText, translationText?, matchStart?, matchEnd? }
