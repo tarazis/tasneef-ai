@@ -338,10 +338,10 @@
   .tab-nav { display: flex; border-bottom: 2px solid #e0e0e0; flex-shrink: 0; padding: 0 8px; }
   /* flex-basis 0 + min-width 0 so each tab gets equal width and the active underline spans the full column */
   .tab-btn { flex: 1 1 0; min-width: 0; padding: 10px 4px; border: none; background: none; font-size: 13px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color 0.15s, border-color 0.15s; }
-  .tab-btn:hover { color: #333; }
+  .tab-btn:hover { color: #2e7d32; }
   .tab-btn.active { color: #2e7d32; border-bottom-color: #2e7d32; }
 
-  /* AI tab: sparkles left of label; green on hover from .tab-btn--ai:hover; selected from .tab-btn.active */
+  /* AI tab: sparkles left of label; hover color same as all tabs (.tab-btn:hover) */
   .tab-btn--ai {
     display: flex;
     flex-direction: row;
@@ -349,9 +349,6 @@
     justify-content: center;
     gap: 3px;
     white-space: nowrap;
-  }
-  .tab-btn--ai:hover {
-    color: #2e7d32;
   }
   .tab-btn--ai .tab-btn-ai-icon {
     display: inline-flex;
