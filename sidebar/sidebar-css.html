@@ -38,6 +38,14 @@
   .tab-btn:hover { color: #333; }
   .tab-btn.active { color: #2e7d32; border-bottom-color: #2e7d32; }
 
+  .tab-btn--ai { display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+  .tab-btn--ai .tab-btn-ai-sparkles { display: inline-flex; align-items: center; gap: 2px; line-height: 0; }
+  .tab-btn--ai .tab-btn-ai-sparkles svg { width: 9px; height: 9px; flex-shrink: 0; fill: #7986cb; opacity: 0.55; transition: opacity 0.2s ease, filter 0.2s ease; }
+  .tab-btn--ai .tab-btn-ai-sparkles svg:last-child { width: 7px; height: 7px; fill: #5c6bc0; }
+  .tab-btn--ai:hover .tab-btn-ai-sparkles svg { opacity: 0.95; filter: drop-shadow(0 0 4px rgba(26, 115, 232, 0.45)); }
+  .tab-btn--ai.active .tab-btn-ai-sparkles svg { opacity: 0.9; fill: #3949ab; }
+  .tab-btn--ai.active:hover .tab-btn-ai-sparkles svg { filter: drop-shadow(0 0 5px rgba(26, 115, 232, 0.55)); }
+
   /* Tab content area — fills space below nav */
   .tab-content { flex: 1; overflow: hidden; min-height: 0; }
   .tab-panel { display: none; flex-direction: column; height: 100%; }
@@ -66,7 +74,7 @@
   .result-card .translation { font-size: 12px; color: #555; margin: 6px 0 0; line-height: 1.5; }
   .result-card .btn-toggle-translation { display: inline-block; font-size: 11px; color: #2e7d32; cursor: pointer; margin-top: 4px; user-select: none; }
   .result-card .btn-toggle-translation:hover { text-decoration: underline; }
-  .result-card .btn-insert-result { margin-top: 8px; padding: 6px 12px; font-size: 12px; }
+  .result-card .btn-insert-result { display: block; width: 100%; margin-top: 8px; padding: 6px 12px; font-size: 12px; }
 
   /* Clarify message from Claude */
   .clarify-message { padding: 12px 16px; margin: 8px 16px; background: #f5f5f5; border-radius: 8px; font-size: 13px; color: #333; line-height: 1.5; }
@@ -96,7 +104,8 @@
 
   /* Insert button loading spinner */
   .btn-insert-result.btn-loading { color: transparent; pointer-events: none; position: relative; }
-  .btn-insert-result.btn-loading::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.5); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  /* margin centers ::after so rotate-only @keyframes spin does not fight translate(-50%,-50%) */
+  .btn-insert-result.btn-loading::after { content: ''; position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border: 2px solid rgba(255,255,255,0.5); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
 
   /* Input area pinned to bottom of tab */
   .tab-input-area { flex-shrink: 0; padding: 12px 16px; border-top: 1px solid #e0e0e0; background: #fff; }
@@ -119,6 +128,7 @@
 
   .btn-icon { padding: 8px; border: none; background: none; cursor: pointer; color: #666; border-radius: 4px; font-size: 16px; }
   .btn-icon:hover { background: #f0f0f0; color: #333; }
+  .btn-icon svg { display: block; vertical-align: middle; }
 
   /* Settings overlay */
   .settings-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }

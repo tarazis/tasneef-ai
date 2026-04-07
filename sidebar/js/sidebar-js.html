@@ -40,21 +40,6 @@
     }
   }
 
-  function clearActiveTab() {
-    switch (window._activeTab) {
-      case 'direct-insert':
-        clearDirectInsert();
-        break;
-      case 'exact-search':
-        clearExactSearch();
-        break;
-      case 'ai-search':
-        clearAISearch();
-        break;
-    }
-  }
-  window.clearActiveTab = clearActiveTab;
-
   function setupTextarea(el, onSubmit) {
     if (!el) return;
     el.addEventListener('input', function() {

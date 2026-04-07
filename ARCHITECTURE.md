@@ -40,10 +40,10 @@ tasneef-ai/
 │       ├── render-helpers.html    renderPreview(), onInsertClick(), makeSkeleton()
 │       ├── format-bar.html        debouncedSave(), applyFormatStateToUI(), initFormatBar()
 │       ├── settings-panel-js.html initSettings(), refreshSettings(), loadSettingsIntoPanel(), initSettingsPanelHandlers(), onSettingsLoaded(), onFontsLoaded()
-│       ├── tab-direct-insert-js.html  initDirectInsertTab(), clearDirectInsert()
-│       ├── tab-exact-search-js.html   initExactSearchTab(), clearExactSearch()
+│       ├── tab-direct-insert-js.html  initDirectInsertTab()
+│       ├── tab-exact-search-js.html   initExactSearchTab()
 │       ├── tab-ai-search-js.html      _conversationMessages, initAISearchTab(), clearAISearch()
-│       └── sidebar-js.html        IIFE: tab nav, clearActiveTab, setupTextarea, init() bootstrap
+│       └── sidebar-js.html        IIFE: tab nav, setupTextarea, init() bootstrap
 │
 └── tests/
     ├── makeClientCache.test.js    Node tests for cache factory
@@ -72,11 +72,11 @@ sidebar/js/card-builder         — pure rendering utils; no runtime deps on ear
 sidebar/js/pagination           — calls buildCardHtml (card-builder), window.getFormatState (shared-state)
 sidebar/js/render-helpers       — calls buildCardHtml, buildRangeData (card-builder); _buildAyahDataForInsert (search-utils)
 sidebar/js/format-bar           — reads/writes formatState, SAVE_DEBOUNCE_MS (shared-state); reads window._activeTab, window._refreshDirectInsert
-sidebar/js/settings-panel-js    — reads/writes _settings, formatState; calls applyFormatStateToUI (format-bar); calls window.clearActiveTab
+sidebar/js/settings-panel-js    — reads/writes _settings, formatState; calls applyFormatStateToUI (format-bar); header New chat → clearAISearch
 sidebar/js/tab-direct-insert-js — reads _surahList, MAX_RESULTS; calls cache accessors, renderPreview, onInsertClick; sets window._refreshDirectInsert
 sidebar/js/tab-exact-search-js  — calls pagClear/Reset/RenderPage, searchImlaeiClient, onInsertClick
 sidebar/js/tab-ai-search-js     — calls all of the above; reads/writes _conversationMessages; calls window.setupTextarea
-sidebar/js/sidebar-js           — IIFE: exposes window.clearActiveTab, window.setupTextarea; calls init() on DOMContentLoaded
+sidebar/js/sidebar-js           — IIFE: exposes window.setupTextarea; calls init() on DOMContentLoaded
 ```
 
 **Key ordering constraints:**
@@ -104,9 +104,9 @@ sidebar/js/sidebar-js           — IIFE: exposes window.clearActiveTab, window.
 ### Window-bridge properties (set by IIFE, read by global scripts)
 | Property | Set by | Read by |
 |---|---|---|
-| `window._activeTab` | `sidebar-js` IIFE (`switchTab`) | `format-bar` (`initFormatBar` event handlers), `settings-panel-js` (`clearActiveTab`) |
+| `window._activeTab` | `sidebar-js` IIFE (`switchTab`) | `format-bar` (`initFormatBar` event handlers) |
 | `window._refreshDirectInsert` | `tab-direct-insert-js` (`initDirectInsertTab`) | `format-bar` (`initFormatBar` event handlers) |
-| `window.clearActiveTab` | `sidebar-js` IIFE | `settings-panel-js` (`initSettings` clear button) |
+| `clearAISearch()` | `tab-ai-search-js` (global fn) | `settings-panel-js` (`initSettings` header New chat button) |
 | `window.setupTextarea` | `sidebar-js` IIFE | `tab-ai-search-js` (`initAISearchTab`) |
 | `window.getFormatState` | `shared-state` | `render-helpers` (`onInsertClick`), `pagination` (`pagRenderPage`) |
 
@@ -266,8 +266,8 @@ Any non-clarify response resets _conversationMessages = [].
 | `window._refreshDirectInsert` | IIFE (`sidebar-js`) initial `null` | Set to `autoRenderPreview` by `initDirectInsertTab` |
 | `_conversationMessages` | `tab-ai-search-js.html` global | `clearAISearch()`, any non-clarify AI response |
 | Pagination state `_pagState` | `pagination.html` module-private | `pagReset()` (new search), `pagClear()` (tab clear) |
-| Direct Insert DOM state | DOM only | `clearDirectInsert()` — resets selects + results |
-| Exact Search DOM state | DOM only | `clearExactSearch()` — clears input + results |
-| AI Search DOM state | DOM only | `clearAISearch()` — clears input, results, clarify, no-key banner |
+| Direct Insert DOM state | DOM only | User changes surah/ayah selects; tab switch does not clear |
+| Exact Search DOM state | DOM only | User clears query or edits search; tab switch does not clear |
+| AI Search DOM state | DOM only | `clearAISearch()` — clears input, results, clarify, conversation; invoked by header **New chat** (sparkle) button |
 
-**What triggers a clear:** `window.clearActiveTab()` is called by the 🗑 button in the header and dispatches to the active tab's `clear*()` function. Tab switches do **not** clear state — switching back restores previous results.
+**What triggers AI reset:** The header **New chat** control calls `clearAISearch()` only. Browse and Search tabs are not cleared from the header. Tab switches do **not** clear state — switching back restores previous results for Browse/Search.

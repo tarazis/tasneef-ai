@@ -18,7 +18,9 @@
         <span class="title">Tasneef AI</span>
       </div>
       <div class="header-actions">
-        <button type="button" class="btn-icon" id="btn-clear" title="Clear" aria-label="Clear">&#128465;</button>
+        <button type="button" class="btn-icon" id="btn-new-ai-chat" title="New chat" aria-label="New chat">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2l1.5 7.5L21 11l-7.5 1.5L12 20l-1.5-7.5L3 11l7.5-1.5L12 2z"/></svg>
+        </button>
         <button type="button" class="btn-icon" id="btn-settings" title="Settings" aria-label="Settings">&#9881;</button>
       </div>
     </header>
@@ -28,7 +30,13 @@
     <nav class="tab-nav">
       <button type="button" class="tab-btn active" data-tab="direct-insert">Browse</button>
       <button type="button" class="tab-btn" data-tab="exact-search">Search</button>
-      <button type="button" class="tab-btn" data-tab="ai-search">AI Search</button>
+      <button type="button" class="tab-btn tab-btn--ai" data-tab="ai-search">
+        <span class="tab-btn-ai-label">AI Search</span>
+        <span class="tab-btn-ai-sparkles" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2l1.5 7.5L21 11l-7.5 1.5L12 20l-1.5-7.5L3 11l7.5-1.5L12 2z"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2l1.5 7.5L21 11l-7.5 1.5L12 20l-1.5-7.5L3 11l7.5-1.5L12 2z"/></svg>
+        </span>
+      </button>
     </nav>
 
     <main class="tab-content">

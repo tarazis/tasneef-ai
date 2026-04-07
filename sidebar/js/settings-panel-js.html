@@ -1,11 +1,11 @@
 <script>
 // Depends on globals: _settings, formatState (shared-state.html),
 //   applyFormatStateToUI (format-bar.html)
-// Reads window.clearActiveTab (set by sidebar-js.html IIFE)
+// Header "New chat" calls clearAISearch (tab-ai-search-js.html)
 
 function initSettings() {
   var btnSettings = document.getElementById('btn-settings');
-  var btnClear = document.getElementById('btn-clear');
+  var btnNewAiChat = document.getElementById('btn-new-ai-chat');
   var overlay = document.getElementById('settings-overlay');
   var btnBack = document.getElementById('btn-settings-back');
 
@@ -15,9 +15,9 @@ function initSettings() {
       loadSettingsIntoPanel();
     });
   }
-  if (btnClear) {
-    btnClear.addEventListener('click', function() {
-      if (window.clearActiveTab) window.clearActiveTab();
+  if (btnNewAiChat) {
+    btnNewAiChat.addEventListener('click', function() {
+      if (typeof clearAISearch === 'function') clearAISearch();
     });
   }
   if (btnBack && overlay) {

@@ -125,17 +125,4 @@ function initDirectInsertTab() {
   if (resultsEl) resultsEl.addEventListener('click', onInsertClick);
   if (resultsEl) resultsEl.addEventListener('click', onToggleTranslationClick);
 }
-
-function clearDirectInsert() {
-  var surahSelect = document.getElementById('surah-select');
-  var ayahStart = document.getElementById('ayah-start');
-  var ayahEnd = document.getElementById('ayah-end');
-  var resultsEl = document.getElementById('direct-insert-results');
-  var emptyEl = document.getElementById('direct-insert-empty');
-  if (surahSelect) surahSelect.value = '';
-  if (ayahStart) { ayahStart.innerHTML = '<option value="">From</option>'; ayahStart.disabled = true; }
-  if (ayahEnd) { ayahEnd.innerHTML = '<option value="">To</option>'; ayahEnd.disabled = true; }
-  if (resultsEl) resultsEl.innerHTML = '';
-  if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
-}
 </script>
