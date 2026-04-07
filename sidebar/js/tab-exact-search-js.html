@@ -6,7 +6,6 @@
 
 function initExactSearchTab() {
   var queryEl = document.getElementById('exact-search-query');
-  var btnSearch = document.getElementById('btn-exact-search');
   var resultsEl = document.getElementById('exact-search-results');
   var emptyEl = document.getElementById('exact-search-empty');
   var debounceTimer = null;
@@ -68,7 +67,6 @@ function initExactSearchTab() {
     }
   });
 
-  if (btnSearch) btnSearch.addEventListener('click', doExactSearch);
   if (resultsEl) resultsEl.addEventListener('click', onInsertClick);
   if (resultsEl) resultsEl.addEventListener('click', onToggleTranslationClick);
 }
