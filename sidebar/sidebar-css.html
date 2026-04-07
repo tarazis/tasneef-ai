@@ -39,12 +39,33 @@
   .tab-btn.active { color: #2e7d32; border-bottom-color: #2e7d32; }
 
   .tab-btn--ai { display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
-  .tab-btn--ai .tab-btn-ai-sparkles { display: inline-flex; align-items: center; gap: 2px; line-height: 0; }
-  .tab-btn--ai .tab-btn-ai-sparkles svg { width: 9px; height: 9px; flex-shrink: 0; fill: #7986cb; opacity: 0.55; transition: opacity 0.2s ease, filter 0.2s ease; }
-  .tab-btn--ai .tab-btn-ai-sparkles svg:last-child { width: 7px; height: 7px; fill: #5c6bc0; }
-  .tab-btn--ai:hover .tab-btn-ai-sparkles svg { opacity: 0.95; filter: drop-shadow(0 0 4px rgba(26, 115, 232, 0.45)); }
-  .tab-btn--ai.active .tab-btn-ai-sparkles svg { opacity: 0.9; fill: #3949ab; }
-  .tab-btn--ai.active:hover .tab-btn-ai-sparkles svg { filter: drop-shadow(0 0 5px rgba(26, 115, 232, 0.55)); }
+  .tab-btn--ai .tab-btn-ai-sparkles { display: inline-flex; align-items: center; gap: 3px; line-height: 0; }
+  .tab-btn--ai .tab-ai-sparkle { display: inline-flex; align-items: center; justify-content: center; transform-origin: center center; color: #66bb6a; opacity: 0.65; transition: opacity 0.2s ease, color 0.2s ease; }
+  .tab-btn--ai .tab-ai-sparkle svg { width: 18px; height: 18px; flex-shrink: 0; display: block; }
+  .tab-btn--ai .tab-ai-sparkle--sm svg { width: 14px; height: 14px; }
+  .tab-btn--ai.active .tab-ai-sparkle { color: #2e7d32; opacity: 0.88; }
+
+  @keyframes ai-tab-sparkle-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes ai-tab-sparkle-green {
+    0% { color: #1b5e20; }
+    20% { color: #2e7d32; }
+    40% { color: #43a047; }
+    60% { color: #66bb6a; }
+    80% { color: #81c784; }
+    100% { color: #1b5e20; }
+  }
+  @keyframes ai-tab-sparkle-glitter {
+    0%, 100% { opacity: 1; filter: drop-shadow(0 0 1px rgba(46, 125, 50, 0.45)); }
+    50% { opacity: 0.88; filter: drop-shadow(0 0 6px rgba(129, 199, 132, 0.95)); }
+  }
+
+  .tab-btn--ai:hover .tab-ai-sparkle:nth-child(1) {
+    animation: ai-tab-sparkle-spin 2.4s linear infinite, ai-tab-sparkle-green 2s ease-in-out infinite, ai-tab-sparkle-glitter 1s ease-in-out infinite;
+  }
+  .tab-btn--ai:hover .tab-ai-sparkle:nth-child(2) {
+    animation: ai-tab-sparkle-spin 2.8s linear infinite reverse, ai-tab-sparkle-green 2.3s ease-in-out infinite, ai-tab-sparkle-glitter 1.15s ease-in-out infinite;
+    animation-delay: 0s, -0.6s, -0.35s;
+  }
 
   /* Tab content area — fills space below nav */
   .tab-content { flex: 1; overflow: hidden; min-height: 0; }
