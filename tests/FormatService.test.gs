@@ -59,12 +59,12 @@ function runFormatServiceTests() {
     expect(a.fontName).toBe('Figtree');
     expect(a.bold).toBe(false);
   });
-  it('copies fields; Figtree; regular variant (no Arabic weight); size minus 2; never bold', function () {
+  it('copies fields; Figtree; regular variant (no Arabic weight); size minus 4; never bold', function () {
     var fs = { fontName: 'Scheherazade New', fontVariant: '700', fontSize: 14, bold: true, textColor: '#000' };
     var b = formatStateForEnglishTranslation(fs);
     expect(b.fontName).toBe('Figtree');
     expect(b.fontVariant).toBe('regular');
-    expect(b.fontSize).toBe(12);
+    expect(b.fontSize).toBe(10);
     expect(b.bold).toBe(false);
     expect(b.textColor).toBe('#000');
   });

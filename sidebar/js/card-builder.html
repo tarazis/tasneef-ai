@@ -10,6 +10,11 @@ function escapeHtml(s) {
   return d.innerHTML;
 }
 
+/** Same ornate parentheses as DocumentService.insertAyah / insertAyahRange (\uFD3F … \uFD3E). */
+function wrapArabicPreviewWithQuranicBraces(innerHtmlFragment) {
+  return '\uFD3F ' + innerHtmlFragment + ' \uFD3E';
+}
+
 var _ARABIC_INDIC = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
 function toArabicIndicClient(num) {
   return String(Math.floor(Number(num) || 0)).replace(/[0-9]/g, function(d) {
@@ -64,7 +69,7 @@ function buildRangeData(results) {
  * and a .btn-toggle-translation link to show/hide it.
  *
  * Card structure:
- *   .ref-arabic | .arabic[.range-block] | .ref-english | [a.btn-toggle-translation | .translation.hidden] | button.btn-insert-result
+ *   .ref-arabic | .arabic[.range-block] (U+FD3F … U+FD3E around Arabic, same as insert) | .ref-english | …
  *
  * @param {Object} cardData
  *   Single: { surah, ayah, surahNameArabic, surahNameEnglish, arabicText, translationText?, matchStart?, matchEnd? }
@@ -97,7 +102,7 @@ function buildCardHtml(cardData, fontOrFs) {
       (cardData.surahNameEnglish || 'Surah') + ' ' +
       cardData.surah + ':' + cardData.ayahStart + '-' + cardData.ayahEnd
     );
-    arabicHtml = escapeHtml(cardData.arabicText);
+    arabicHtml = wrapArabicPreviewWithQuranicBraces(escapeHtml(cardData.arabicText));
 
     return '<div class="ref-arabic">' + arabicRef + '</div>' +
       '<div class="arabic range-block" style="' + escapeHtml(arabicCss) + '">' + arabicHtml + '</div>' +
@@ -119,6 +124,8 @@ function buildCardHtml(cardData, fontOrFs) {
     var after  = escapeHtml(cardData.arabicText.substring(cardData.matchEnd));
     arabicHtml = before + '<mark>' + match + '</mark>' + after;
   }
+
+  arabicHtml = wrapArabicPreviewWithQuranicBraces(arabicHtml);
 
   return '<div class="ref-arabic">' + arabicRef + '</div>' +
     '<div class="arabic" style="' + escapeHtml(arabicCss) + '">' + arabicHtml + '</div>' +

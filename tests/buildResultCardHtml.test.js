@@ -31,6 +31,10 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
+function wrapArabicPreviewWithQuranicBraces(innerHtmlFragment) {
+  return '\uFD3F ' + innerHtmlFragment + ' \uFD3E';
+}
+
 function parseGoogleFontVariantClient(token) {
   if (token == null || typeof token !== 'string') return { weight: 400, italic: false };
   var t = token.replace(/\s/g, '');
@@ -131,7 +135,7 @@ function buildCardHtml(cardData, fontOrFs) {
       (cardData.surahNameEnglish || 'Surah') + ' ' +
       cardData.surah + ':' + cardData.ayahStart + '-' + cardData.ayahEnd
     );
-    arabicHtml = escapeHtml(cardData.arabicText);
+    arabicHtml = wrapArabicPreviewWithQuranicBraces(escapeHtml(cardData.arabicText));
 
     return '<div class="ref-arabic">' + arabicRef + '</div>' +
       '<div class="arabic range-block" style="' + escapeHtml(arabicCss) + '">' + arabicHtml + '</div>' +
@@ -153,6 +157,8 @@ function buildCardHtml(cardData, fontOrFs) {
     var after  = escapeHtml(cardData.arabicText.substring(cardData.matchEnd));
     arabicHtml = before + '<mark>' + match + '</mark>' + after;
   }
+
+  arabicHtml = wrapArabicPreviewWithQuranicBraces(arabicHtml);
 
   return '<div class="ref-arabic">' + arabicRef + '</div>' +
     '<div class="arabic" style="' + escapeHtml(arabicCss) + '">' + arabicHtml + '</div>' +
@@ -533,6 +539,32 @@ function runTests() {
     assert.ok(html.indexOf("font-family:'Scheherazade New',serif") >= 0, 'custom font applied');
   });
 
+  it('single: wraps Arabic preview with quranic ornate parentheses (matches insert)', function () {
+    var r = {
+      surah: 1, ayah: 1,
+      surahNameArabic: 'الفاتحة', surahNameEnglish: 'Al-Fatihah',
+      arabicText: 'بسم الله'
+    };
+    var html = buildCardHtml(r, 'Amiri');
+    var openIdx = html.indexOf('\uFD3F');
+    var closeIdx = html.indexOf('\uFD3E');
+    assert.ok(openIdx >= 0 && closeIdx > openIdx, 'U+FD3F / U+FD3E present in order');
+    assert.ok(html.indexOf('بسم الله') > openIdx && html.indexOf('بسم الله') < closeIdx, 'Arabic between braces');
+  });
+
+  it('single: quranic braces wrap highlighted match', function () {
+    var r = {
+      surah: 1, ayah: 1,
+      surahNameArabic: 'الفاتحة', surahNameEnglish: 'Al-Fatihah',
+      arabicText: 'بسم الله الرحمن الرحيم',
+      matchStart: 0,
+      matchEnd: 3
+    };
+    var html = buildCardHtml(r, 'Amiri');
+    assert.ok(html.indexOf('\uFD3F') < html.indexOf('<mark>'), 'opening brace before mark');
+    assert.ok(html.indexOf('</mark>') < html.indexOf('\uFD3E'), 'closing brace after mark');
+  });
+
   it('single: formatState object applies font-size and color', function () {
     var r = {
       surah: 1, ayah: 1,
@@ -629,6 +661,7 @@ function runTests() {
     var data = { isRange: true, surah: 2, ayahStart: 255, ayahEnd: 257, surahNameArabic: 'البقرة', surahNameEnglish: 'Al-Baqarah', arabicText: 'text' };
     var html = buildCardHtml(data, 'Amiri');
     assert.ok(html.indexOf('range-block') >= 0, 'range-block class present');
+    assert.ok(html.indexOf('\uFD3F') >= 0 && html.indexOf('\uFD3E') >= 0, 'quranic braces on range preview');
   });
 
   it('range: shows Arabic ref as start - end range', function () {
