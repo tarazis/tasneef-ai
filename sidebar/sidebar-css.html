@@ -39,7 +39,7 @@
   .tab-btn:hover { color: #333; }
   .tab-btn.active { color: #2e7d32; border-bottom-color: #2e7d32; }
 
-  /* AI tab: one flex row — label + sparkles centered as a group, vertically aligned */
+  /* AI tab: Lucide-style sparkles (1em) left of label; color inherits = same as tab text */
   .tab-btn--ai {
     display: flex;
     flex-direction: row;
@@ -48,45 +48,25 @@
     gap: 6px;
     white-space: nowrap;
   }
+  .tab-btn--ai .tab-btn-ai-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    line-height: 0;
+    color: inherit;
+  }
+  .tab-btn--ai .tab-btn-ai-icon svg {
+    width: 1em;
+    height: 1em;
+    display: block;
+    flex-shrink: 0;
+  }
   .tab-btn--ai .tab-btn-ai-label {
     flex-shrink: 0;
     white-space: nowrap;
     line-height: 1.2;
     padding: 0;
-  }
-  .tab-btn--ai .tab-btn-ai-sparkles {
-    display: inline-flex;
-    align-items: center;
-    flex-shrink: 0;
-    gap: 0;
-    line-height: 0;
-  }
-  .tab-btn--ai .tab-ai-sparkle { display: inline-flex; align-items: center; justify-content: center; transform-origin: center center; color: #66bb6a; opacity: 0.65; transition: opacity 0.2s ease, color 0.2s ease; }
-  .tab-btn--ai .tab-ai-sparkle svg { width: 18px; height: 18px; flex-shrink: 0; display: block; }
-  .tab-btn--ai .tab-ai-sparkle--sm { margin-left: -4px; }
-  .tab-btn--ai .tab-ai-sparkle--sm svg { width: 14px; height: 14px; }
-  .tab-btn--ai.active .tab-ai-sparkle { color: #2e7d32; opacity: 0.88; }
-
-  @keyframes ai-tab-sparkle-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-  @keyframes ai-tab-sparkle-green {
-    0% { color: #1b5e20; }
-    20% { color: #2e7d32; }
-    40% { color: #43a047; }
-    60% { color: #66bb6a; }
-    80% { color: #81c784; }
-    100% { color: #1b5e20; }
-  }
-  @keyframes ai-tab-sparkle-glitter {
-    0%, 100% { opacity: 1; filter: drop-shadow(0 0 1px rgba(46, 125, 50, 0.45)); }
-    50% { opacity: 0.88; filter: drop-shadow(0 0 6px rgba(129, 199, 132, 0.95)); }
-  }
-
-  .tab-btn--ai:hover .tab-ai-sparkle:nth-child(1) {
-    animation: ai-tab-sparkle-spin 2.4s linear infinite, ai-tab-sparkle-green 2s ease-in-out infinite, ai-tab-sparkle-glitter 1s ease-in-out infinite;
-  }
-  .tab-btn--ai:hover .tab-ai-sparkle:nth-child(2) {
-    animation: ai-tab-sparkle-spin 2.8s linear infinite reverse, ai-tab-sparkle-green 2.3s ease-in-out infinite, ai-tab-sparkle-glitter 1.15s ease-in-out infinite;
-    animation-delay: 0s, -0.6s, -0.35s;
   }
 
   /* Tab content area — fills space below nav */
