@@ -10,14 +10,26 @@
       <button type="button" class="ai-chip" data-query="Duas for guidance">Duas for guidance</button>
     </div>
   </div>
+  <div id="ai-query-bar" class="ai-query-bar hidden" aria-live="polite">
+    <div class="ai-query-bar-main">
+      <span class="ai-query-label">Results for:</span>
+      <span class="ai-query-text" id="ai-query-text"></span>
+    </div>
+    <button type="button" class="btn-icon ai-query-bar-new-chat" id="btn-new-ai-chat-inline" title="New chat" aria-label="New chat">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <rect x="4" y="5" width="12" height="14" rx="2.5" ry="2.5" fill="none"/>
+        <path d="M14.5 3.5L20 9l-7 7H10v-4l7-7z" fill="none"/>
+      </svg>
+    </button>
+  </div>
   <div id="ai-search-results" class="results-list"></div>
   <div id="ai-search-clarify" class="clarify-message hidden"></div>
   <div id="ai-search-empty" class="empty-state hidden"></div>
   <div class="tab-input-area">
-    <div class="tab-input-wrap">
+    <div class="tab-input-wrap tab-input-wrap--composer">
       <textarea id="ai-search-query" rows="2" placeholder="Search themes (e.g., patience, charity)..."></textarea>
       <button type="button" class="btn-send" id="btn-ai-search" title="Send" aria-label="Send">&#10148;</button>
     </div>
-    <p class="ai-disclaimer">AI can make mistakes.</p>
+    <p class="ai-disclaimer">Tasneef uses AI and can make mistakes.</p>
   </div>
 </div>

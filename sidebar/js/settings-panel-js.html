@@ -1,7 +1,6 @@
 <script>
 // Depends on globals: _settings, formatState (shared-state.html),
 //   applyFormatStateToUI (format-bar.html)
-// Header "New chat" calls clearAISearch (tab-ai-search-js.html)
 
 var settingsPanelLoadGen = 0;
 
@@ -113,15 +112,8 @@ function initHeaderMenu() {
 // ─── Init ──────────────────────────────────────────────────────────────────
 
 function initSettings() {
-  var btnNewAiChat = document.getElementById('btn-new-ai-chat');
   var btnBack = document.getElementById('btn-settings-back');
 
-  if (btnNewAiChat) {
-    btnNewAiChat.addEventListener('click', function () {
-      if (btnNewAiChat.disabled) return;
-      if (typeof clearAISearch === 'function') clearAISearch();
-    });
-  }
   if (btnBack) {
     btnBack.addEventListener('click', function () {
       hideSettingsPage();
