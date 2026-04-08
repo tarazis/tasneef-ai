@@ -8,9 +8,9 @@
  * Shared by insertAyah and insertAyahRange.
  *
  * Insertion rules:
- *   - Cursor on empty paragraph: insert at that position, remove the empty paragraph
+ *   - Cursor on empty paragraph: reuse it for the first item, insert remaining after it
  *   - Cursor on non-empty paragraph: insert in a new paragraph below it
- *   - No cursor: insert after the last non-empty paragraph; if all empty, replace the first
+ *   - No cursor: insert after the last non-empty paragraph; if all empty, reuse the first
  *
  * Cleanup (empty Normal/LTR paragraph) is only added when the inserted content
  * ends up as the last child in the document. If any child exists after it, skip cleanup.
@@ -70,17 +70,19 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
   var fontWarning = null;
   for (var i = 0; i < paragraphsToInsert.length; i++) {
     var item = paragraphsToInsert[i];
-    var p = body.insertParagraph(insertIndex + i, item.text);
+    var p;
+    if (i === 0 && removeTarget) {
+      p = removeTarget;
+      p.setText(item.text);
+    } else {
+      p = body.insertParagraph(insertIndex + i, item.text);
+    }
     p.setAlignment(item.align);
-    if (item.rtl) p.setLeftToRight(false);
+    p.setLeftToRight(item.rtl ? false : true);
     var fs = item.useEnglishTranslationFont
       ? formatStateForEnglishTranslation(formatState)
       : formatState;
     fontWarning = applyFormat(p.editAsText(), fs) || fontWarning;
-  }
-
-  if (removeTarget) {
-    body.removeChild(removeTarget);
   }
 
   var lastInsertedIndex = insertIndex + paragraphsToInsert.length - 1;

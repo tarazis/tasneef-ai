@@ -45,6 +45,7 @@ function runDocumentServiceTests() {
       _ltr: null,
       _heading: null,
       getText: function () { return this._text; },
+      setText: function (t) { this._text = t; },
       setAlignment: function (a) { this._align = a; },
       setLeftToRight: function (v) { this._ltr = v; },
       setHeading: function (h) { this._heading = h; },
@@ -183,7 +184,7 @@ function runDocumentServiceTests() {
 
     insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
 
-    // Insert at 0, remove original first → [content, '', '']
+    // Reuse first empty for content → [content, '', '']
     // Content is NOT last child → no cleanup
     expect(body._children.length).toBe(3);
     expect(body._children[0]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
@@ -198,7 +199,7 @@ function runDocumentServiceTests() {
 
     insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
 
-    // Original empty removed, content is only child → cleanup added
+    // Original empty reused for content → cleanup added
     // [content, cleanup]
     expect(body._children.length).toBe(2);
     expect(body._children[0]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
@@ -318,7 +319,7 @@ function runDocumentServiceTests() {
     expect(body._children[1]._text).toBe('\uFD3F\u00A0arabic\u00A0\uFD3E');
     expect(body._children[1]._ltr).toBe(false);
     expect(body._children[2]._text).toBe('"translation" (Al-Fatiha\u00A01:1)');
-    expect(body._children[2]._ltr).toBe(null);
+    expect(body._children[2]._ltr).toBe(true);
     expect(body._children[3]._text).toBe('');
     expect(body._children[3]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
     expect(body._children[3]._ltr).toBe(true);
@@ -337,6 +338,53 @@ function runDocumentServiceTests() {
     expect(body._children[2]._text).toBe('"translation" (Al-Fatiha\u00A01:1)');
     expect(body._children[3]._text).toBe('after');
     expect(body._children[3]._heading).toBe(null);
+  });
+
+  results.push('\ninsertParagraphsAtPosition_() — regression: sequential insertion & removeChild');
+
+  it('sequential insert: second insertion goes AFTER translation, not between', function () {
+    var body = createMockBody(['']);
+    var emptyPara = body._children[0];
+    var doc = createMockDoc(body, emptyPara);
+
+    // First insert: Arabic + translation into empty doc
+    insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), {});
+
+    // After first insert: [arabic, translation, cleanup]
+    expect(body._children.length).toBe(3);
+    expect(body._children[0]._text).toBe('\uFD3F\u00A0arabic\u00A0\uFD3E');
+    expect(body._children[1]._text).toBe('"translation" (Al-Fatiha\u00A01:1)');
+    expect(body._children[2]._text).toBe('');
+
+    // Second insert: cursor on cleanup (empty paragraph at end)
+    var cleanup = body._children[2];
+    var doc2 = createMockDoc(body, cleanup);
+    insertParagraphsAtPosition_(body, doc2, singleArabicParagraph(), {});
+
+    // [arabic1, translation1, arabic2, cleanup2]
+    expect(body._children.length).toBe(4);
+    expect(body._children[0]._text).toBe('\uFD3F\u00A0arabic\u00A0\uFD3E');
+    expect(body._children[1]._text).toBe('"translation" (Al-Fatiha\u00A01:1)');
+    expect(body._children[2]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
+    expect(body._children[3]._text).toBe('');
+  });
+
+  it('empty paragraph reuse avoids removeChild entirely', function () {
+    var body = createMockBody(['']);
+    var removeChildCalled = false;
+    var origRemoveChild = body.removeChild;
+    body.removeChild = function () {
+      removeChildCalled = true;
+      throw new Error("Can't remove the last paragraph in a document section.");
+    };
+    var doc = createMockDoc(body, body._children[0]);
+
+    var result = insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
+
+    expect(removeChildCalled).toBe(false);
+    expect(result.fontWarning).toBe(null);
+    expect(body._children[0]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
+    body.removeChild = origRemoveChild;
   });
 
   // ── Restore ─────────────────────────────────────────────────
