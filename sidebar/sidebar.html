@@ -12,30 +12,52 @@
       <span class="startup-text">Loading…</span>
     </div>
 
-    <header class="header">
+    <header class="header" id="sidebar-header">
       <div class="header-brand">
-        <?!= include_('sidebar/components/logo-img') ?>
-        <span class="title">Tasneef AI</span>
-      </div>
-      <div class="header-actions">
-        <button type="button" class="btn-icon" id="btn-new-ai-chat" title="New chat" aria-label="New chat">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <button type="button" class="btn-icon hidden" id="btn-new-ai-chat" title="New chat" aria-label="New chat">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
             <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.506l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/>
           </svg>
         </button>
-        <button type="button" class="btn-icon" id="btn-settings" title="Settings" aria-label="Settings">&#9881;</button>
+      </div>
+      <div class="header-actions">
+        <div class="header-menu" id="header-menu">
+          <button type="button" class="btn-icon" id="btn-header-menu" title="Menu" aria-label="Menu" aria-haspopup="true" aria-expanded="false">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="5" r="1.5"/>
+              <circle cx="12" cy="12" r="1.5"/>
+              <circle cx="12" cy="19" r="1.5"/>
+            </svg>
+          </button>
+          <div class="header-menu-dropdown hidden" id="header-menu-dropdown">
+            <button type="button" class="header-menu-item" id="btn-menu-settings">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <span>Settings</span>
+            </button>
+            <button type="button" class="header-menu-item" id="btn-menu-feedback">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              <span>Give us feedback</span>
+            </button>
+          </div>
+        </div>
       </div>
     </header>
 
-    <?!= include_('sidebar/components/format-bar') ?>
+    <div id="sidebar-format-bar">
+      <?!= include_('sidebar/components/format-bar') ?>
+    </div>
 
-    <nav class="tab-nav">
+    <nav class="tab-nav" id="sidebar-tab-nav">
       <button type="button" class="tab-btn active" data-tab="direct-insert">Browse</button>
       <button type="button" class="tab-btn" data-tab="exact-search">Search</button>
       <button type="button" class="tab-btn tab-btn--ai" data-tab="ai-search">
         <span class="tab-btn-ai-icon" aria-hidden="true">
-          <!-- Lucide sparkles (ISC) — stroke only, flat; color from tab via currentColor -->
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
             <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
             <path d="M20 3v4"/>
@@ -48,15 +70,19 @@
       </button>
     </nav>
 
-    <main class="tab-content">
+    <main class="tab-content" id="sidebar-tab-content">
       <?!= include_('sidebar/components/tab-direct-insert') ?>
       <?!= include_('sidebar/components/tab-exact-search') ?>
       <?!= include_('sidebar/components/tab-ai-search') ?>
     </main>
-  </div>
 
-  <div id="settings-overlay" class="settings-overlay hidden">
-    <?!= include_('sidebar/components/settings-panel') ?>
+    <div id="bottom-bar" class="bottom-bar">
+      <?!= include_('sidebar/components/bottom-bar') ?>
+    </div>
+
+    <div id="settings-page" class="settings-page hidden">
+      <?!= include_('sidebar/components/settings-panel') ?>
+    </div>
   </div>
 
   <?!= include_('client/makeClientCache') ?>

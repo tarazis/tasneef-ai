@@ -1,4 +1,15 @@
 <div class="tab-panel" id="panel-ai-search">
+  <div id="ai-welcome" class="ai-welcome">
+    <div class="ai-welcome-content">
+      <p class="ai-welcome-greeting">What would you like to find?</p>
+      <p class="ai-welcome-hint">Search the Quran by theme, topic, or meaning</p>
+    </div>
+    <div class="ai-welcome-chips" id="ai-welcome-chips">
+      <button type="button" class="ai-chip" data-query="Verses about patience">Verses about patience</button>
+      <button type="button" class="ai-chip" data-query="Ayat about charity">Ayat about charity</button>
+      <button type="button" class="ai-chip" data-query="Duas for guidance">Duas for guidance</button>
+    </div>
+  </div>
   <div id="ai-search-results" class="results-list"></div>
   <div id="ai-search-clarify" class="clarify-message hidden"></div>
   <div id="ai-search-empty" class="empty-state hidden"></div>
@@ -7,5 +18,6 @@
       <textarea id="ai-search-query" rows="2" placeholder="Search themes (e.g., patience, charity)..."></textarea>
       <button type="button" class="btn-send" id="btn-ai-search" title="Send" aria-label="Send">&#10148;</button>
     </div>
+    <p class="ai-disclaimer">Tasneef uses AI and may contain inaccuracies</p>
   </div>
 </div>

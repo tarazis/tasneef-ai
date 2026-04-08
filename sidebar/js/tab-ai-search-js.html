@@ -6,6 +6,23 @@
 
 var _conversationMessages = [];
 
+function updateNewChatVisibility() {
+  var btn = document.getElementById('btn-new-ai-chat');
+  if (!btn) return;
+  var show = (window._activeTab === 'ai-search') && _conversationMessages.length > 0;
+  btn.classList.toggle('hidden', !show);
+}
+
+function showAIWelcome() {
+  var el = document.getElementById('ai-welcome');
+  if (el) el.classList.remove('hidden');
+}
+
+function hideAIWelcome() {
+  var el = document.getElementById('ai-welcome');
+  if (el) el.classList.add('hidden');
+}
+
 function initAISearchTab() {
   var queryEl = document.getElementById('ai-search-query');
   var btnSend = document.getElementById('btn-ai-search');
@@ -39,16 +56,30 @@ function initAISearchTab() {
     queryEl.style.height = 'auto';
 
     _conversationMessages.push({ role: 'user', content: query });
+    updateNewChatVisibility();
 
+    hideAIWelcome();
     clearAIResults();
-    resultsEl.innerHTML = makeSkeleton(3);
+
+    // Show query header + skeleton
+    var headerDiv = document.createElement('div');
+    headerDiv.className = 'ai-query-header';
+    headerDiv.innerHTML = '<span class="ai-query-label">Results for</span> <span class="ai-query-text">\u201c' + query.replace(/[<>&"]/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }) + '\u201d</span>';
+    resultsEl.appendChild(headerDiv);
+
+    var skeletonDiv = document.createElement('div');
+    skeletonDiv.id = 'ai-skeleton';
+    skeletonDiv.innerHTML = makeSkeleton(3);
+    resultsEl.appendChild(skeletonDiv);
+
     setEnabled(false);
 
     var messagesToSend = getLastMessages(3);
 
     google.script.run
       .withSuccessHandler(function(response) {
-        resultsEl.innerHTML = '';
+        var skel = document.getElementById('ai-skeleton');
+        if (skel) skel.remove();
         setEnabled(true);
 
         if (response && response.rawResponse) {
@@ -58,9 +89,11 @@ function initAISearchTab() {
         handleAIResponse(response);
       })
       .withFailureHandler(function() {
-        resultsEl.innerHTML = '';
+        var skel = document.getElementById('ai-skeleton');
+        if (skel) skel.remove();
         setEnabled(true);
         _conversationMessages.pop();
+        updateNewChatVisibility();
         emptyEl.textContent = 'Something went wrong. Please try again.';
         emptyEl.classList.remove('hidden');
       })
@@ -89,8 +122,9 @@ function initAISearchTab() {
 
     // Non-clarify response breaks the conversation chain
     _conversationMessages = [];
+    updateNewChatVisibility();
 
-    // Arabic corpus search: same cap and pagination as Exact Search (MAX_RESULTS + PAGE_SIZE via searchImlaeiClient / pagRenderPage)
+    // Arabic corpus search
     if (response.type === 'arabic_search') {
       var searchResults = searchImlaeiClient(response.query);
       if (!searchResults.length) {
@@ -103,8 +137,7 @@ function initAISearchTab() {
       return;
     }
 
-    // References type: backend returns merged groups [{surah, ayahStart, ayahEnd}].
-    // Resolve each group into a card (single or range) and paginate.
+    // References type
     if (response.type === 'references') {
       var groups = response.references || [];
       var cards = _resolveGroups(groups);
@@ -120,6 +153,20 @@ function initAISearchTab() {
 
     emptyEl.textContent = 'Unexpected response. Please try again.';
     emptyEl.classList.remove('hidden');
+  }
+
+  // Suggestion chip handlers
+  var chipsEl = document.getElementById('ai-welcome-chips');
+  if (chipsEl) {
+    chipsEl.addEventListener('click', function (e) {
+      var chip = e.target.closest('.ai-chip');
+      if (!chip) return;
+      var chipQuery = chip.getAttribute('data-query');
+      if (chipQuery && queryEl) {
+        queryEl.value = chipQuery;
+        doAISearch();
+      }
+    });
   }
 
   window.setupTextarea(queryEl, doAISearch);
@@ -139,5 +186,7 @@ function clearAISearch() {
   if (resultsEl) resultsEl.innerHTML = '';
   if (clarifyEl) { clarifyEl.classList.add('hidden'); clarifyEl.textContent = ''; }
   if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
+  showAIWelcome();
+  updateNewChatVisibility();
 }
 </script>

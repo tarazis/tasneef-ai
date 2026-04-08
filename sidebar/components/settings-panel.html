@@ -1,26 +1,36 @@
-<div class="settings-panel">
-  <h2>
-    <button type="button" class="back-btn" id="btn-settings-back" aria-label="Close">&#8592;</button>
-    Settings
-  </h2>
+<div class="settings-page-inner">
+  <header class="settings-header">
+    <button type="button" class="btn-icon" id="btn-settings-back" aria-label="Back">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <path d="m15 18-6-6 6-6"/>
+      </svg>
+    </button>
+    <h2 class="settings-title">Settings</h2>
+  </header>
 
   <div id="settings-panel-loading" class="settings-panel-loading hidden" aria-busy="false">
     <div class="startup-spinner" aria-hidden="true"></div>
     <span class="startup-text" role="status" aria-live="polite">Loading…</span>
   </div>
 
-  <div id="settings-panel-body">
-    <div class="settings-section">
-      <label>Insert content</label>
-      <div class="settings-check">
-        <input type="checkbox" id="insert-translation" checked>
-        <label for="insert-translation">Translation</label>
-      </div>
-    </div>
+  <div id="settings-panel-body" class="settings-body">
+    <section class="settings-section">
+      <h3 class="settings-section-title">Translation</h3>
 
-    <div class="settings-save-row">
-      <button type="button" class="btn-primary" id="btn-save-settings">Save</button>
-      <p id="settings-saved-msg" class="settings-saved-msg hidden"></p>
-    </div>
+      <div class="settings-row">
+        <span class="settings-row-label">Insert translation</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="insert-translation" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="settings-row settings-row--stacked">
+        <label class="settings-row-label" for="translation-edition">Choose edition</label>
+        <select id="translation-edition" class="form-select" disabled>
+          <option value="saheeh-international" selected>Saheeh International</option>
+        </select>
+      </div>
+    </section>
   </div>
 </div>

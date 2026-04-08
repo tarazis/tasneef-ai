@@ -38,6 +38,11 @@
     if (tabId === 'exact-search') {
       ensureImlaeiCache();       // no-op if already loading or loaded
     }
+
+    // Show/hide new-chat button based on active tab + conversation state
+    if (typeof updateNewChatVisibility === 'function') {
+      updateNewChatVisibility();
+    }
   }
 
   function setupTextarea(el, onSubmit) {

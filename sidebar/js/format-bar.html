@@ -198,21 +198,25 @@ function debouncedSave() {
   }, SAVE_DEBOUNCE_MS);
 }
 
+var MIN_FONT_SIZE = 8;
+var MAX_FONT_SIZE = 72;
+
+function updateSizeUI() {
+  var sizeValue = document.getElementById('size-stepper-value');
+  var btnDown = document.getElementById('btn-size-down');
+  var btnUp = document.getElementById('btn-size-up');
+  if (sizeValue) sizeValue.textContent = String(formatState.fontSize);
+  if (btnDown) btnDown.disabled = (formatState.fontSize <= MIN_FONT_SIZE);
+  if (btnUp) btnUp.disabled = (formatState.fontSize >= MAX_FONT_SIZE);
+}
+
 function applyFormatStateToUI() {
-  var sizeSelect = document.getElementById('size-select');
   var boldBtn = document.getElementById('btn-bold');
   var colorPicker = document.getElementById('color-picker');
   var colorTrigger = document.getElementById('color-trigger');
   updateFontPickerLabel();
   syncFontPickerSelectionClasses();
-  if (sizeSelect) {
-    var sizeVal = String(formatState.fontSize);
-    if (sizeSelect.querySelector('option[value="' + sizeVal + '"]')) {
-      sizeSelect.value = sizeVal;
-    } else {
-      sizeSelect.value = '18';
-    }
-  }
+  updateSizeUI();
   if (boldBtn) boldBtn.classList.toggle('active', formatState.bold);
   var tc = formatState.textColor || '#000000';
   if (typeof normalizeHex6 === 'function') {
@@ -227,7 +231,8 @@ function applyFormatStateToUI() {
 window.reconcileFontCatalogState = reconcileFontCatalogState;
 
 function initFormatBar() {
-  var sizeSelect = document.getElementById('size-select');
+  var btnSizeDown = document.getElementById('btn-size-down');
+  var btnSizeUp = document.getElementById('btn-size-up');
   var boldBtn = document.getElementById('btn-bold');
   var colorTrigger = document.getElementById('color-trigger');
   var colorPicker = document.getElementById('color-picker');
@@ -239,12 +244,27 @@ function initFormatBar() {
       toggleFontPicker();
     });
   }
-  if (sizeSelect) {
-    sizeSelect.addEventListener('change', function () {
-      formatState.fontSize = parseInt(sizeSelect.value, 10) || 18;
-      debouncedSave();
-      if (typeof window.refreshAllResultCardPreviews === 'function') {
-        window.refreshAllResultCardPreviews();
+  if (btnSizeDown) {
+    btnSizeDown.addEventListener('click', function () {
+      if (formatState.fontSize > MIN_FONT_SIZE) {
+        formatState.fontSize--;
+        updateSizeUI();
+        debouncedSave();
+        if (typeof window.refreshAllResultCardPreviews === 'function') {
+          window.refreshAllResultCardPreviews();
+        }
+      }
+    });
+  }
+  if (btnSizeUp) {
+    btnSizeUp.addEventListener('click', function () {
+      if (formatState.fontSize < MAX_FONT_SIZE) {
+        formatState.fontSize++;
+        updateSizeUI();
+        debouncedSave();
+        if (typeof window.refreshAllResultCardPreviews === 'function') {
+          window.refreshAllResultCardPreviews();
+        }
       }
     });
   }

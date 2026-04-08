@@ -27,59 +27,118 @@ function applyTranslationCheckboxFromPayload(s) {
   trans.checked = showTrans;
 }
 
-function dismissSettingsOverlay(overlay) {
+// ─── Settings Page (replaces overlay) ──────────────────────────────────────
+
+function showSettingsPage() {
+  var ids = ['sidebar-header', 'sidebar-format-bar', 'sidebar-tab-nav', 'sidebar-tab-content', 'bottom-bar'];
+  for (var i = 0; i < ids.length; i++) {
+    var el = document.getElementById(ids[i]);
+    if (el) el.classList.add('hidden');
+  }
+  var page = document.getElementById('settings-page');
+  if (page) page.classList.remove('hidden');
+
+  var gen = ++settingsPanelLoadGen;
+  setSettingsPanelLoading(true);
+  loadSettingsIntoPanel(gen);
+}
+
+function hideSettingsPage() {
   settingsPanelLoadGen++;
-  overlay.classList.add('hidden');
+  var page = document.getElementById('settings-page');
+  if (page) page.classList.add('hidden');
+  var ids = ['sidebar-header', 'sidebar-format-bar', 'sidebar-tab-nav', 'sidebar-tab-content', 'bottom-bar'];
+  for (var i = 0; i < ids.length; i++) {
+    var el = document.getElementById(ids[i]);
+    if (el) el.classList.remove('hidden');
+  }
   refreshSettings();
 }
 
-function initSettings() {
-  var btnSettings = document.getElementById('btn-settings');
-  var btnNewAiChat = document.getElementById('btn-new-ai-chat');
-  var overlay = document.getElementById('settings-overlay');
-  var btnBack = document.getElementById('btn-settings-back');
+// ─── Header Menu ───────────────────────────────────────────────────────────
 
-  if (btnSettings && overlay) {
-    btnSettings.addEventListener('click', function() {
-      var gen = ++settingsPanelLoadGen;
-      overlay.classList.remove('hidden');
-      setSettingsPanelLoading(true);
-      loadSettingsIntoPanel(gen);
-    });
+function initHeaderMenu() {
+  var btnMenu = document.getElementById('btn-header-menu');
+  var dropdown = document.getElementById('header-menu-dropdown');
+  var btnSettings = document.getElementById('btn-menu-settings');
+  var btnFeedback = document.getElementById('btn-menu-feedback');
+
+  function closeMenu() {
+    if (dropdown) dropdown.classList.add('hidden');
+    if (btnMenu) btnMenu.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('click', onMenuDocClick, true);
   }
-  if (btnNewAiChat) {
-    btnNewAiChat.addEventListener('click', function() {
-      if (typeof clearAISearch === 'function') clearAISearch();
-    });
+
+  function onMenuDocClick(e) {
+    var menu = document.getElementById('header-menu');
+    if (menu && !menu.contains(e.target)) closeMenu();
   }
-  if (btnBack && overlay) {
-    btnBack.addEventListener('click', function() {
-      dismissSettingsOverlay(overlay);
-    });
-  }
-  if (overlay) {
-    overlay.addEventListener('click', function(e) {
-      if (e.target === overlay) {
-        dismissSettingsOverlay(overlay);
+
+  if (btnMenu && dropdown) {
+    btnMenu.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var isOpen = !dropdown.classList.contains('hidden');
+      if (isOpen) {
+        closeMenu();
+      } else {
+        dropdown.classList.remove('hidden');
+        btnMenu.setAttribute('aria-expanded', 'true');
+        setTimeout(function () {
+          document.addEventListener('click', onMenuDocClick, true);
+        }, 0);
       }
+    });
+  }
+
+  if (btnSettings) {
+    btnSettings.addEventListener('click', function () {
+      closeMenu();
+      showSettingsPage();
+    });
+  }
+
+  if (btnFeedback) {
+    btnFeedback.addEventListener('click', function () {
+      closeMenu();
+      // Feedback form not yet implemented
     });
   }
 }
 
+// ─── Init ──────────────────────────────────────────────────────────────────
+
+function initSettings() {
+  var btnNewAiChat = document.getElementById('btn-new-ai-chat');
+  var btnBack = document.getElementById('btn-settings-back');
+
+  if (btnNewAiChat) {
+    btnNewAiChat.addEventListener('click', function () {
+      if (typeof clearAISearch === 'function') clearAISearch();
+    });
+  }
+  if (btnBack) {
+    btnBack.addEventListener('click', function () {
+      hideSettingsPage();
+    });
+  }
+
+  initHeaderMenu();
+}
+
 function refreshSettings() {
-  google.script.run.withSuccessHandler(function(s) {
+  google.script.run.withSuccessHandler(function (s) {
     _settings = s;
   }).getSettings();
 }
 
 function loadSettingsIntoPanel(gen) {
   google.script.run
-    .withSuccessHandler(function(s) {
+    .withSuccessHandler(function (s) {
       if (gen !== settingsPanelLoadGen) return;
       applyTranslationCheckboxFromPayload(s);
       setSettingsPanelLoading(false);
     })
-    .withFailureHandler(function() {
+    .withFailureHandler(function () {
       if (gen !== settingsPanelLoadGen) return;
       applyTranslationCheckboxFromPayload(null);
       setSettingsPanelLoading(false);
@@ -89,38 +148,20 @@ function loadSettingsIntoPanel(gen) {
 
 function initSettingsPanelHandlers() {
   var trans = document.getElementById('insert-translation');
-  var btnSave = document.getElementById('btn-save-settings');
-  var savedMsg = document.getElementById('settings-saved-msg');
 
-  function showSavedMessage(text, isError) {
-    if (!savedMsg) return;
-    savedMsg.textContent = text;
-    savedMsg.className = 'settings-saved-msg ' + (isError ? 'error' : 'success');
-    savedMsg.classList.remove('hidden');
-    setTimeout(function() { savedMsg.classList.add('hidden'); }, 3000);
-  }
-
-  if (btnSave) {
-    btnSave.addEventListener('click', function() {
-      var showTranslation = trans ? trans.checked : true;
-
-      btnSave.disabled = true;
-      btnSave.textContent = 'Saving…';
-
+  // Auto-save on toggle change
+  if (trans) {
+    trans.addEventListener('change', function () {
+      var showTranslation = trans.checked;
+      if (typeof _settings !== 'object' || !_settings) {
+        _settings = {};
+      }
+      _settings.showTranslation = showTranslation;
       google.script.run
-        .withSuccessHandler(function() {
-          if (typeof _settings !== 'object' || !_settings) {
-            _settings = {};
-          }
-          _settings.showTranslation = showTranslation;
-          btnSave.disabled = false;
-          btnSave.textContent = 'Save';
-          showSavedMessage('Settings saved!', false);
-        })
-        .withFailureHandler(function() {
-          btnSave.disabled = false;
-          btnSave.textContent = 'Save';
-          showSavedMessage('Failed to save settings.', true);
+        .withFailureHandler(function () {
+          // Revert on failure
+          _settings.showTranslation = !showTranslation;
+          trans.checked = !showTranslation;
         })
         .saveSettings({ showTranslation: showTranslation });
     });
