@@ -46,12 +46,59 @@ function closeFontPicker() {
   document.removeEventListener('click', onFontPickerDocClick, true);
 }
 
+function onFontSizePresetsDocClick(e) {
+  var wrap = document.getElementById('size-stepper-wrap');
+  if (wrap && !wrap.contains(e.target)) closeFontSizePresetsDropdown();
+}
+
+function closeFontSizePresetsDropdown() {
+  var drop = document.getElementById('font-size-presets-dropdown');
+  var trig = document.getElementById('size-stepper-value');
+  if (drop) drop.classList.add('hidden');
+  if (trig) trig.setAttribute('aria-expanded', 'false');
+  document.removeEventListener('click', onFontSizePresetsDocClick, true);
+}
+
+function syncFontSizePresetSelection() {
+  var items = document.querySelectorAll('.font-size-preset-item');
+  var cur = formatState.fontSize;
+  for (var i = 0; i < items.length; i++) {
+    var btn = items[i];
+    var sz = parseInt(btn.getAttribute('data-size'), 10);
+    var sel = !isNaN(sz) && sz === cur;
+    btn.classList.toggle('is-selected', sel);
+    btn.setAttribute('aria-selected', sel ? 'true' : 'false');
+  }
+}
+
+function openFontSizePresetsDropdown() {
+  closeFontPicker();
+  if (typeof closeJsColorPickerPopover === 'function') closeJsColorPickerPopover();
+  var drop = document.getElementById('font-size-presets-dropdown');
+  var trig = document.getElementById('size-stepper-value');
+  if (!drop || !trig) return;
+  syncFontSizePresetSelection();
+  drop.classList.remove('hidden');
+  trig.setAttribute('aria-expanded', 'true');
+  setTimeout(function () {
+    document.addEventListener('click', onFontSizePresetsDocClick, true);
+  }, 0);
+}
+
+function toggleFontSizePresetsDropdown() {
+  var drop = document.getElementById('font-size-presets-dropdown');
+  if (!drop) return;
+  if (drop.classList.contains('hidden')) openFontSizePresetsDropdown();
+  else closeFontSizePresetsDropdown();
+}
+
 function onFontPickerDocClick(e) {
   var picker = document.getElementById('font-picker');
   if (picker && !picker.contains(e.target)) closeFontPicker();
 }
 
 function openFontPicker() {
+  closeFontSizePresetsDropdown();
   if (typeof closeJsColorPickerPopover === 'function') closeJsColorPickerPopover();
   var drop = document.getElementById('font-picker-dropdown');
   var trig = document.getElementById('font-picker-trigger');
@@ -200,6 +247,7 @@ function debouncedSave() {
 
 var MIN_FONT_SIZE = 8;
 var MAX_FONT_SIZE = 72;
+var FONT_SIZE_PRESETS = [8, 10, 12, 14, 16, 18, 24, 30, 36, 48];
 
 function updateSizeUI() {
   var sizeValue = document.getElementById('size-stepper-value');
@@ -208,6 +256,7 @@ function updateSizeUI() {
   if (sizeValue) sizeValue.textContent = String(formatState.fontSize);
   if (btnDown) btnDown.disabled = (formatState.fontSize <= MIN_FONT_SIZE);
   if (btnUp) btnUp.disabled = (formatState.fontSize >= MAX_FONT_SIZE);
+  syncFontSizePresetSelection();
 }
 
 function applyFormatStateToUI() {
@@ -233,10 +282,46 @@ window.reconcileFontCatalogState = reconcileFontCatalogState;
 function initFormatBar() {
   var btnSizeDown = document.getElementById('btn-size-down');
   var btnSizeUp = document.getElementById('btn-size-up');
+  var sizeValueBtn = document.getElementById('size-stepper-value');
+  var presetUl = document.getElementById('font-size-presets-dropdown');
   var boldBtn = document.getElementById('btn-bold');
   var colorTrigger = document.getElementById('color-trigger');
   var colorPicker = document.getElementById('color-picker');
   var trig = document.getElementById('font-picker-trigger');
+
+  if (presetUl && presetUl.children.length === 0) {
+    for (var pi = 0; pi < FONT_SIZE_PRESETS.length; pi++) {
+      (function (sz) {
+        var li = document.createElement('li');
+        li.setAttribute('role', 'none');
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'font-size-preset-item';
+        b.setAttribute('role', 'option');
+        b.setAttribute('data-size', String(sz));
+        b.textContent = String(sz);
+        b.addEventListener('click', function (e) {
+          e.stopPropagation();
+          formatState.fontSize = sz;
+          updateSizeUI();
+          debouncedSave();
+          closeFontSizePresetsDropdown();
+          if (typeof window.refreshAllResultCardPreviews === 'function') {
+            window.refreshAllResultCardPreviews();
+          }
+        });
+        li.appendChild(b);
+        presetUl.appendChild(li);
+      })(FONT_SIZE_PRESETS[pi]);
+    }
+  }
+
+  if (sizeValueBtn) {
+    sizeValueBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      toggleFontSizePresetsDropdown();
+    });
+  }
 
   if (trig) {
     trig.addEventListener('click', function (e) {
@@ -246,6 +331,7 @@ function initFormatBar() {
   }
   if (btnSizeDown) {
     btnSizeDown.addEventListener('click', function () {
+      closeFontSizePresetsDropdown();
       if (formatState.fontSize > MIN_FONT_SIZE) {
         formatState.fontSize--;
         updateSizeUI();
@@ -258,6 +344,7 @@ function initFormatBar() {
   }
   if (btnSizeUp) {
     btnSizeUp.addEventListener('click', function () {
+      closeFontSizePresetsDropdown();
       if (formatState.fontSize < MAX_FONT_SIZE) {
         formatState.fontSize++;
         updateSizeUI();
@@ -287,7 +374,10 @@ function initFormatBar() {
     }
   }
   if (typeof initJsColorPicker === 'function') {
-    initJsColorPicker(onFormatBarColorChosen, closeFontPicker);
+    initJsColorPicker(onFormatBarColorChosen, function () {
+      closeFontPicker();
+      closeFontSizePresetsDropdown();
+    });
   }
 }
 </script>

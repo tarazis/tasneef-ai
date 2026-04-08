@@ -117,6 +117,22 @@ function runSettingsServiceTests() {
     PropertiesService.getUserProperties().deleteProperty('setting_customSwatchColors');
   });
 
+  // ─── getFeedbackFormUrl ───────────────────────────────────────────────────
+
+  results.push('\ngetFeedbackFormUrl()');
+
+  it('returns empty string when feedback_form_url is not set', function () {
+    PropertiesService.getScriptProperties().deleteProperty('feedback_form_url');
+    expect(getFeedbackFormUrl()).toBe('');
+  });
+
+  it('returns script property feedback_form_url when set', function () {
+    var url = 'https://example.com/form';
+    PropertiesService.getScriptProperties().setProperty('feedback_form_url', url);
+    expect(getFeedbackFormUrl()).toBe(url);
+    PropertiesService.getScriptProperties().deleteProperty('feedback_form_url');
+  });
+
   // ─── AI search daily limit ────────────────────────────────────────────────
 
   results.push('\nAI_SEARCH_DAILY_LIMIT');

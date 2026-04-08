@@ -10,11 +10,11 @@ var FALLBACK_FONT = 'Amiri';
 /** Google Docs font family for inserted English translation (Google Fonts name). */
 var ENGLISH_TRANSLATION_INSERT_FONT = 'Figtree';
 
-/** Inserted English translation uses this fraction of the ayah font size (points), rounded. */
-var ENGLISH_TRANSLATION_FONT_SIZE_RATIO = 0.8;
+/** Inserted English translation: this fraction of the ayah font size (points), rounded up (15% smaller than Arabic). */
+var ENGLISH_TRANSLATION_FONT_SIZE_RATIO = 0.85;
 
 /**
- * Format state for the English translation paragraph: Figtree; font size 80% of Arabic (rounded, min 1 pt);
+ * Format state for the English translation paragraph: Figtree; font size 85% of Arabic, rounded up (min 1 pt);
  * never bold; regular font variant (no weight or italic from the Arabic font variant); same color as Arabic.
  * @param {Object|null|undefined} formatState - Sidebar format state
  * @return {Object}
@@ -34,7 +34,7 @@ function formatStateForEnglishTranslation(formatState) {
   out.bold = false;
   if (formatState.fontSize != null && !isNaN(Number(formatState.fontSize))) {
     var sz = Number(formatState.fontSize);
-    out.fontSize = Math.max(1, Math.round(sz * ENGLISH_TRANSLATION_FONT_SIZE_RATIO));
+    out.fontSize = Math.max(1, Math.ceil(sz * ENGLISH_TRANSLATION_FONT_SIZE_RATIO));
   }
   return out;
 }

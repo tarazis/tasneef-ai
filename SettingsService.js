@@ -106,6 +106,15 @@ function getGoogleFontsApiKey_() {
 }
 
 /**
+ * Public feedback form URL from Script Properties (e.g. Google Form).
+ * @return {string} URL or empty string if unset
+ */
+function getFeedbackFormUrl() {
+  var url = PropertiesService.getScriptProperties().getProperty('feedback_form_url');
+  return url ? String(url) : '';
+}
+
+/**
  * Returns today's AI search count (UTC date).
  * If the stored date is not today, the count is treated as 0.
  * @return {number} The current count for today.

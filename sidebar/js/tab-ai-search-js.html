@@ -6,11 +6,27 @@
 
 var _conversationMessages = [];
 
+function aiSearchPanelIsDirty() {
+  if (_conversationMessages.length > 0) return true;
+  var resultsEl = document.getElementById('ai-search-results');
+  var clarifyEl = document.getElementById('ai-search-clarify');
+  var emptyEl = document.getElementById('ai-search-empty');
+  if (resultsEl && resultsEl.children.length > 0) return true;
+  if (clarifyEl && !clarifyEl.classList.contains('hidden')) return true;
+  if (emptyEl && !emptyEl.classList.contains('hidden')) return true;
+  return false;
+}
+
 function updateNewChatVisibility() {
   var btn = document.getElementById('btn-new-ai-chat');
   if (!btn) return;
-  var show = (window._activeTab === 'ai-search') && _conversationMessages.length > 0;
-  btn.classList.toggle('hidden', !show);
+  if (window._activeTab !== 'ai-search') {
+    btn.classList.add('hidden');
+    btn.disabled = false;
+    return;
+  }
+  btn.classList.remove('hidden');
+  btn.disabled = !aiSearchPanelIsDirty();
 }
 
 function showAIWelcome() {
@@ -71,6 +87,7 @@ function initAISearchTab() {
     skeletonDiv.id = 'ai-skeleton';
     skeletonDiv.innerHTML = makeSkeleton(3);
     resultsEl.appendChild(skeletonDiv);
+    updateNewChatVisibility();
 
     setEnabled(false);
 
@@ -96,6 +113,7 @@ function initAISearchTab() {
         updateNewChatVisibility();
         emptyEl.textContent = 'Something went wrong. Please try again.';
         emptyEl.classList.remove('hidden');
+        updateNewChatVisibility();
       })
       .performAISearch(messagesToSend);
   }
@@ -104,12 +122,14 @@ function initAISearchTab() {
     if (!response) {
       emptyEl.textContent = 'No response received. Please try again.';
       emptyEl.classList.remove('hidden');
+      updateNewChatVisibility();
       return;
     }
 
     if (response.type === 'error') {
       emptyEl.textContent = response.error;
       emptyEl.classList.remove('hidden');
+      updateNewChatVisibility();
       return;
     }
 
@@ -117,12 +137,12 @@ function initAISearchTab() {
       clarifyEl.textContent = response.message || 'Could you be more specific?';
       clarifyEl.classList.remove('hidden');
       if (queryEl) queryEl.focus();
+      updateNewChatVisibility();
       return;
     }
 
     // Non-clarify response breaks the conversation chain
     _conversationMessages = [];
-    updateNewChatVisibility();
 
     // Arabic corpus search
     if (response.type === 'arabic_search') {
@@ -130,10 +150,12 @@ function initAISearchTab() {
       if (!searchResults.length) {
         emptyEl.textContent = 'No exact matches found for that text.';
         emptyEl.classList.remove('hidden');
+        updateNewChatVisibility();
         return;
       }
       pagReset('ai-search', searchResults);
       pagRenderPage('ai-search', resultsEl, emptyEl, 'No exact matches found for that text.');
+      updateNewChatVisibility();
       return;
     }
 
@@ -144,15 +166,18 @@ function initAISearchTab() {
       if (!cards.length) {
         emptyEl.textContent = 'No verified results found. Try a different query.';
         emptyEl.classList.remove('hidden');
+        updateNewChatVisibility();
         return;
       }
       pagReset('ai-search', cards);
       pagRenderPage('ai-search', resultsEl, emptyEl, 'No verified results found. Try a different query.');
+      updateNewChatVisibility();
       return;
     }
 
     emptyEl.textContent = 'Unexpected response. Please try again.';
     emptyEl.classList.remove('hidden');
+    updateNewChatVisibility();
   }
 
   // Suggestion chip handlers

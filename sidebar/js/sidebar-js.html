@@ -63,7 +63,8 @@
   // ─── Init ────────────────────────────────────────────────────────────────────
 
   function init() {
-    var pendingInit = 6;
+    window._feedbackFormUrl = '';
+    var pendingInit = 7;
     function onInitDone() {
       if (--pendingInit <= 0) {
         var overlay = document.getElementById('startup-overlay');
@@ -75,6 +76,17 @@
       .withSuccessHandler(function(s) { onSettingsLoaded(s); onInitDone(); })
       .withFailureHandler(function() { applyFormatStateToUI(); onInitDone(); })
       .getSettings();
+
+    google.script.run
+      .withSuccessHandler(function (url) {
+        window._feedbackFormUrl = url ? String(url) : '';
+        onInitDone();
+      })
+      .withFailureHandler(function () {
+        window._feedbackFormUrl = '';
+        onInitDone();
+      })
+      .getFeedbackFormUrl();
 
     google.script.run
       .withSuccessHandler(function(res) { onFontCatalogLoaded(res); onInitDone(); })

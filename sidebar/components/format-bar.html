@@ -8,14 +8,17 @@
       <ul class="font-picker-families" id="font-picker-families"></ul>
     </div>
   </div>
-  <div class="size-stepper" id="size-stepper">
-    <button type="button" class="size-stepper-btn" id="btn-size-down" aria-label="Decrease font size">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M5 12h14"/></svg>
-    </button>
-    <span class="size-stepper-value" id="size-stepper-value">18</span>
-    <button type="button" class="size-stepper-btn" id="btn-size-up" aria-label="Increase font size">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-    </button>
+  <div class="size-stepper-wrap" id="size-stepper-wrap">
+    <div class="size-stepper" id="size-stepper">
+      <button type="button" class="size-stepper-btn" id="btn-size-down" aria-label="Decrease font size">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M5 12h14"/></svg>
+      </button>
+      <button type="button" class="size-stepper-value-btn" id="size-stepper-value" aria-haspopup="listbox" aria-expanded="false" title="Font size presets" aria-label="Font size presets">18</button>
+      <button type="button" class="size-stepper-btn" id="btn-size-up" aria-label="Increase font size">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+      </button>
+    </div>
+    <ul class="font-size-presets-dropdown hidden" id="font-size-presets-dropdown" role="listbox" aria-label="Font size"></ul>
   </div>
   <button type="button" class="btn-format" id="btn-bold" title="Bold">B</button>
   <div class="color-wrap">

@@ -100,7 +100,12 @@ function initHeaderMenu() {
   if (btnFeedback) {
     btnFeedback.addEventListener('click', function () {
       closeMenu();
-      // Feedback form not yet implemented
+      var u = typeof window._feedbackFormUrl === 'string' ? window._feedbackFormUrl : '';
+      if (u) {
+        window.open(u, '_blank', 'noopener,noreferrer');
+      } else if (typeof console !== 'undefined' && console.warn) {
+        console.warn('feedback_form_url script property is not set');
+      }
     });
   }
 }
@@ -113,6 +118,7 @@ function initSettings() {
 
   if (btnNewAiChat) {
     btnNewAiChat.addEventListener('click', function () {
+      if (btnNewAiChat.disabled) return;
       if (typeof clearAISearch === 'function') clearAISearch();
     });
   }
@@ -172,7 +178,16 @@ function onSettingsLoaded(settings) {
   _settings = settings;
   formatState.fontName = settings.fontName || 'Amiri';
   formatState.fontVariant = settings.fontVariant || 'regular';
-  formatState.fontSize = settings.fontSize || 18;
+  var storedSize = settings.fontSize;
+  var parsedStored = parseInt(storedSize, 10);
+  var rawSize = isNaN(parsedStored) ? 18 : parsedStored;
+  var clampedSize = Math.max(8, Math.min(72, rawSize));
+  formatState.fontSize = clampedSize;
+  if (!isNaN(parsedStored) && parsedStored !== clampedSize) {
+    google.script.run
+      .withFailureHandler(function () {})
+      .saveSettings({ fontSize: clampedSize });
+  }
   formatState.bold = settings.bold || false;
   formatState.textColor = settings.textColor || '#000000';
   formatState.customSwatchColors = Array.isArray(settings.customSwatchColors)

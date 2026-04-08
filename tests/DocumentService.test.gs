@@ -302,7 +302,7 @@ function runDocumentServiceTests() {
     expect(applyFormatCalls[0]).toBe(fs);
     expect(applyFormatCalls[1].fontName).toBe('Figtree');
     expect(applyFormatCalls[1].fontVariant).toBe('regular');
-    expect(applyFormatCalls[1].fontSize).toBe(11);
+    expect(applyFormatCalls[1].fontSize).toBe(12);
     expect(applyFormatCalls[1].bold).toBe(false);
     expect(applyFormatCalls[1].textColor).toBe('#112233');
   });
