@@ -439,8 +439,8 @@
   }
 
   /* ─── Tab Navigation ──────────────────────────────────────────────────────── */
-  .tab-nav { display: flex; border-bottom: 2px solid var(--color-border); flex-shrink: 0; padding: 0 var(--space-sm); }
-  .tab-btn { flex: 1 1 0; min-width: 0; padding: 10px var(--space-xs); border: none; background: none; font-size: 13px; font-weight: 500; color: var(--color-text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast); border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+  .tab-nav { display: flex; gap: 3px; border-bottom: 2px solid var(--color-border); flex-shrink: 0; padding: 0 var(--space-md); }
+  .tab-btn { flex: 1 1 0; min-width: 0; padding: 12px var(--space-sm); border: none; background: none; font-size: 13px; font-weight: 500; color: var(--color-text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast); border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
   .tab-btn:hover { color: var(--color-primary); background: var(--color-primary-lighter); }
   .tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); background: var(--color-primary-light); }
 
@@ -450,7 +450,7 @@
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: 7px;
     white-space: nowrap;
   }
   .tab-btn--ai .tab-btn-ai-icon {
