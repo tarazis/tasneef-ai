@@ -569,6 +569,12 @@
 
   /* ─── Input Area ──────────────────────────────────────────────────────────── */
   .tab-input-area { flex-shrink: 0; padding: var(--space-sm); border-top: 1px solid var(--color-border); background: var(--color-bg); }
+  /* Exact Search: match AI strip — air above field, no top rule */
+  #panel-exact-search .tab-input-area {
+    border-top: none;
+    padding-top: var(--space-lg);
+    padding-bottom: var(--space-md);
+  }
   .tab-input-wrap { display: flex; align-items: flex-end; gap: var(--space-sm); }
   .tab-input-wrap textarea { flex: 1; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; font-family: inherit; resize: none; line-height: 1.4; min-height: 40px; max-height: 120px; overflow-y: auto; }
   .tab-input-wrap textarea:focus { outline: none; border-color: var(--color-primary); }
