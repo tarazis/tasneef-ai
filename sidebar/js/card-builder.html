@@ -41,15 +41,16 @@ function isConsecutiveRange(results) {
 
 /**
  * Builds a range data object from an array of consecutive result objects.
- * Concatenates Arabic text with per-ayah markers for display and insert.
+ * Concatenates Arabic text with per-ayah markers for display and insert (U+00A0 before each (ayahNum)).
  * @param {Array<Object>} results - Ordered ayah result objects
  * @return {Object} Range data: { surah, ayahStart, ayahEnd, surahNameArabic, surahNameEnglish, arabicText, translationText }
  */
 function buildRangeData(results) {
   var first = results[0];
   var last  = results[results.length - 1];
+  var nb = '\u00A0';
   var concatenated = results.map(function(r) {
-    return r.arabicText + ' (' + toArabicIndicClient(r.ayah) + ')';
+    return r.arabicText + nb + '(' + toArabicIndicClient(r.ayah) + ')';
   }).join(' ');
   return {
     surah:            first.surah,

@@ -95,8 +95,9 @@ function isConsecutiveRange(results) {
 function buildRangeData(results) {
   var first = results[0];
   var last  = results[results.length - 1];
+  var nb = '\u00A0';
   var concatenated = results.map(function(r) {
-    return r.arabicText + ' (' + toArabicIndicClient(r.ayah) + ')';
+    return r.arabicText + nb + '(' + toArabicIndicClient(r.ayah) + ')';
   }).join(' ');
   return {
     surah:            first.surah,
@@ -361,6 +362,7 @@ function runTests() {
     assert.ok(data.arabicText.indexOf('الحمد لله') >= 0, 'second ayah text present');
     assert.ok(data.arabicText.indexOf(toArabicIndicClient(1)) >= 0, 'ayah 1 marker present');
     assert.ok(data.arabicText.indexOf(toArabicIndicClient(2)) >= 0, 'ayah 2 marker present');
+    assert.ok(data.arabicText.indexOf('\u00A0(') >= 0, 'NBSP before each ayah-number parenthesis');
   });
 
   it('joins translationText for all ayahs', function () {

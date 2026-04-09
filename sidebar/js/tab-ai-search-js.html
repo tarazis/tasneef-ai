@@ -17,16 +17,30 @@ function aiSearchPanelIsDirty() {
   return false;
 }
 
+function showAIQueryBar(queryPlain) {
+  var bar = document.getElementById('ai-query-bar');
+  var textEl = document.getElementById('ai-query-text');
+  if (textEl) textEl.textContent = '\u201c' + (queryPlain || '') + '\u201d';
+  if (bar) bar.classList.remove('hidden');
+}
+
+function hideAIQueryBar() {
+  var bar = document.getElementById('ai-query-bar');
+  var textEl = document.getElementById('ai-query-text');
+  if (bar) bar.classList.add('hidden');
+  if (textEl) textEl.textContent = '';
+}
+
 function updateNewChatVisibility() {
-  var btn = document.getElementById('btn-new-ai-chat');
+  var btn = document.getElementById('btn-new-ai-chat-inline');
+  var queryEl = document.getElementById('ai-search-query');
   if (!btn) return;
   if (window._activeTab !== 'ai-search') {
-    btn.classList.add('hidden');
     btn.disabled = false;
     return;
   }
-  btn.classList.remove('hidden');
-  btn.disabled = !aiSearchPanelIsDirty();
+  var loading = queryEl && queryEl.disabled;
+  btn.disabled = loading || !aiSearchPanelIsDirty();
 }
 
 function showAIWelcome() {
@@ -42,12 +56,14 @@ function hideAIWelcome() {
 function initAISearchTab() {
   var queryEl = document.getElementById('ai-search-query');
   var btnSend = document.getElementById('btn-ai-search');
+  var btnNewInline = document.getElementById('btn-new-ai-chat-inline');
   var resultsEl = document.getElementById('ai-search-results');
   var clarifyEl = document.getElementById('ai-search-clarify');
   var emptyEl = document.getElementById('ai-search-empty');
   function setEnabled(enabled) {
     if (btnSend) btnSend.disabled = !enabled;
     if (queryEl) queryEl.disabled = !enabled;
+    updateNewChatVisibility();
   }
 
   function clearAIResults() {
@@ -76,12 +92,8 @@ function initAISearchTab() {
 
     hideAIWelcome();
     clearAIResults();
-
-    // Show query header + skeleton
-    var headerDiv = document.createElement('div');
-    headerDiv.className = 'ai-query-header';
-    headerDiv.innerHTML = '<span class="ai-query-label">Results for</span> <span class="ai-query-text">\u201c' + query.replace(/[<>&"]/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }) + '\u201d</span>';
-    resultsEl.appendChild(headerDiv);
+    showAIQueryBar(query);
+    updateNewChatVisibility();
 
     var skeletonDiv = document.createElement('div');
     skeletonDiv.id = 'ai-skeleton';
@@ -194,6 +206,13 @@ function initAISearchTab() {
     });
   }
 
+  if (btnNewInline) {
+    btnNewInline.addEventListener('click', function () {
+      if (btnNewInline.disabled) return;
+      if (typeof clearAISearch === 'function') clearAISearch();
+    });
+  }
+
   window.setupTextarea(queryEl, doAISearch);
   if (btnSend) btnSend.addEventListener('click', doAISearch);
   if (resultsEl) resultsEl.addEventListener('click', onInsertClick);
@@ -211,6 +230,7 @@ function clearAISearch() {
   if (resultsEl) resultsEl.innerHTML = '';
   if (clarifyEl) { clarifyEl.classList.add('hidden'); clarifyEl.textContent = ''; }
   if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
+  hideAIQueryBar();
   showAIWelcome();
   updateNewChatVisibility();
 }
