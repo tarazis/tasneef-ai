@@ -1,5 +1,5 @@
 <script>
-// Depends on globals: makeSkeleton, renderPreview, onInsertClick, onToggleTranslationClick (render-helpers.html),
+// Depends on globals: renderPreview, onInsertClick, onToggleTranslationClick (render-helpers.html),
 //   searchImlaeiClient, _buildResultsFromReferences, _resolveGroups (search-utils.html),
 //   pagClear, pagReset, pagRenderPage (pagination.html),
 //   window.setupTextarea (sidebar-js.html IIFE)
@@ -95,10 +95,11 @@ function initAISearchTab() {
     showAIQueryBar(query);
     updateNewChatVisibility();
 
-    var skeletonDiv = document.createElement('div');
-    skeletonDiv.id = 'ai-skeleton';
-    skeletonDiv.innerHTML = makeSkeleton(3);
-    resultsEl.appendChild(skeletonDiv);
+    var loadingWrap = document.createElement('div');
+    loadingWrap.id = 'ai-loading';
+    loadingWrap.className = 'ai-search-loading';
+    loadingWrap.innerHTML = '<div class="startup-spinner" aria-hidden="true"></div>';
+    resultsEl.appendChild(loadingWrap);
     updateNewChatVisibility();
 
     setEnabled(false);
@@ -107,8 +108,8 @@ function initAISearchTab() {
 
     google.script.run
       .withSuccessHandler(function(response) {
-        var skel = document.getElementById('ai-skeleton');
-        if (skel) skel.remove();
+        var pending = document.getElementById('ai-loading');
+        if (pending) pending.remove();
         setEnabled(true);
 
         if (response && response.rawResponse) {
@@ -118,8 +119,8 @@ function initAISearchTab() {
         handleAIResponse(response);
       })
       .withFailureHandler(function() {
-        var skel = document.getElementById('ai-skeleton');
-        if (skel) skel.remove();
+        var pending = document.getElementById('ai-loading');
+        if (pending) pending.remove();
         setEnabled(true);
         _conversationMessages.pop();
         updateNewChatVisibility();
