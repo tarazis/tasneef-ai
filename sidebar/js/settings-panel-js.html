@@ -54,58 +54,29 @@ function hideSettingsPage() {
   refreshSettings();
 }
 
-// ─── Bottom Bar Menu ──────────────────────────────────────────────────────
+// ─── Bottom bar (feedback link, settings gear) ────────────────────────────
 
 function initBottomMenu() {
-  var btnMenu = document.getElementById('btn-bottom-menu');
-  var dropdown = document.getElementById('bottom-bar-menu-dropdown');
-  var btnSettings = document.getElementById('btn-menu-settings');
-  var btnFeedback = document.getElementById('btn-menu-feedback');
+  var btnSettings = document.getElementById('btn-bottom-settings');
+  var btnBottomFeedback = document.getElementById('btn-bottom-feedback');
 
-  function closeMenu() {
-    if (dropdown) dropdown.classList.add('hidden');
-    if (btnMenu) btnMenu.setAttribute('aria-expanded', 'false');
-    document.removeEventListener('click', onMenuDocClick, true);
-  }
-
-  function onMenuDocClick(e) {
-    var menu = document.getElementById('bottom-bar-menu');
-    if (menu && !menu.contains(e.target)) closeMenu();
-  }
-
-  if (btnMenu && dropdown) {
-    btnMenu.addEventListener('click', function (e) {
-      e.stopPropagation();
-      var isOpen = !dropdown.classList.contains('hidden');
-      if (isOpen) {
-        closeMenu();
-      } else {
-        dropdown.classList.remove('hidden');
-        btnMenu.setAttribute('aria-expanded', 'true');
-        setTimeout(function () {
-          document.addEventListener('click', onMenuDocClick, true);
-        }, 0);
-      }
-    });
+  function openFeedbackForm() {
+    var u = typeof window._feedbackFormUrl === 'string' ? window._feedbackFormUrl : '';
+    if (u) {
+      window.open(u, '_blank', 'noopener,noreferrer');
+    } else if (typeof console !== 'undefined' && console.warn) {
+      console.warn('feedback_form_url script property is not set');
+    }
   }
 
   if (btnSettings) {
     btnSettings.addEventListener('click', function () {
-      closeMenu();
       showSettingsPage();
     });
   }
 
-  if (btnFeedback) {
-    btnFeedback.addEventListener('click', function () {
-      closeMenu();
-      var u = typeof window._feedbackFormUrl === 'string' ? window._feedbackFormUrl : '';
-      if (u) {
-        window.open(u, '_blank', 'noopener,noreferrer');
-      } else if (typeof console !== 'undefined' && console.warn) {
-        console.warn('feedback_form_url script property is not set');
-      }
-    });
+  if (btnBottomFeedback) {
+    btnBottomFeedback.addEventListener('click', openFeedbackForm);
   }
 }
 
