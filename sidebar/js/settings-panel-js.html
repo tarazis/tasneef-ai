@@ -29,7 +29,7 @@ function applyTranslationCheckboxFromPayload(s) {
 // ─── Settings Page (replaces overlay) ──────────────────────────────────────
 
 function showSettingsPage() {
-  var ids = ['sidebar-header', 'sidebar-format-bar', 'sidebar-tab-nav', 'sidebar-tab-content', 'bottom-bar'];
+  var ids = ['sidebar-format-bar', 'sidebar-tab-nav', 'sidebar-tab-content', 'bottom-bar'];
   for (var i = 0; i < ids.length; i++) {
     var el = document.getElementById(ids[i]);
     if (el) el.classList.add('hidden');
@@ -46,7 +46,7 @@ function hideSettingsPage() {
   settingsPanelLoadGen++;
   var page = document.getElementById('settings-page');
   if (page) page.classList.add('hidden');
-  var ids = ['sidebar-header', 'sidebar-format-bar', 'sidebar-tab-nav', 'sidebar-tab-content', 'bottom-bar'];
+  var ids = ['sidebar-format-bar', 'sidebar-tab-nav', 'sidebar-tab-content', 'bottom-bar'];
   for (var i = 0; i < ids.length; i++) {
     var el = document.getElementById(ids[i]);
     if (el) el.classList.remove('hidden');
@@ -54,11 +54,11 @@ function hideSettingsPage() {
   refreshSettings();
 }
 
-// ─── Header Menu ───────────────────────────────────────────────────────────
+// ─── Bottom Bar Menu ──────────────────────────────────────────────────────
 
-function initHeaderMenu() {
-  var btnMenu = document.getElementById('btn-header-menu');
-  var dropdown = document.getElementById('header-menu-dropdown');
+function initBottomMenu() {
+  var btnMenu = document.getElementById('btn-bottom-menu');
+  var dropdown = document.getElementById('bottom-bar-menu-dropdown');
   var btnSettings = document.getElementById('btn-menu-settings');
   var btnFeedback = document.getElementById('btn-menu-feedback');
 
@@ -69,7 +69,7 @@ function initHeaderMenu() {
   }
 
   function onMenuDocClick(e) {
-    var menu = document.getElementById('header-menu');
+    var menu = document.getElementById('bottom-bar-menu');
     if (menu && !menu.contains(e.target)) closeMenu();
   }
 
@@ -120,7 +120,7 @@ function initSettings() {
     });
   }
 
-  initHeaderMenu();
+  initBottomMenu();
 }
 
 function refreshSettings() {
