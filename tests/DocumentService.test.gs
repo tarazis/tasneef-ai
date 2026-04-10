@@ -44,11 +44,15 @@ function runDocumentServiceTests() {
       _align: null,
       _ltr: null,
       _heading: null,
+      _spacingBefore: null,
+      _spacingAfter: null,
       getText: function () { return this._text; },
       setText: function (t) { this._text = t; },
       setAlignment: function (a) { this._align = a; },
       setLeftToRight: function (v) { this._ltr = v; },
       setHeading: function (h) { this._heading = h; },
+      setSpacingBefore: function (pt) { this._spacingBefore = pt; },
+      setSpacingAfter: function (pt) { this._spacingAfter = pt; },
       getType: function () { return DocumentApp.ElementType.PARAGRAPH; },
       asParagraph: function () { return this; },
       getParent: function () { return null; },
@@ -123,12 +127,35 @@ function runDocumentServiceTests() {
       {
         text: '\uFD3F\u00A0arabic\u00A0\uFD3E',
         align: DocumentApp.HorizontalAlignment.CENTER,
-        rtl: true
+        rtl: true,
+        spacingBefore: INSERT_SPACE_BEFORE_ARABIC_PT,
+        spacingAfter: INSERT_SPACE_ARABIC_TO_TRANSLATION_PT
       },
       {
-        text: '"translation" (Al-Fatiha\u00A01:1)',
+        text: '"translation"',
         align: DocumentApp.HorizontalAlignment.CENTER,
         useEnglishTranslationFont: true
+      },
+      {
+        text: '(Al-Fatiha\u00A01:1)',
+        align: DocumentApp.HorizontalAlignment.CENTER,
+        useEnglishTranslationFont: true
+      }
+    ];
+  }
+
+  function arabicOnlyTwoParagraphs() {
+    return [
+      {
+        text: '\uFD3F\u00A0ayah\u00A0\uFD3E',
+        align: DocumentApp.HorizontalAlignment.CENTER,
+        rtl: true,
+        spacingBefore: INSERT_SPACE_BEFORE_ARABIC_PT
+      },
+      {
+        text: '[\u0627\u0644\u0641\u0627\u062a\u062d\u0629:\u0661]',
+        align: DocumentApp.HorizontalAlignment.CENTER,
+        rtl: true
       }
     ];
   }
@@ -298,46 +325,80 @@ function runDocumentServiceTests() {
 
     insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), fs);
 
-    expect(applyFormatCalls.length).toBe(2);
+    expect(applyFormatCalls.length).toBe(3);
     expect(applyFormatCalls[0]).toBe(fs);
     expect(applyFormatCalls[1].fontName).toBe('Figtree');
     expect(applyFormatCalls[1].fontVariant).toBe('regular');
     expect(applyFormatCalls[1].fontSize).toBe(12);
     expect(applyFormatCalls[1].bold).toBe(false);
     expect(applyFormatCalls[1].textColor).toBe('#112233');
+    expect(applyFormatCalls[2].fontName).toBe('Figtree');
+    expect(applyFormatCalls[2].fontVariant).toBe('regular');
+    expect(applyFormatCalls[2].fontSize).toBe(12);
+    expect(applyFormatCalls[2].bold).toBe(false);
+    expect(applyFormatCalls[2].textColor).toBe('#112233');
   });
 
-  it('two content paragraphs at end — both inserted, cleanup follows', function () {
+  it('three content paragraphs at end — all inserted, cleanup follows', function () {
     var body = createMockBody(['existing']);
     var cursorPara = body._children[0];
     var doc = createMockDoc(body, cursorPara);
 
     insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), {});
 
-    // [existing, arabic, translation, cleanup]
-    expect(body._children.length).toBe(4);
+    // [existing, arabic, translation, citation, cleanup]
+    expect(body._children.length).toBe(5);
     expect(body._children[1]._text).toBe('\uFD3F\u00A0arabic\u00A0\uFD3E');
     expect(body._children[1]._ltr).toBe(false);
-    expect(body._children[2]._text).toBe('"translation" (Al-Fatiha\u00A01:1)');
+    expect(body._children[2]._text).toBe('"translation"');
     expect(body._children[2]._ltr).toBe(true);
-    expect(body._children[3]._text).toBe('');
-    expect(body._children[3]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
+    expect(body._children[3]._text).toBe('(Al-Fatiha\u00A01:1)');
     expect(body._children[3]._ltr).toBe(true);
+    expect(body._children[4]._text).toBe('');
+    expect(body._children[4]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
+    expect(body._children[4]._ltr).toBe(true);
   });
 
-  it('two content paragraphs with content after — NO cleanup', function () {
+  it('three content paragraphs with content after — NO cleanup', function () {
     var body = createMockBody(['existing', 'after']);
     var cursorPara = body._children[0];
     var doc = createMockDoc(body, cursorPara);
 
     insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), {});
 
-    // [existing, arabic, translation, after] — no cleanup
-    expect(body._children.length).toBe(4);
+    // [existing, arabic, translation, citation, after] — no cleanup
+    expect(body._children.length).toBe(5);
     expect(body._children[1]._text).toBe('\uFD3F\u00A0arabic\u00A0\uFD3E');
-    expect(body._children[2]._text).toBe('"translation" (Al-Fatiha\u00A01:1)');
-    expect(body._children[3]._text).toBe('after');
-    expect(body._children[3]._heading).toBe(null);
+    expect(body._children[2]._text).toBe('"translation"');
+    expect(body._children[3]._text).toBe('(Al-Fatiha\u00A01:1)');
+    expect(body._children[4]._text).toBe('after');
+    expect(body._children[4]._heading).toBe(null);
+  });
+
+  it('payload spacingBefore and spacingAfter are applied to paragraphs', function () {
+    var body = createMockBody(['']);
+    var doc = createMockDoc(body, body._children[0]);
+
+    insertParagraphsAtPosition_(body, doc, arabicOnlyTwoParagraphs(), {});
+
+    expect(body._children[0]._spacingBefore).toBe(INSERT_SPACE_BEFORE_ARABIC_PT);
+    expect(body._children[0]._spacingAfter).toBe(null);
+    expect(body._children[1]._spacingBefore).toBe(null);
+    expect(body._children[1]._spacingAfter).toBe(null);
+  });
+
+  it('Arabic + translation: Arabic has before and after spacing; citation has no trailing spacing', function () {
+    var body = createMockBody(['']);
+    var doc = createMockDoc(body, body._children[0]);
+
+    insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), {});
+
+    expect(body._children[0]._spacingBefore).toBe(INSERT_SPACE_BEFORE_ARABIC_PT);
+    expect(body._children[0]._spacingAfter).toBe(INSERT_SPACE_ARABIC_TO_TRANSLATION_PT);
+    expect(body._children[1]._spacingBefore).toBe(null);
+    expect(body._children[1]._spacingAfter).toBe(null);
+    expect(body._children[2]._spacingBefore).toBe(null);
+    expect(body._children[2]._spacingAfter).toBe(null);
   });
 
   results.push('\ninsertParagraphsAtPosition_() — regression: sequential insertion & removeChild');
@@ -350,23 +411,25 @@ function runDocumentServiceTests() {
     // First insert: Arabic + translation into empty doc
     insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), {});
 
-    // After first insert: [arabic, translation, cleanup]
-    expect(body._children.length).toBe(3);
+    // After first insert: [arabic, translation, citation, cleanup]
+    expect(body._children.length).toBe(4);
     expect(body._children[0]._text).toBe('\uFD3F\u00A0arabic\u00A0\uFD3E');
-    expect(body._children[1]._text).toBe('"translation" (Al-Fatiha\u00A01:1)');
-    expect(body._children[2]._text).toBe('');
+    expect(body._children[1]._text).toBe('"translation"');
+    expect(body._children[2]._text).toBe('(Al-Fatiha\u00A01:1)');
+    expect(body._children[3]._text).toBe('');
 
     // Second insert: cursor on cleanup (empty paragraph at end)
-    var cleanup = body._children[2];
+    var cleanup = body._children[3];
     var doc2 = createMockDoc(body, cleanup);
     insertParagraphsAtPosition_(body, doc2, singleArabicParagraph(), {});
 
-    // [arabic1, translation1, arabic2, cleanup2]
-    expect(body._children.length).toBe(4);
+    // [arabic1, translation1, citation1, arabic2, cleanup2]
+    expect(body._children.length).toBe(5);
     expect(body._children[0]._text).toBe('\uFD3F\u00A0arabic\u00A0\uFD3E');
-    expect(body._children[1]._text).toBe('"translation" (Al-Fatiha\u00A01:1)');
-    expect(body._children[2]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
-    expect(body._children[3]._text).toBe('');
+    expect(body._children[1]._text).toBe('"translation"');
+    expect(body._children[2]._text).toBe('(Al-Fatiha\u00A01:1)');
+    expect(body._children[3]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
+    expect(body._children[4]._text).toBe('');
   });
 
   it('empty paragraph reuse avoids removeChild entirely', function () {
