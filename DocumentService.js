@@ -166,6 +166,12 @@ function insertAyah(ayahData, formatState, settings) {
       align: DocumentApp.HorizontalAlignment.CENTER,
       useEnglishTranslationFont: true
     });
+  } else if (showTranslation) {
+    paragraphsToInsert.push({
+      text: '\uFD3F' + qNbsp + arabicText + qNbsp + '\uFD3E [' + surahNameAr + ':' + qNbsp + ayahNumAr + ']',
+      align: DocumentApp.HorizontalAlignment.CENTER,
+      rtl: true
+    });
   } else {
     paragraphsToInsert.push({
       text: '\uFD3F' + qNbsp + arabicText + qNbsp + '\uFD3E',
@@ -229,6 +235,13 @@ function insertAyahRange(rangeData, formatState, settings) {
             rangeData.ayahStart + '-' + rangeData.ayahEnd + ')',
       align: DocumentApp.HorizontalAlignment.CENTER,
       useEnglishTranslationFont: true
+    });
+  } else if (showTranslation) {
+    paragraphsToInsert.push({
+      text: '\uFD3F' + qNbsp + arabicText + qNbsp + '\uFD3E [' +
+            surahNameAr + ':' + qNbsp + ayahStartAr + qNbsp + '-' + qNbsp + ayahEndAr + ']',
+      align: DocumentApp.HorizontalAlignment.CENTER,
+      rtl: true
     });
   } else {
     paragraphsToInsert.push({
