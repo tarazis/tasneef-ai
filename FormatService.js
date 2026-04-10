@@ -40,6 +40,29 @@ function formatStateForEnglishTranslation(formatState) {
 }
 
 /**
+ * Shallow copy of formatState with fontSize shifted by deltaPt (points), floored at 1.
+ * If fontSize is missing or not a finite number, returns a copy without changing fontSize.
+ * @param {Object|null|undefined} formatState
+ * @param {number} deltaPt e.g. -1 for one point smaller
+ * @return {Object}
+ */
+function formatStateWithFontSizeAdjustment(formatState, deltaPt) {
+  if (!formatState || deltaPt == null || deltaPt === 0) {
+    return formatState;
+  }
+  var out = {};
+  for (var k in formatState) {
+    if (Object.prototype.hasOwnProperty.call(formatState, k)) {
+      out[k] = formatState[k];
+    }
+  }
+  if (out.fontSize != null && !isNaN(Number(out.fontSize))) {
+    out.fontSize = Math.max(1, Number(out.fontSize) + deltaPt);
+  }
+  return out;
+}
+
+/**
  * Builds the font family string Google Docs accepts for weighted Google Fonts.
  * @param {string} family
  * @param {number} weight
