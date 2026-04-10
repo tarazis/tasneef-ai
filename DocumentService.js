@@ -24,7 +24,7 @@ var INSERT_SPACING_INNER_PT = 6;
  *
  * @param {Body} body - The document body
  * @param {Document} doc - The active document
- * @param {Array<Object>} paragraphsToInsert - Array of { text, align, rtl?, useEnglishTranslationFont?, spacingBefore?, spacingAfter? } (spacing in pt; optional)
+ * @param {Array<Object>} paragraphsToInsert - Array of { text, align, rtl?, useEnglishTranslationFont?, spacingBefore?, spacingAfter?, fontSizeAdjustPt? } (spacing in pt; fontSizeAdjustPt e.g. -1 for citation one pt smaller)
  * @param {Object} formatState - { fontName, fontVariant, fontSize, bold, textColor }
  * @return {Object} { fontWarning: string|null }
  */
@@ -86,6 +86,9 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
     var fs = item.useEnglishTranslationFont
       ? formatStateForEnglishTranslation(formatState)
       : formatState;
+    if (item.fontSizeAdjustPt != null && item.fontSizeAdjustPt !== 0) {
+      fs = formatStateWithFontSizeAdjustment(fs, item.fontSizeAdjustPt);
+    }
     fontWarning = applyFormat(p.editAsText(), fs) || fontWarning;
     if (item.spacingBefore != null) {
       p.setSpacingBefore(item.spacingBefore);
@@ -167,7 +170,8 @@ function insertAyah(ayahData, formatState, settings) {
       text: '(' + surahNameEn + qNbsp + ayahData.surah + ':' + ayahData.ayah + ')',
       align: DocumentApp.HorizontalAlignment.CENTER,
       useEnglishTranslationFont: true,
-      spacingAfter: INSERT_SPACING_OUTER_PT
+      spacingAfter: INSERT_SPACING_OUTER_PT,
+      fontSizeAdjustPt: -1
     });
   } else {
     paragraphsToInsert.push({
@@ -181,7 +185,8 @@ function insertAyah(ayahData, formatState, settings) {
       text: '[' + surahNameAr + ':' + qNbsp + ayahNumAr + ']',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true,
-      spacingAfter: INSERT_SPACING_OUTER_PT
+      spacingAfter: INSERT_SPACING_OUTER_PT,
+      fontSizeAdjustPt: -1
     });
   }
 
@@ -235,7 +240,8 @@ function insertAyahRange(rangeData, formatState, settings) {
             rangeData.ayahStart + '-' + rangeData.ayahEnd + ')',
       align: DocumentApp.HorizontalAlignment.CENTER,
       useEnglishTranslationFont: true,
-      spacingAfter: INSERT_SPACING_OUTER_PT
+      spacingAfter: INSERT_SPACING_OUTER_PT,
+      fontSizeAdjustPt: -1
     });
   } else {
     paragraphsToInsert.push({
@@ -249,7 +255,8 @@ function insertAyahRange(rangeData, formatState, settings) {
       text: '[' + surahNameAr + ':' + qNbsp + ayahStartAr + qNbsp + '-' + qNbsp + ayahEndAr + ']',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true,
-      spacingAfter: INSERT_SPACING_OUTER_PT
+      spacingAfter: INSERT_SPACING_OUTER_PT,
+      fontSizeAdjustPt: -1
     });
   }
 
