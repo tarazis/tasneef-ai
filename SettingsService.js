@@ -9,6 +9,8 @@ var AI_SEARCH_DAILY_LIMIT = 50;
 
 var SETTINGS_DEFAULTS = {
   showTranslation: true,
+  /** When true, ayah/range inserts are wrapped in a styled 1×1 table (blockquote look). */
+  blockquoteInsertion: true,
   insertArabic: true,
   arabicStyle: 'uthmani',     // "uthmani" | "simple"
   fontName: 'Amiri',

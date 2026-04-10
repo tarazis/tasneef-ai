@@ -26,6 +26,18 @@ function applyTranslationCheckboxFromPayload(s) {
   trans.checked = showTrans;
 }
 
+function applyBlockquoteCheckboxFromPayload(s) {
+  var bq = document.getElementById('insert-blockquote');
+  if (!bq) return;
+  var on = true;
+  if (s && typeof s.blockquoteInsertion !== 'undefined') {
+    on = s.blockquoteInsertion !== false;
+  } else if (typeof _settings !== 'undefined' && _settings && typeof _settings.blockquoteInsertion !== 'undefined') {
+    on = _settings.blockquoteInsertion !== false;
+  }
+  bq.checked = on;
+}
+
 // ─── Settings Page (replaces overlay) ──────────────────────────────────────
 
 function showSettingsPage() {
@@ -105,11 +117,13 @@ function loadSettingsIntoPanel(gen) {
     .withSuccessHandler(function (s) {
       if (gen !== settingsPanelLoadGen) return;
       applyTranslationCheckboxFromPayload(s);
+      applyBlockquoteCheckboxFromPayload(s);
       setSettingsPanelLoading(false);
     })
     .withFailureHandler(function () {
       if (gen !== settingsPanelLoadGen) return;
       applyTranslationCheckboxFromPayload(null);
+      applyBlockquoteCheckboxFromPayload(null);
       setSettingsPanelLoading(false);
     })
     .getSettings();
@@ -117,6 +131,7 @@ function loadSettingsIntoPanel(gen) {
 
 function initSettingsPanelHandlers() {
   var trans = document.getElementById('insert-translation');
+  var bq = document.getElementById('insert-blockquote');
 
   // Auto-save on toggle change
   if (trans) {
@@ -133,6 +148,22 @@ function initSettingsPanelHandlers() {
           trans.checked = !showTranslation;
         })
         .saveSettings({ showTranslation: showTranslation });
+    });
+  }
+
+  if (bq) {
+    bq.addEventListener('change', function () {
+      var blockquoteInsertion = bq.checked;
+      if (typeof _settings !== 'object' || !_settings) {
+        _settings = {};
+      }
+      _settings.blockquoteInsertion = blockquoteInsertion;
+      google.script.run
+        .withFailureHandler(function () {
+          _settings.blockquoteInsertion = !blockquoteInsertion;
+          bq.checked = !blockquoteInsertion;
+        })
+        .saveSettings({ blockquoteInsertion: blockquoteInsertion });
     });
   }
 }

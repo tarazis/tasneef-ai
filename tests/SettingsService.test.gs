@@ -55,6 +55,19 @@ function runSettingsServiceTests() {
 
   results.push('\ngetSettings() defaults');
 
+  it('blockquoteInsertion defaults to true', function () {
+    PropertiesService.getUserProperties().deleteProperty('setting_blockquoteInsertion');
+    var s = getSettings();
+    expect(s.blockquoteInsertion).toBe(true);
+  });
+
+  it('saveSetting_ persists blockquoteInsertion false', function () {
+    saveSetting_('blockquoteInsertion', false);
+    var s = getSettings();
+    expect(s.blockquoteInsertion).toBe(false);
+    PropertiesService.getUserProperties().deleteProperty('setting_blockquoteInsertion');
+  });
+
   it('showTranslation defaults to true', function () {
     PropertiesService.getUserProperties().deleteProperty('setting_showTranslation');
     var s = getSettings();

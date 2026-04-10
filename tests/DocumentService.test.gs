@@ -1,5 +1,6 @@
 /**
- * GAS-native tests for DocumentService.gs — insertParagraphsAtPosition_()
+ * GAS-native tests for DocumentService.gs — insertParagraphsAtPosition_(),
+ * insertBlockquoteTableAtPosition_(), and helpers.
  * Run from Apps Script editor: select runDocumentServiceTests, click Run.
  */
 
@@ -60,6 +61,45 @@ function runDocumentServiceTests() {
     };
   }
 
+  function createMockTableCell() {
+    var innerParas = [createMockParagraph('')];
+    return {
+      _inner: innerParas,
+      _bg: null,
+      _padL: null,
+      _padT: null,
+      _padR: null,
+      _padB: null,
+      setBackgroundColor: function (c) { this._bg = c; },
+      setPaddingLeft: function (x) { this._padL = x; },
+      setPaddingTop: function (x) { this._padT = x; },
+      setPaddingRight: function (x) { this._padR = x; },
+      setPaddingBottom: function (x) { this._padB = x; },
+      getChild: function (i) { return this._inner[i]; },
+      getNumChildren: function () { return this._inner.length; },
+      insertParagraph: function (childIndex, text) {
+        var p = createMockParagraph(text);
+        this._inner.splice(childIndex, 0, p);
+        return p;
+      }
+    };
+  }
+
+  function createMockTable() {
+    var cell = createMockTableCell();
+    return {
+      _cell: cell,
+      getType: function () { return DocumentApp.ElementType.TABLE; },
+      getRow: function () {
+        return {
+          getCell: function () {
+            return cell;
+          }
+        };
+      }
+    };
+  }
+
   function createMockBody(initialTexts) {
     var children = [];
     for (var i = 0; i < initialTexts.length; i++) {
@@ -89,6 +129,11 @@ function runDocumentServiceTests() {
         this._children.splice(index, 0, p);
         return p;
       },
+      insertTable: function (index, rows, cols) {
+        var t = createMockTable();
+        this._children.splice(index, 0, t);
+        return t;
+      },
       removeChild: function (child) {
         for (var i = 0; i < this._children.length; i++) {
           if (this._children[i] === child) {
@@ -103,12 +148,15 @@ function runDocumentServiceTests() {
   function createMockDoc(body, cursorParagraph) {
     return {
       getBody: function () { return body; },
+      getId: function () { return 'mock-doc-id'; },
       getCursor: function () {
         if (!cursorParagraph) return null;
         return {
           getElement: function () { return cursorParagraph; }
         };
-      }
+      },
+      setCursor: function () {},
+      newPosition: function () { return {}; }
     };
   }
 
@@ -472,6 +520,63 @@ function runDocumentServiceTests() {
     expect(result.fontWarning).toBe(null);
     expect(body._children[0]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
     body.removeChild = origRemoveChild;
+  });
+
+  results.push('\ninsertBlockquoteTableAtPosition_()');
+
+  it('blockquote: body ends with table then cleanup; inner spacing matches paragraph path', function () {
+    var body = createMockBody(['']);
+    var doc = createMockDoc(body, body._children[0]);
+    insertBlockquoteTableAtPosition_(body, doc, arabicOnlyAyahAndCitation(), {});
+
+    expect(body._children.length).toBe(2);
+    expect(body._children[0].getType()).toBe(DocumentApp.ElementType.TABLE);
+    expect(body._children[1]._text).toBe('');
+    expect(body._children[1]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
+
+    var cell = body._children[0]._cell;
+    expect(cell._bg).toBe(BLOCKQUOTE_CELL_BACKGROUND);
+    expect(cell._padL).toBe(20);
+    expect(cell._padT).toBe(12);
+    expect(cell._padR).toBe(12);
+    expect(cell._padB).toBe(12);
+    expect(cell._inner.length).toBe(2);
+    expect(cell._inner[0]._spacingBefore).toBe(INSERT_SPACING_OUTER_PT);
+    expect(cell._inner[0]._spacingAfter).toBe(INSERT_SPACING_INNER_PT);
+    expect(cell._inner[1]._spacingAfter).toBe(INSERT_SPACING_OUTER_PT);
+  });
+
+  it('blockquote: three paragraphs in cell with translation spacing', function () {
+    var body = createMockBody(['']);
+    var doc = createMockDoc(body, body._children[0]);
+    insertBlockquoteTableAtPosition_(body, doc, arabicAndTranslation(), {});
+
+    var cell = body._children[0]._cell;
+    expect(cell._inner.length).toBe(3);
+    expect(cell._inner[0]._spacingBefore).toBe(INSERT_SPACING_OUTER_PT);
+    expect(cell._inner[0]._spacingAfter).toBe(INSERT_SPACING_INNER_PT);
+    expect(cell._inner[1]._spacingAfter).toBe(INSERT_SPACING_INNER_PT);
+    expect(cell._inner[2]._spacingAfter).toBe(INSERT_SPACING_OUTER_PT);
+  });
+
+  it('blockquote: when not last in doc, no body cleanup paragraph added', function () {
+    var body = createMockBody(['existing', 'after']);
+    var doc = createMockDoc(body, body._children[0]);
+    insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
+
+    // [table, existing, after] — wait, insert at index 1 after non-empty at 0
+    // cursor on first 'existing' non-empty → insertIndex 1 → [existing, table, after]
+    expect(body._children.length).toBe(3);
+    expect(body._children[0]._text).toBe('existing');
+    expect(body._children[1].getType()).toBe(DocumentApp.ElementType.TABLE);
+    expect(body._children[2]._text).toBe('after');
+  });
+
+  it('hexToDocsRgb01_ parses normalized hex for Docs border color', function () {
+    var rgb = hexToDocsRgb01_('#3A8F7A');
+    expect(rgb.red > 0.2 && rgb.red < 0.25).toBe(true);
+    expect(rgb.green > 0.55 && rgb.green < 0.58).toBe(true);
+    expect(rgb.blue > 0.46 && rgb.blue < 0.49).toBe(true);
   });
 
   // ── Restore ─────────────────────────────────────────────────
