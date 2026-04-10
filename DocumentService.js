@@ -230,7 +230,8 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
   var insertIndex = anchor.insertIndex;
   var removeTarget = anchor.removeTarget;
 
-  var table = body.insertTable(insertIndex, 1, 1);
+  // DocumentApp.Body.insertTable only accepts (index) or (index, String[][]); there is no (index, rows, cols).
+  var table = body.insertTable(insertIndex, [['']]);
 
   if (removeTarget) {
     var after = body.getChild(insertIndex + 1);

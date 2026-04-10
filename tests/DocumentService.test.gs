@@ -129,7 +129,7 @@ function runDocumentServiceTests() {
         this._children.splice(index, 0, p);
         return p;
       },
-      insertTable: function (index, rows, cols) {
+      insertTable: function (index, cells) {
         var t = createMockTable();
         this._children.splice(index, 0, t);
         return t;
