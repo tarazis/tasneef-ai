@@ -82,31 +82,7 @@ function runDocumentServiceTests() {
         return {
           _owner: para,
           setFontSize: function (s) { para._fontSize = s; return this; },
-          getFontSize: function () { return para._fontSize; },
-          getAttributes: function (charIndex) {
-            if (!para._charAttrs) return null;
-            return para._charAttrs[charIndex] || null;
-          },
-          setAttributes: function (startOffset, endOffset, attrs) {
-            if (!para._charAttrs) para._charAttrs = {};
-            for (var ai = startOffset; ai <= endOffset; ai++) {
-              para._charAttrs[ai] = attrs;
-            }
-            return this;
-          },
-          deleteText: function (startOffset, endOffset) {
-            var t = para._text;
-            para._text = t.substring(0, startOffset) + t.substring(endOffset + 1);
-            if (para._charAttrs) {
-              var newAttrs = {};
-              for (var ai = 0; ai < startOffset; ai++) {
-                if (para._charAttrs[ai]) newAttrs[ai] = para._charAttrs[ai];
-              }
-              para._charAttrs = newAttrs;
-            }
-            para._textChildren = [createMockText(para._text, para)];
-            return this;
-          }
+          getFontSize: function () { return para._fontSize; }
         };
       }
     };
@@ -200,23 +176,18 @@ function runDocumentServiceTests() {
 
   /**
    * @param {*} body
-   * @param {*} cursorParagraph - element for cursor (or null)
+   * @param {*} cursorElement - element for cursor (or null)
    * @param {Array} selectionElements - optional range elements (see mockRangeEl_)
-   * @param {number} [cursorOffset] - defaults to end of cursor paragraph text
    */
-  function createMockDoc(body, cursorParagraph, selectionElements, cursorOffset) {
+  function createMockDoc(body, cursorElement, selectionElements) {
     return {
       getBody: function () { return body; },
       getId: function () { return 'mock-doc-id'; },
       getCursor: function () {
-        if (!cursorParagraph) return null;
-        var co = cursorOffset;
-        if (co === undefined || co === null) {
-          co = cursorParagraph.getText ? cursorParagraph.getText().length : 0;
-        }
+        if (!cursorElement) return null;
         return {
-          getElement: function () { return cursorParagraph; },
-          getOffset: function () { return co; }
+          getElement: function () { return cursorElement; },
+          getOffset: function () { return 0; }
         };
       },
       getSelection: function () {
@@ -232,11 +203,11 @@ function runDocumentServiceTests() {
     };
   }
 
-  function mockRangeEl_(element, partial, endOffsetInclusive) {
+  function mockRangeEl_(element) {
     return {
       getElement: function () { return element; },
-      isPartial: function () { return !!partial; },
-      getEndOffsetInclusive: function () { return endOffsetInclusive; }
+      isPartial: function () { return false; },
+      getEndOffsetInclusive: function () { return 0; }
     };
   }
 
@@ -309,8 +280,7 @@ function runDocumentServiceTests() {
 
   it('cursor on empty paragraph (only child) — replaces empty, adds cleanup', function () {
     var body = createMockBody(['']);
-    var cursorPara = body._children[0];
-    var doc = createMockDoc(body, cursorPara);
+    var doc = createMockDoc(body, body._children[0]);
 
     insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
 
@@ -325,8 +295,7 @@ function runDocumentServiceTests() {
 
   it('cursor on non-empty paragraph (last child) — inserts below, adds cleanup', function () {
     var body = createMockBody(['existing text']);
-    var cursorPara = body._children[0];
-    var doc = createMockDoc(body, cursorPara);
+    var doc = createMockDoc(body, body._children[0]);
 
     insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
 
@@ -369,8 +338,7 @@ function runDocumentServiceTests() {
 
   it('cursor at last paragraph (non-empty) — content appended, cleanup is last', function () {
     var body = createMockBody(['first', 'last']);
-    var cursorPara = body._children[1];
-    var doc = createMockDoc(body, cursorPara);
+    var doc = createMockDoc(body, body._children[1]);
 
     insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
 
@@ -400,14 +368,13 @@ function runDocumentServiceTests() {
     expect(body._children[5]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
   });
 
-  it('cursor at end of first paragraph with paragraphs below — content, bottom, then rest', function () {
+  it('cursor at first paragraph with paragraphs below — content after first, then rest', function () {
     var body = createMockBody(['first', 'second', 'third']);
-    var cursorPara = body._children[0];
-    var doc = createMockDoc(body, cursorPara);
+    var doc = createMockDoc(body, body._children[0]);
 
     insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
 
-    // End of "first" → no top buffer; [first, content, bottom, second, third]
+    // [first, content, bottom, second, third]
     expect(body._children.length).toBe(5);
     expect(body._children[0]._text).toBe('first');
     expect(body._children[1]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
@@ -417,10 +384,9 @@ function runDocumentServiceTests() {
     expect(body._children[4]._text).toBe('third');
   });
 
-  it('cursor at end of first with only spaces paragraph below — bottom buffer before spaces', function () {
+  it('cursor at first with only spaces paragraph below — bottom buffer before spaces', function () {
     var body = createMockBody(['first', '   ']);
-    var cursorPara = body._children[0];
-    var doc = createMockDoc(body, cursorPara);
+    var doc = createMockDoc(body, body._children[0]);
 
     insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
 
@@ -520,8 +486,7 @@ function runDocumentServiceTests() {
 
   it('three content paragraphs at end — all inserted, cleanup follows', function () {
     var body = createMockBody(['existing']);
-    var cursorPara = body._children[0];
-    var doc = createMockDoc(body, cursorPara);
+    var doc = createMockDoc(body, body._children[0]);
 
     insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), {});
 
@@ -542,12 +507,11 @@ function runDocumentServiceTests() {
 
   it('three content paragraphs with content after — bottom buffer before following paragraph', function () {
     var body = createMockBody(['existing', 'after']);
-    var cursorPara = body._children[0];
-    var doc = createMockDoc(body, cursorPara);
+    var doc = createMockDoc(body, body._children[0]);
 
     insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), {});
 
-    // End of "existing" → [existing, arabic, translation, citation, bottom, after]
+    // [existing, arabic, translation, citation, bottom, after]
     expect(body._children.length).toBe(6);
     expect(body._children[1]._text).toBe('\uFD3F\u00A0arabic\u00A0\uFD3E');
     expect(body._children[2]._text).toBe('"translation"');
@@ -564,7 +528,6 @@ function runDocumentServiceTests() {
     var emptyPara = body._children[0];
     var doc = createMockDoc(body, emptyPara);
 
-    // First insert: Arabic + translation + citation into empty doc
     insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), {});
 
     // After first insert: [arabic, translation, citation, cleanup]
@@ -574,7 +537,6 @@ function runDocumentServiceTests() {
     expect(body._children[2]._text).toBe('(Al-Fatiha\u00A01:1)');
     expect(body._children[3]._text).toBe('');
 
-    // Second insert: cursor on cleanup (empty paragraph at end)
     var cleanup = body._children[3];
     var doc2 = createMockDoc(body, cleanup);
     insertParagraphsAtPosition_(body, doc2, singleArabicParagraph(), {});
@@ -613,7 +575,6 @@ function runDocumentServiceTests() {
     var doc = createMockDoc(body, body._children[0]);
     insertBlockquoteTableAtPosition_(body, doc, arabicOnlyAyahAndCitation(), {});
 
-    // insertIndex=0 → no top buffer; [TABLE, typingParagraph]
     expect(body._children.length).toBe(2);
     expect(body._children[0].getType()).toBe(DocumentApp.ElementType.TABLE);
     expect(body._children[1]._text).toBe('');
@@ -637,7 +598,6 @@ function runDocumentServiceTests() {
     var doc = createMockDoc(body, body._children[0]);
     insertBlockquoteTableAtPosition_(body, doc, arabicAndTranslation(), {});
 
-    // [TABLE, typingParagraph]
     expect(body._children.length).toBe(2);
     var cell = body._children[0]._cell;
     expect(cell._inner.length).toBe(3);
@@ -647,12 +607,12 @@ function runDocumentServiceTests() {
     expect(cell._inner[2]._spacingAfter).toBe(INSERT_SPACING_OUTER_PT);
   });
 
-  it('blockquote: non-empty doc — cursor at end of paragraph: table, typing, no top buffer', function () {
+  it('blockquote: non-empty doc — cursor on paragraph: table after it, no top buffer', function () {
     var body = createMockBody(['existing', 'after']);
     var doc = createMockDoc(body, body._children[0]);
     insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
 
-    // End of "existing" → [existing, TABLE, typingParagraph, after]
+    // [existing, TABLE, typingParagraph, after]
     expect(body._children.length).toBe(4);
     expect(body._children[0]._text).toBe('existing');
     expect(body._children[1].getType()).toBe(DocumentApp.ElementType.TABLE);
@@ -667,17 +627,15 @@ function runDocumentServiceTests() {
     var doc = createMockDoc(body, body._children[0]);
     insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
 
-    // insertIndex=0 → no top buffer; first child is the table
     expect(body._children[0].getType()).toBe(DocumentApp.ElementType.TABLE);
     expect(body._children[0]._cell._inner[0]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
   });
 
-  it('blockquote: typing paragraph has no explicit spacing (after end-of-para insert)', function () {
+  it('blockquote: typing paragraph has no explicit spacing', function () {
     var body = createMockBody(['content above', 'more content']);
     var doc = createMockDoc(body, body._children[1]);
     insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
 
-    // End of last body paragraph → no top buffer; [ca, more, TABLE, typing]
     var typing = body._children[3];
     expect(typing._text).toBe('');
     expect(typing._fontSize).toBe(null);
@@ -708,7 +666,6 @@ function runDocumentServiceTests() {
     var doc = createMockDoc(body, origPara);
     insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
 
-    // [TABLE, reusedOrigPara]
     expect(body._children.length).toBe(2);
     expect(body._children[0].getType()).toBe(DocumentApp.ElementType.TABLE);
     var typing = body._children[1];
@@ -847,22 +804,50 @@ function runDocumentServiceTests() {
     applyBlockquoteCellBordersViaDocsApi_ = origBorders;
   });
 
-  // ── resolveIsolatedInsertAnchor_ — getSelection() fallback ─
+  // ── resolveIsolatedInsertAnchor_ — always-after-paragraph ──
 
-  results.push('\nresolveIsolatedInsertAnchor_() — getSelection() fallback');
+  results.push('\nresolveIsolatedInsertAnchor_() — simplified anchor (always after paragraph)');
 
-  it('selection on non-empty body paragraph inserts after it (end collapsed)', function () {
+  it('cursor on non-empty paragraph inserts after it', function () {
     var body = createMockBody(['first', 'second', 'third']);
-    var doc = createMockDoc(body, null, [mockRangeEl_(body._children[1], false)]);
+    var doc = createMockDoc(body, body._children[1]);
     var anchor = resolveIsolatedInsertAnchor_(body, doc);
     expect(anchor.baseIndex).toBe(2);
     expect(anchor.topBuffer).toBe(false);
     expect(anchor.removeTarget).toBe(null);
   });
 
-  it('selection on empty body paragraph reuses it', function () {
+  it('cursor on empty paragraph reuses it', function () {
     var body = createMockBody(['first', '', 'third']);
-    var doc = createMockDoc(body, null, [mockRangeEl_(body._children[1], false)]);
+    var doc = createMockDoc(body, body._children[1]);
+    var anchor = resolveIsolatedInsertAnchor_(body, doc);
+    expect(anchor.baseIndex).toBe(1);
+    expect(anchor.topBuffer).toBe(false);
+    expect(anchor.removeTarget).toBe(body._children[1]);
+  });
+
+  it('cursor on TEXT child of paragraph inserts after that paragraph', function () {
+    var body = createMockBody(['hello world']);
+    var textEl = body._children[0]._textChildren[0];
+    var doc = createMockDoc(body, textEl);
+    var anchor = resolveIsolatedInsertAnchor_(body, doc);
+    expect(anchor.baseIndex).toBe(1);
+    expect(anchor.topBuffer).toBe(false);
+    expect(anchor.removeTarget).toBe(null);
+  });
+
+  it('selection on non-empty paragraph inserts after it', function () {
+    var body = createMockBody(['first', 'second', 'third']);
+    var doc = createMockDoc(body, null, [mockRangeEl_(body._children[1])]);
+    var anchor = resolveIsolatedInsertAnchor_(body, doc);
+    expect(anchor.baseIndex).toBe(2);
+    expect(anchor.topBuffer).toBe(false);
+    expect(anchor.removeTarget).toBe(null);
+  });
+
+  it('selection on empty paragraph reuses it', function () {
+    var body = createMockBody(['first', '', 'third']);
+    var doc = createMockDoc(body, null, [mockRangeEl_(body._children[1])]);
     var anchor = resolveIsolatedInsertAnchor_(body, doc);
     expect(anchor.baseIndex).toBe(1);
     expect(anchor.topBuffer).toBe(false);
@@ -894,14 +879,16 @@ function runDocumentServiceTests() {
     body._children.push(createMockParagraph('after'));
     var cellPara = tbl._cell._inner[0];
     cellPara.getParent = function () { return tbl; };
-    var doc = createMockDoc(body, null, [mockRangeEl_(cellPara, false)]);
+    var doc = createMockDoc(body, null, [mockRangeEl_(cellPara)]);
     var anchor = resolveIsolatedInsertAnchor_(body, doc);
     expect(anchor.baseIndex).toBe(2);
     expect(anchor.topBuffer).toBe(true);
     expect(anchor.removeTarget).toBe(null);
   });
 
-  results.push('\nresolveIsolatedInsertAnchor_() — start / split / list');
+  // ── resolveIsolatedInsertAnchor_ — list ──
+
+  results.push('\nresolveIsolatedInsertAnchor_() — list items');
 
   function createMockListItem(text, listId) {
     var li = createMockParagraph(text);
@@ -911,27 +898,6 @@ function runDocumentServiceTests() {
     return li;
   }
 
-  it('cursor at start of second paragraph — top buffer then insert before it', function () {
-    var body = createMockBody(['first', 'second']);
-    var doc = createMockDoc(body, body._children[1], null, 0);
-    var anchor = resolveIsolatedInsertAnchor_(body, doc);
-    expect(anchor.baseIndex).toBe(1);
-    expect(anchor.topBuffer).toBe(true);
-    expect(anchor.removeTarget).toBe(null);
-  });
-
-  it('cursor in middle of paragraph — splits then insert region has top buffer', function () {
-    var body = createMockBody(['hello world']);
-    var para = body._children[0];
-    var textEl = para._textChildren[0];
-    var doc = createMockDoc(body, textEl, null, 6);
-    var anchor = resolveIsolatedInsertAnchor_(body, doc);
-    expect(body._children[0]._text).toBe('hello ');
-    expect(body._children[1]._text).toBe('world');
-    expect(anchor.baseIndex).toBe(1);
-    expect(anchor.topBuffer).toBe(true);
-  });
-
   it('cursor in list — anchor after contiguous same-listId block', function () {
     var body = createMockBody(['intro']);
     body._children.push(createMockListItem('one', 'L9'));
@@ -940,86 +906,6 @@ function runDocumentServiceTests() {
     var anchor = resolveIsolatedInsertAnchor_(body, doc);
     expect(anchor.baseIndex).toBe(3);
     expect(anchor.topBuffer).toBe(true);
-  });
-
-  // ── normalizeToContainerOffset_ — Text cursor element ───────
-
-  results.push('\nnormalizeToContainerOffset_() — Text element cursor');
-
-  it('Text cursor at offset 6 in "hello world" returns container offset 6', function () {
-    var body = createMockBody(['hello world']);
-    var para = body._children[0];
-    var textEl = para._textChildren[0];
-    var result = normalizeToContainerOffset_(textEl, 6);
-    expect(result.container).toBe(para);
-    expect(result.offset).toBe(6);
-  });
-
-  it('Text cursor at offset 0 returns container offset 0', function () {
-    var body = createMockBody(['some text']);
-    var para = body._children[0];
-    var textEl = para._textChildren[0];
-    var result = normalizeToContainerOffset_(textEl, 0);
-    expect(result.container).toBe(para);
-    expect(result.offset).toBe(0);
-  });
-
-  it('Text cursor at end of text returns container offset equal to length', function () {
-    var body = createMockBody(['hello']);
-    var para = body._children[0];
-    var textEl = para._textChildren[0];
-    var result = normalizeToContainerOffset_(textEl, 5);
-    expect(result.container).toBe(para);
-    expect(result.offset).toBe(5);
-  });
-
-  it('Text cursor in second text child accounts for first child length', function () {
-    var body = createMockBody(['hello world']);
-    var para = body._children[0];
-    var text1 = createMockText('hello ', para);
-    var text2 = createMockText('world', para);
-    para._textChildren = [text1, text2];
-    var result = normalizeToContainerOffset_(text2, 3);
-    expect(result.container).toBe(para);
-    expect(result.offset).toBe(9);
-  });
-
-  // ── resolveIsolatedInsertAnchor_ — Text cursor split / start ──
-
-  results.push('\nresolveIsolatedInsertAnchor_() — Text cursor split / start');
-
-  it('Text cursor at middle of paragraph triggers split', function () {
-    var body = createMockBody(['hello world']);
-    var para = body._children[0];
-    var textEl = para._textChildren[0];
-    var doc = createMockDoc(body, textEl, null, 6);
-    var anchor = resolveIsolatedInsertAnchor_(body, doc);
-    expect(body._children[0]._text).toBe('hello ');
-    expect(body._children[1]._text).toBe('world');
-    expect(anchor.baseIndex).toBe(1);
-    expect(anchor.topBuffer).toBe(true);
-  });
-
-  it('Text cursor at beginning of paragraph inserts before it', function () {
-    var body = createMockBody(['first', 'second']);
-    var para = body._children[1];
-    var textEl = para._textChildren[0];
-    var doc = createMockDoc(body, textEl, null, 0);
-    var anchor = resolveIsolatedInsertAnchor_(body, doc);
-    expect(anchor.baseIndex).toBe(1);
-    expect(anchor.topBuffer).toBe(true);
-    expect(anchor.removeTarget).toBe(null);
-  });
-
-  it('Text cursor at end of paragraph inserts after it', function () {
-    var body = createMockBody(['hello']);
-    var para = body._children[0];
-    var textEl = para._textChildren[0];
-    var doc = createMockDoc(body, textEl, null, 5);
-    var anchor = resolveIsolatedInsertAnchor_(body, doc);
-    expect(anchor.baseIndex).toBe(1);
-    expect(anchor.topBuffer).toBe(false);
-    expect(anchor.removeTarget).toBe(null);
   });
 
   // ── End-to-end: blockquote insert with cursor in table cell ──
@@ -1047,232 +933,62 @@ function runDocumentServiceTests() {
     expect(result.pendingBorders.tableOrdinal).toBe(2);
   });
 
-  // ── End-to-end: blockquote + plain insert with mid-paragraph cursor ──
+  // ── End-to-end: cursor in middle or beginning of paragraph (no split) ──
 
-  results.push('\ninsertBlockquoteTableAtPosition_() — mid-paragraph split (Text cursor)');
+  results.push('\ninsertBlockquoteTableAtPosition_() — cursor in paragraph (no split)');
 
-  it('blockquote: Text cursor mid-paragraph splits and inserts table between halves', function () {
+  it('blockquote: cursor on paragraph inserts table after it', function () {
     var body = createMockBody(['hello world', 'after']);
-    var para = body._children[0];
-    var textEl = para._textChildren[0];
-    var doc = createMockDoc(body, textEl, null, 6);
+    var doc = createMockDoc(body, body._children[0]);
     insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
 
-    // ["hello ", topBuffer, TABLE, typingPara, "world", "after"]
-    expect(body._children[0]._text).toBe('hello ');
-    expect(body._children[1]._text).toBe('');
+    // ["hello world", TABLE, typingPara, "after"]
+    expect(body._children[0]._text).toBe('hello world');
+    expect(body._children[1].getType()).toBe(DocumentApp.ElementType.TABLE);
+    expect(body._children[2]._text).toBe('');
+    expect(body._children[2]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
+    expect(body._children[3]._text).toBe('after');
+  });
+
+  it('plain: cursor on paragraph inserts content after it', function () {
+    var body = createMockBody(['hello world', 'after']);
+    var doc = createMockDoc(body, body._children[0]);
+    insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
+
+    // ["hello world", content, bottom, "after"]
+    expect(body._children[0]._text).toBe('hello world');
+    expect(body._children[1]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
+    expect(body._children[2]._text).toBe('');
+    expect(body._children[2]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
+    expect(body._children[3]._text).toBe('after');
+  });
+
+  it('blockquote: cursor on second of three paragraphs inserts after it', function () {
+    var body = createMockBody(['first', 'second', 'third']);
+    var doc = createMockDoc(body, body._children[1]);
+    insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
+
+    // ["first", "second", TABLE, typingPara, "third"]
+    expect(body._children[0]._text).toBe('first');
+    expect(body._children[1]._text).toBe('second');
     expect(body._children[2].getType()).toBe(DocumentApp.ElementType.TABLE);
     expect(body._children[3]._text).toBe('');
     expect(body._children[3]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
-    expect(body._children[4]._text).toBe('world');
-    expect(body._children[5]._text).toBe('after');
+    expect(body._children[4]._text).toBe('third');
   });
 
-  it('plain: Text cursor mid-paragraph splits and inserts content between halves', function () {
-    var body = createMockBody(['hello world', 'after']);
-    var para = body._children[0];
-    var textEl = para._textChildren[0];
-    var doc = createMockDoc(body, textEl, null, 6);
+  it('plain: cursor on second of three paragraphs inserts after it', function () {
+    var body = createMockBody(['first', 'second', 'third']);
+    var doc = createMockDoc(body, body._children[1]);
     insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
 
-    // ["hello ", topBuffer, content, bottom, "world", "after"]
-    expect(body._children[0]._text).toBe('hello ');
-    expect(body._children[1]._text).toBe('');
+    // ["first", "second", content, bottom, "third"]
+    expect(body._children[0]._text).toBe('first');
+    expect(body._children[1]._text).toBe('second');
     expect(body._children[2]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
     expect(body._children[3]._text).toBe('');
     expect(body._children[3]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
-    expect(body._children[4]._text).toBe('world');
-    expect(body._children[5]._text).toBe('after');
-  });
-
-  // ── End-to-end: blockquote + plain insert with cursor at beginning ──
-
-  results.push('\ninsertBlockquoteTableAtPosition_() — beginning of paragraph (Text cursor)');
-
-  it('blockquote: Text cursor at beginning inserts table before paragraph', function () {
-    var body = createMockBody(['first', 'second', 'third']);
-    var para = body._children[1];
-    var textEl = para._textChildren[0];
-    var doc = createMockDoc(body, textEl, null, 0);
-    insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
-
-    // ["first", topBuffer, TABLE, typingPara, "second", "third"]
-    expect(body._children[0]._text).toBe('first');
-    expect(body._children[1]._text).toBe('');
-    expect(body._children[2].getType()).toBe(DocumentApp.ElementType.TABLE);
-    expect(body._children[3]._text).toBe('');
-    expect(body._children[3]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
-    expect(body._children[4]._text).toBe('second');
-    expect(body._children[5]._text).toBe('third');
-  });
-
-  it('plain: Text cursor at beginning inserts content before paragraph', function () {
-    var body = createMockBody(['first', 'second', 'third']);
-    var para = body._children[1];
-    var textEl = para._textChildren[0];
-    var doc = createMockDoc(body, textEl, null, 0);
-    insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
-
-    // ["first", topBuffer, content, bottom, "second", "third"]
-    expect(body._children[0]._text).toBe('first');
-    expect(body._children[1]._text).toBe('');
-    expect(body._children[2]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
-    expect(body._children[3]._text).toBe('');
-    expect(body._children[3]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
-    expect(body._children[4]._text).toBe('second');
-    expect(body._children[5]._text).toBe('third');
-  });
-
-  // ── normalizeToContainerOffset_ — Paragraph element with child-index offset ──
-
-  results.push('\nnormalizeToContainerOffset_() — Paragraph element child-index to char-offset');
-
-  it('Paragraph cursor offset 0 (before all children) returns char offset 0', function () {
-    var body = createMockBody(['hello world']);
-    var para = body._children[0];
-    var result = normalizeToContainerOffset_(para, 0);
-    expect(result.container).toBe(para);
-    expect(result.offset).toBe(0);
-  });
-
-  it('Paragraph cursor offset 1 (after 1 TEXT child) returns char offset = child text length', function () {
-    var body = createMockBody(['hello world']);
-    var para = body._children[0];
-    var result = normalizeToContainerOffset_(para, 1);
-    expect(result.container).toBe(para);
-    expect(result.offset).toBe(11);
-  });
-
-  it('Paragraph cursor offset 2 with two TEXT children sums both lengths', function () {
-    var body = createMockBody(['hello world']);
-    var para = body._children[0];
-    var text1 = createMockText('hello ', para);
-    var text2 = createMockText('world', para);
-    para._textChildren = [text1, text2];
-    var result = normalizeToContainerOffset_(para, 2);
-    expect(result.container).toBe(para);
-    expect(result.offset).toBe(11);
-  });
-
-  it('Paragraph cursor offset 1 with two TEXT children returns first child length only', function () {
-    var body = createMockBody(['hello world']);
-    var para = body._children[0];
-    var text1 = createMockText('hello ', para);
-    var text2 = createMockText('world', para);
-    para._textChildren = [text1, text2];
-    var result = normalizeToContainerOffset_(para, 1);
-    expect(result.container).toBe(para);
-    expect(result.offset).toBe(6);
-  });
-
-  it('Paragraph cursor offset exceeding child count clamps to total text length', function () {
-    var body = createMockBody(['abc']);
-    var para = body._children[0];
-    var result = normalizeToContainerOffset_(para, 5);
-    expect(result.container).toBe(para);
-    expect(result.offset).toBe(3);
-  });
-
-  // ── splitParagraphAt_ — formatting preservation ──
-
-  results.push('\nsplitParagraphAt_() — formatting preservation');
-
-  it('split preserves "before" text via deleteText (not setText)', function () {
-    var body = createMockBody(['hello world']);
-    var para = body._children[0];
-    para._charAttrs = {};
-    para._charAttrs[0] = { BOLD: true };
-    para._charAttrs[1] = { BOLD: true };
-    para._charAttrs[2] = { BOLD: true };
-    para._charAttrs[3] = { BOLD: true };
-    para._charAttrs[4] = { BOLD: true };
-
-    splitParagraphAt_(body, para, 6);
-
-    expect(para._text).toBe('hello ');
-    expect(body._children[1]._text).toBe('world');
-    expect(para._charAttrs[0]).toEqual({ BOLD: true });
-    expect(para._charAttrs[4]).toEqual({ BOLD: true });
-    expect(para._charAttrs[6]).toBe(undefined);
-  });
-
-  it('split reapplies character attributes to "after" paragraph', function () {
-    var body = createMockBody(['hello world']);
-    var para = body._children[0];
-    para._charAttrs = {};
-    for (var ci = 6; ci < 11; ci++) {
-      para._charAttrs[ci] = { ITALIC: true, FONT_FAMILY: 'Arial' };
-    }
-
-    splitParagraphAt_(body, para, 6);
-
-    var np = body._children[1];
-    expect(np._text).toBe('world');
-    expect(np._charAttrs[0]).toEqual({ ITALIC: true, FONT_FAMILY: 'Arial' });
-    expect(np._charAttrs[4]).toEqual({ ITALIC: true, FONT_FAMILY: 'Arial' });
-  });
-
-  it('split copies paragraph-level attributes to new paragraph', function () {
-    var body = createMockBody(['hello world']);
-    var para = body._children[0];
-    para._heading = DocumentApp.ParagraphHeading.HEADING1;
-    para._align = DocumentApp.HorizontalAlignment.CENTER;
-    para._ltr = false;
-    para._spacingBefore = 10;
-    para._spacingAfter = 5;
-    para.getHeading = function () { return this._heading; };
-    para.getAlignment = function () { return this._align; };
-    para.getLeftToRight = function () { return this._ltr; };
-    para.getSpacingBefore = function () { return this._spacingBefore; };
-    para.getSpacingAfter = function () { return this._spacingAfter; };
-
-    splitParagraphAt_(body, para, 6);
-
-    var np = body._children[1];
-    expect(np._heading).toBe(DocumentApp.ParagraphHeading.HEADING1);
-    expect(np._align).toBe(DocumentApp.HorizontalAlignment.CENTER);
-    expect(np._ltr).toBe(false);
-    expect(np._spacingBefore).toBe(10);
-    expect(np._spacingAfter).toBe(5);
-  });
-
-  it('split at offset 0 or offset >= len is a no-op', function () {
-    var body = createMockBody(['hello']);
-    splitParagraphAt_(body, body._children[0], 0);
-    expect(body._children.length).toBe(1);
-    expect(body._children[0]._text).toBe('hello');
-
-    splitParagraphAt_(body, body._children[0], 5);
-    expect(body._children.length).toBe(1);
-    expect(body._children[0]._text).toBe('hello');
-
-    splitParagraphAt_(body, body._children[0], 10);
-    expect(body._children.length).toBe(1);
-    expect(body._children[0]._text).toBe('hello');
-  });
-
-  // ── resolveIsolatedInsertAnchor_ — Paragraph cursor element ──
-
-  results.push('\nresolveIsolatedInsertAnchor_() — Paragraph cursor element (child-index offset)');
-
-  it('Paragraph cursor at child-index 0 inserts before paragraph', function () {
-    var body = createMockBody(['first', 'second']);
-    var para = body._children[1];
-    var doc = createMockDoc(body, para, null, 0);
-    var anchor = resolveIsolatedInsertAnchor_(body, doc);
-    expect(anchor.baseIndex).toBe(1);
-    expect(anchor.topBuffer).toBe(true);
-    expect(anchor.removeTarget).toBe(null);
-  });
-
-  it('Paragraph cursor at child-index 1 (after all children) inserts after paragraph', function () {
-    var body = createMockBody(['hello']);
-    var para = body._children[0];
-    var doc = createMockDoc(body, para, null, 1);
-    var anchor = resolveIsolatedInsertAnchor_(body, doc);
-    expect(anchor.baseIndex).toBe(1);
-    expect(anchor.topBuffer).toBe(false);
-    expect(anchor.removeTarget).toBe(null);
+    expect(body._children[4]._text).toBe('third');
   });
 
   // ── Restore ─────────────────────────────────────────────────

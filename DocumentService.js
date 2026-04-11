@@ -35,104 +35,22 @@ function resolveBodyLevelAncestor_(body, element) {
 }
 
 /**
- * Nearest paragraph-like block (body paragraph or list item) containing an element.
- * @param {GoogleAppsScript.Document.Element} element
- * @return {GoogleAppsScript.Document.Paragraph|null}
- */
-function findBlockContainer_(element) {
-  var el = element;
-  while (el) {
-    var t = el.getType();
-    if (t === DocumentApp.ElementType.PARAGRAPH || t === DocumentApp.ElementType.LIST_ITEM) {
-      return el.asParagraph();
-    }
-    el = el.getParent();
-  }
-  return null;
-}
-
-/**
- * Maps a position (element + offset) to offset within findBlockContainer_ text.
- * @param {GoogleAppsScript.Document.Element} element
- * @param {number} offsetInElement
- * @return {{ container: GoogleAppsScript.Document.Paragraph, offset: number }|null}
- */
-function normalizeToContainerOffset_(element, offsetInElement) {
-  var container = findBlockContainer_(element);
-  if (!container) {
-    return null;
-  }
-  var t = element.getType();
-  if (t === DocumentApp.ElementType.TEXT) {
-    var parent = element.getParent();
-    if (!parent) {
-      return { container: container, offset: offsetInElement };
-    }
-    var elementIndex;
-    try {
-      elementIndex = parent.getChildIndex(element);
-    } catch (e) {
-      return { container: container, offset: offsetInElement };
-    }
-    var acc = 0;
-    for (var i = 0; i < elementIndex; i++) {
-      var ch = parent.getChild(i);
-      if (ch.getType() === DocumentApp.ElementType.TEXT) {
-        acc += ch.asText().getText().length;
-      }
-    }
-    return { container: container, offset: acc + offsetInElement };
-  }
-  if (element === container) {
-    var charOff = 0;
-    for (var ci = 0; ci < offsetInElement && ci < container.getNumChildren(); ci++) {
-      var cch = container.getChild(ci);
-      if (cch.getType() === DocumentApp.ElementType.TEXT) {
-        charOff += cch.asText().getText().length;
-      }
-    }
-    return { container: container, offset: charOff };
-  }
-  return { container: container, offset: container.getText().length };
-}
-
-/**
- * Collapses a document selection to the end offset (insertion point after selection).
- * @param {GoogleAppsScript.Document.RangeElement[]} ranges
- * @return {{ element: GoogleAppsScript.Document.Element, offset: number }}
- */
-function collapseSelectionEndToPosition_(ranges) {
-  var re = ranges[ranges.length - 1];
-  var el = re.getElement();
-  if (re.isPartial() && el.getType() === DocumentApp.ElementType.TEXT) {
-    return { element: el, offset: re.getEndOffsetInclusive() + 1 };
-  }
-  if (el.getType() === DocumentApp.ElementType.TEXT) {
-    return { element: el, offset: el.asText().getText().length };
-  }
-  var container = findBlockContainer_(el);
-  if (container) {
-    return { element: container, offset: container.getText().length };
-  }
-  return { element: el, offset: 0 };
-}
-
-/**
- * Active caret: selection end if a range exists, else cursor. Never deletes selection text.
+ * Returns the element at the active cursor or selection (last range element).
+ * Does not compute offsets — only identifies which element the user is in.
  * @param {Document} doc
- * @return {{ element: GoogleAppsScript.Document.Element, offset: number }|null}
+ * @return {GoogleAppsScript.Document.Element|null}
  */
-function getActivePositionNormalized_(doc) {
+function getActiveCursorElement_(doc) {
   var sel = doc.getSelection();
   if (sel) {
     var ranges = sel.getRangeElements();
     if (ranges && ranges.length > 0) {
-      return collapseSelectionEndToPosition_(ranges);
+      return ranges[ranges.length - 1].getElement();
     }
   }
   var cur = doc.getCursor();
   if (cur) {
-    return { element: cur.getElement(), offset: cur.getOffset() };
+    return cur.getElement();
   }
   return null;
 }
@@ -173,49 +91,6 @@ function findListItemBlockBounds_(body, listItem) {
 }
 
 /**
- * Splits a body-level paragraph at a character offset; second half becomes a new paragraph below.
- * Preserves inline (character-level) formatting on both halves by using deleteText (which keeps
- * attributes on remaining text) and reapplying captured attributes to the new paragraph.
- * @param {Body} body
- * @param {GoogleAppsScript.Document.Paragraph} paragraph
- * @param {number} offset
- */
-function splitParagraphAt_(body, paragraph, offset) {
-  var text = paragraph.getText();
-  var len = text.length;
-  if (offset <= 0 || offset >= len) return;
-
-  var after = text.substring(offset);
-  var idx = body.getChildIndex(paragraph);
-
-  var srcText = paragraph.editAsText();
-  var afterAttrs = [];
-  for (var i = offset; i < len; i++) {
-    afterAttrs.push(srcText.getAttributes(i));
-  }
-
-  srcText.deleteText(offset, len - 1);
-
-  var np = body.insertParagraph(idx + 1, after);
-
-  var npText = np.editAsText();
-  for (var j = 0; j < afterAttrs.length; j++) {
-    if (afterAttrs[j]) {
-      npText.setAttributes(j, j, afterAttrs[j]);
-    }
-  }
-
-  try {
-    np.setHeading(paragraph.getHeading());
-    np.setAlignment(paragraph.getAlignment());
-    np.setLeftToRight(paragraph.getLeftToRight());
-    np.setSpacingBefore(paragraph.getSpacingBefore());
-    np.setSpacingAfter(paragraph.getSpacingAfter());
-  } catch (ignore) {
-  }
-}
-
-/**
  * When no cursor/selection: append after the last body child with isolation buffers.
  * @param {Body} body
  * @return {{ baseIndex: number, topBuffer: boolean, removeTarget: GoogleAppsScript.Document.Paragraph|null }}
@@ -234,40 +109,30 @@ function resolveFallbackInsertAnchor_(body) {
 
 /**
  * Resolves where to insert isolated content (blockquote table or plain paragraphs).
- * Selection collapses to end; list/table contexts insert after the whole structure.
+ * Strategy: find the body-level element containing the cursor, then insert after it.
+ * Empty paragraphs are reused (replaced). Never modifies existing text.
  * @param {Body} body
  * @param {Document} doc
  * @return {{ baseIndex: number, topBuffer: boolean, removeTarget: GoogleAppsScript.Document.Paragraph|null }}
  */
 function resolveIsolatedInsertAnchor_(body, doc) {
-  var pos = getActivePositionNormalized_(doc);
-  if (!pos) {
+  var el = getActiveCursorElement_(doc);
+  if (!el) {
     Logger.log('resolveIsolatedInsertAnchor_: no cursor/selection — using fallback');
     return resolveFallbackInsertAnchor_(body);
   }
-  Logger.log('resolveIsolatedInsertAnchor_: element type=' + pos.element.getType() +
-             ', offset=' + pos.offset);
-  var norm = normalizeToContainerOffset_(pos.element, pos.offset);
-  if (!norm) {
-    Logger.log('resolveIsolatedInsertAnchor_: normalizeToContainerOffset_ returned null — using fallback');
-    return resolveFallbackInsertAnchor_(body);
-  }
-  Logger.log('resolveIsolatedInsertAnchor_: normalized offset=' + norm.offset +
-             ', container text length=' + norm.container.getText().length);
-  var container = norm.container;
-  var off = norm.offset;
-  if (off < 0) {
-    off = 0;
-  }
-  var bodyChild = resolveBodyLevelAncestor_(body, container);
+
+  var bodyChild = resolveBodyLevelAncestor_(body, el);
   if (!bodyChild) {
+    Logger.log('resolveIsolatedInsertAnchor_: could not resolve body-level ancestor — using fallback');
     return resolveFallbackInsertAnchor_(body);
   }
 
-  if (bodyChild.getType() === DocumentApp.ElementType.TABLE) {
-    var ti = body.getChildIndex(bodyChild);
-    var afterTable = ti + 1;
-    return { baseIndex: afterTable, topBuffer: afterTable > 0, removeTarget: null };
+  var childIdx = body.getChildIndex(bodyChild);
+
+  if (bodyChild.getType() === DocumentApp.ElementType.PARAGRAPH &&
+      bodyChild.asParagraph().getText() === '') {
+    return { baseIndex: childIdx, topBuffer: false, removeTarget: bodyChild.asParagraph() };
   }
 
   if (bodyChild.getType() === DocumentApp.ElementType.LIST_ITEM) {
@@ -276,30 +141,12 @@ function resolveIsolatedInsertAnchor_(body, doc) {
     return { baseIndex: afterList, topBuffer: afterList > 0, removeTarget: null };
   }
 
-  if (bodyChild.getType() !== DocumentApp.ElementType.PARAGRAPH) {
-    return resolveFallbackInsertAnchor_(body);
+  if (bodyChild.getType() === DocumentApp.ElementType.TABLE) {
+    var afterTable = childIdx + 1;
+    return { baseIndex: afterTable, topBuffer: afterTable > 0, removeTarget: null };
   }
 
-  var para = bodyChild.asParagraph();
-  var text = para.getText();
-  var len = text.length;
-  if (off > len) {
-    off = len;
-  }
-  var childIdx = body.getChildIndex(bodyChild);
-
-  if (text === '') {
-    return { baseIndex: childIdx, topBuffer: false, removeTarget: para };
-  }
-  if (off === 0) {
-    return { baseIndex: childIdx, topBuffer: childIdx > 0, removeTarget: null };
-  }
-  if (off >= len) {
-    return { baseIndex: childIdx + 1, topBuffer: false, removeTarget: null };
-  }
-
-  splitParagraphAt_(body, para, off);
-  return { baseIndex: childIdx + 1, topBuffer: true, removeTarget: null };
+  return { baseIndex: childIdx + 1, topBuffer: false, removeTarget: null };
 }
 
 /**
