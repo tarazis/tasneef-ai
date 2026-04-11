@@ -536,10 +536,10 @@ function runDocumentServiceTests() {
 
     var cell = body._children[0]._cell;
     expect(cell._bg).toBe(BLOCKQUOTE_CELL_BACKGROUND);
-    expect(cell._padL).toBe(20);
-    expect(cell._padT).toBe(12);
-    expect(cell._padR).toBe(12);
-    expect(cell._padB).toBe(12);
+    expect(cell._padL).toBe(21);
+    expect(cell._padT).toBe(6);
+    expect(cell._padR).toBe(18);
+    expect(cell._padB).toBe(6);
     expect(cell._inner.length).toBe(2);
     expect(cell._inner[0]._spacingBefore).toBe(INSERT_SPACING_OUTER_PT);
     expect(cell._inner[0]._spacingAfter).toBe(INSERT_SPACING_INNER_PT);

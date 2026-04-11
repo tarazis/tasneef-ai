@@ -248,10 +248,10 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
 
   var cell = table.getRow(0).getCell(0);
   cell.setBackgroundColor(BLOCKQUOTE_CELL_BACKGROUND);
-  cell.setPaddingLeft(20);
-  cell.setPaddingTop(12);
-  cell.setPaddingRight(12);
-  cell.setPaddingBottom(12);
+  cell.setPaddingLeft(21);
+  cell.setPaddingTop(6);
+  cell.setPaddingRight(18);
+  cell.setPaddingBottom(6);
 
   var fontWarning = null;
   for (var i = 0; i < paragraphsToInsert.length; i++) {
