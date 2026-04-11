@@ -235,14 +235,10 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
   var insertIndex = anchor.insertIndex;
   var removeTarget = anchor.removeTarget;
 
-  // Top buffer: 1pt paragraph whose spacingAfter creates a visible gap above the table.
-  // Skip when inserting at position 0 (empty doc) — nothing above to space from.
+  // Top buffer paragraph (structural). Skip when inserting at position 0 (empty doc).
   var tableOffset = 0;
   if (insertIndex > 0) {
-    var topBuffer = body.insertParagraph(insertIndex, '');
-    topBuffer.editAsText().setFontSize(1);
-    topBuffer.setSpacingBefore(0);
-    topBuffer.setSpacingAfter(INSERT_SPACING_OUTER_PT);
+    body.insertParagraph(insertIndex, '');
     tableOffset = 1;
   }
 
@@ -256,13 +252,14 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
   } catch (ignore) {
   }
 
+  var removeTargetStillExists = false;
   if (removeTarget) {
     var after = body.getChild(insertIndex + tableOffset + 1);
     if (after === removeTarget) {
       try {
         body.removeChild(removeTarget);
       } catch (ignore) {
-        // Cannot remove last section paragraph; leave empty line below table.
+        removeTargetStillExists = true;
       }
     }
   }
@@ -286,15 +283,13 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
     fontWarning = applyBeautifiedInsertToParagraph_(p, item, formatState) || fontWarning;
   }
 
-  // Bottom buffer: 1pt paragraph whose spacingBefore creates a visible gap below the table.
   var tableIdx = body.getChildIndex(table);
-  var bottomBuffer = body.insertParagraph(tableIdx + 1, '');
-  bottomBuffer.editAsText().setFontSize(1);
-  bottomBuffer.setSpacingBefore(INSERT_SPACING_OUTER_PT);
-  bottomBuffer.setSpacingAfter(0);
-
-  // Normal typing paragraph so the user has a clean line to continue writing.
-  var typingParagraph = body.insertParagraph(tableIdx + 2, '');
+  var typingParagraph;
+  if (removeTargetStillExists) {
+    typingParagraph = removeTarget;
+  } else {
+    typingParagraph = body.insertParagraph(tableIdx + 1, '');
+  }
   typingParagraph.setHeading(DocumentApp.ParagraphHeading.NORMAL);
   typingParagraph.setLeftToRight(true);
 
