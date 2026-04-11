@@ -235,11 +235,29 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
   var insertIndex = anchor.insertIndex;
   var removeTarget = anchor.removeTarget;
 
-  // DocumentApp.Body.insertTable only accepts (index) or (index, String[][]); there is no (index, rows, cols).
-  var table = body.insertTable(insertIndex, [['']]);
+  // Top buffer: 1pt invisible paragraph to create spacing above the table.
+  // Skip when inserting at position 0 (empty doc) — nothing above to space from.
+  var tableOffset = 0;
+  if (insertIndex > 0) {
+    var topBuffer = body.insertParagraph(insertIndex, '');
+    topBuffer.editAsText().setFontSize(1);
+    topBuffer.setSpacingBefore(0);
+    topBuffer.setSpacingAfter(0);
+    tableOffset = 1;
+  }
+
+  var table = body.insertTable(insertIndex + tableOffset, [['']]);
+
+  // Hide default table chrome immediately to minimize unstyled flash.
+  try {
+    if (typeof table.setBorderWidth === 'function') {
+      table.setBorderWidth(0);
+    }
+  } catch (ignore) {
+  }
 
   if (removeTarget) {
-    var after = body.getChild(insertIndex + 1);
+    var after = body.getChild(insertIndex + tableOffset + 1);
     if (after === removeTarget) {
       try {
         body.removeChild(removeTarget);
@@ -268,31 +286,24 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
     fontWarning = applyBeautifiedInsertToParagraph_(p, item, formatState) || fontWarning;
   }
 
-  var lastTableIndex = body.getChildIndex(table);
-  var isLastInDoc = (lastTableIndex >= body.getNumChildren() - 1);
+  // Bottom buffer: 1pt invisible paragraph for spacing below the table.
+  var tableIdx = body.getChildIndex(table);
+  var bottomBuffer = body.insertParagraph(tableIdx + 1, '');
+  bottomBuffer.editAsText().setFontSize(1);
+  bottomBuffer.setSpacingBefore(0);
+  bottomBuffer.setSpacingAfter(0);
 
-  var cursorTarget;
-  if (isLastInDoc) {
-    var cleanup = body.insertParagraph(lastTableIndex + 1, '');
-    cleanup.setHeading(DocumentApp.ParagraphHeading.NORMAL);
-    cleanup.setLeftToRight(true);
-    cleanup.setSpacingBefore(0);
-    cleanup.setSpacingAfter(0);
-    cursorTarget = cleanup;
-  } else {
-    var lastInner = cell.getChild(cell.getNumChildren() - 1).asParagraph();
-    cursorTarget = lastInner;
-  }
+  // Normal typing paragraph so the user has a clean line to continue writing.
+  var typingParagraph = body.insertParagraph(tableIdx + 2, '');
+  typingParagraph.setHeading(DocumentApp.ParagraphHeading.NORMAL);
+  typingParagraph.setLeftToRight(true);
 
   try {
-    doc.setCursor(doc.newPosition(cursorTarget, 0));
+    doc.setCursor(doc.newPosition(typingParagraph, 0));
   } catch (e) {
     // setCursor is unavailable in non-UI contexts (e.g. triggers); fail silently
   }
 
-  // Default table chrome (thin frame on all sides) is not cleared by cell-level API until the
-  // structural write is visible to the Docs API; flush first. Table.setBorderWidth(0) reduces
-  // DocumentApp-level outline before we set the left accent via batchUpdate.
   var docId = doc.getId();
   var bodyChildIndex = body.getChildIndex(table);
   var tableOrdinal = 0;
@@ -300,12 +311,6 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
     if (body.getChild(ci).getType() === DocumentApp.ElementType.TABLE) {
       tableOrdinal++;
     }
-  }
-  try {
-    if (typeof table.setBorderWidth === 'function') {
-      table.setBorderWidth(0);
-    }
-  } catch (ignore) {
   }
   try {
     if (typeof doc.saveAndClose === 'function') {

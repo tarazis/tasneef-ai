@@ -40,13 +40,14 @@ function runDocumentServiceTests() {
   // ── Mock factories ──────────────────────────────────────────
 
   function createMockParagraph(text) {
-    return {
+    var para = {
       _text: text,
       _align: null,
       _ltr: null,
       _heading: null,
       _spacingBefore: null,
       _spacingAfter: null,
+      _fontSize: null,
       getText: function () { return this._text; },
       setText: function (t) { this._text = t; },
       setAlignment: function (a) { this._align = a; },
@@ -57,8 +58,15 @@ function runDocumentServiceTests() {
       getType: function () { return DocumentApp.ElementType.PARAGRAPH; },
       asParagraph: function () { return this; },
       getParent: function () { return null; },
-      editAsText: function () { return this; }
+      editAsText: function () {
+        return {
+          _owner: para,
+          setFontSize: function (s) { para._fontSize = s; return this; },
+          getFontSize: function () { return para._fontSize; }
+        };
+      }
     };
+    return para;
   }
 
   function createMockTableCell() {
@@ -524,15 +532,21 @@ function runDocumentServiceTests() {
 
   results.push('\ninsertBlockquoteTableAtPosition_()');
 
-  it('blockquote: body ends with table then cleanup; inner spacing matches paragraph path', function () {
+  it('blockquote: empty doc — table + bottom buffer + typing paragraph; inner spacing matches', function () {
     var body = createMockBody(['']);
     var doc = createMockDoc(body, body._children[0]);
     insertBlockquoteTableAtPosition_(body, doc, arabicOnlyAyahAndCitation(), {});
 
-    expect(body._children.length).toBe(2);
+    // insertIndex=0 → no top buffer; [TABLE, bottomBuffer, typingParagraph]
+    expect(body._children.length).toBe(3);
     expect(body._children[0].getType()).toBe(DocumentApp.ElementType.TABLE);
     expect(body._children[1]._text).toBe('');
-    expect(body._children[1]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
+    expect(body._children[1]._fontSize).toBe(1);
+    expect(body._children[1]._spacingBefore).toBe(0);
+    expect(body._children[1]._spacingAfter).toBe(0);
+    expect(body._children[2]._text).toBe('');
+    expect(body._children[2]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
+    expect(body._children[2]._ltr).toBe(true);
 
     var cell = body._children[0]._cell;
     expect(cell._bg).toBe(null);
@@ -551,6 +565,8 @@ function runDocumentServiceTests() {
     var doc = createMockDoc(body, body._children[0]);
     insertBlockquoteTableAtPosition_(body, doc, arabicAndTranslation(), {});
 
+    // [TABLE, bottomBuffer, typingParagraph]
+    expect(body._children.length).toBe(3);
     var cell = body._children[0]._cell;
     expect(cell._inner.length).toBe(3);
     expect(cell._inner[0]._spacingBefore).toBe(INSERT_SPACING_OUTER_PT);
@@ -559,17 +575,71 @@ function runDocumentServiceTests() {
     expect(cell._inner[2]._spacingAfter).toBe(INSERT_SPACING_OUTER_PT);
   });
 
-  it('blockquote: when not last in doc, no body cleanup paragraph added', function () {
+  it('blockquote: non-empty doc — top buffer, table, bottom buffer, typing paragraph', function () {
     var body = createMockBody(['existing', 'after']);
     var doc = createMockDoc(body, body._children[0]);
     insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
 
-    // [table, existing, after] — wait, insert at index 1 after non-empty at 0
-    // cursor on first 'existing' non-empty → insertIndex 1 → [existing, table, after]
-    expect(body._children.length).toBe(3);
+    // cursor on 'existing' (non-empty) → insertIndex 1 → top buffer at 1, table at 2
+    // [existing, topBuffer, TABLE, bottomBuffer, typingParagraph, after]
+    expect(body._children.length).toBe(6);
     expect(body._children[0]._text).toBe('existing');
-    expect(body._children[1].getType()).toBe(DocumentApp.ElementType.TABLE);
-    expect(body._children[2]._text).toBe('after');
+    expect(body._children[1]._text).toBe('');
+    expect(body._children[1]._fontSize).toBe(1);
+    expect(body._children[1]._spacingBefore).toBe(0);
+    expect(body._children[1]._spacingAfter).toBe(0);
+    expect(body._children[2].getType()).toBe(DocumentApp.ElementType.TABLE);
+    expect(body._children[3]._text).toBe('');
+    expect(body._children[3]._fontSize).toBe(1);
+    expect(body._children[3]._spacingBefore).toBe(0);
+    expect(body._children[3]._spacingAfter).toBe(0);
+    expect(body._children[4]._text).toBe('');
+    expect(body._children[4]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
+    expect(body._children[4]._ltr).toBe(true);
+    expect(body._children[5]._text).toBe('after');
+  });
+
+  it('blockquote: empty doc skips top buffer paragraph', function () {
+    var body = createMockBody(['']);
+    var doc = createMockDoc(body, body._children[0]);
+    insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
+
+    // insertIndex=0 → no top buffer; first child is the table
+    expect(body._children[0].getType()).toBe(DocumentApp.ElementType.TABLE);
+    expect(body._children[0]._cell._inner[0]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
+  });
+
+  it('blockquote: buffer paragraphs have 1pt font and zero spacing', function () {
+    var body = createMockBody(['content above', 'more content']);
+    var doc = createMockDoc(body, body._children[1]);
+    insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
+
+    // cursor on 'more content' (non-empty, last) → insertIndex 2, top buffer at 2, table at 3
+    // [content above, more content, topBuffer, TABLE, bottomBuffer, typingParagraph]
+    var topBuf = body._children[2];
+    expect(topBuf._text).toBe('');
+    expect(topBuf._fontSize).toBe(1);
+    expect(topBuf._spacingBefore).toBe(0);
+    expect(topBuf._spacingAfter).toBe(0);
+
+    var bottomBuf = body._children[4];
+    expect(bottomBuf._text).toBe('');
+    expect(bottomBuf._fontSize).toBe(1);
+    expect(bottomBuf._spacingBefore).toBe(0);
+    expect(bottomBuf._spacingAfter).toBe(0);
+  });
+
+  it('blockquote: typing paragraph has default formatting', function () {
+    var body = createMockBody(['text']);
+    var doc = createMockDoc(body, body._children[0]);
+    insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
+
+    // [text, topBuffer, TABLE, bottomBuffer, typingParagraph]
+    var typing = body._children[4];
+    expect(typing._text).toBe('');
+    expect(typing._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
+    expect(typing._ltr).toBe(true);
+    expect(typing._fontSize).toBe(null);
   });
 
   it('hexToDocsRgb01_ parses normalized hex for Docs border color', function () {
