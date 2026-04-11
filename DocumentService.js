@@ -7,8 +7,9 @@
 var INSERT_SPACING_OUTER_PT = 12;
 var INSERT_SPACING_INNER_PT = 6;
 
-/** Blockquote table: left accent (pt); cell background. */
+/** Blockquote table: left accent (pt); accent color (fixed, not tied to body text color). */
 var BLOCKQUOTE_BORDER_LEFT_PT = 3;
+var BLOCKQUOTE_BORDER_LEFT_COLOR = '#3A8F7A';
 var BLOCKQUOTE_CELL_BACKGROUND = '#F5F5F5';
 
 /**
@@ -101,13 +102,16 @@ function hexToDocsRgb01_(hex) {
   var r = parseInt(h.slice(1, 3), 16) / 255;
   var g = parseInt(h.slice(3, 5), 16) / 255;
   var b = parseInt(h.slice(5, 7), 16) / 255;
-  return { red: r, green: g, blue: b };
+  function q(x) {
+    return Math.round(x * 1e6) / 1e6;
+  }
+  return { red: q(r), green: q(g), blue: q(b) };
 }
 
 /**
  * @param {number} pt
  * @param {{ red: number, green: number, blue: number }} rgb01
- * @return {Object} Docs API border object
+ * @return {Object} Docs API TableCellBorder (OptionalColor nested per docs OptionalColor schema)
  */
 function docsTableBorderPt_(pt, rgb01) {
   return {
@@ -127,7 +131,13 @@ function resolveTableStartIndexForDocsApi_(docId, bodyChildIndex) {
   if (typeof Docs === 'undefined' || !Docs.Documents || !Docs.Documents.get) {
     return null;
   }
-  var docJson = Docs.Documents.get(docId);
+  var docJson;
+  try {
+    docJson = Docs.Documents.get(docId);
+  } catch (e) {
+    Logger.log('resolveTableStartIndexForDocsApi_: Documents.get failed: ' + e);
+    return null;
+  }
   var content = docJson.body && docJson.body.content;
   if (!content || bodyChildIndex < 0) {
     return null;
@@ -147,17 +157,16 @@ function resolveTableStartIndexForDocsApi_(docId, bodyChildIndex) {
 
 /**
  * Per-side cell borders (left accent only) via Docs API; DocumentApp cannot set per side.
- * @param {GoogleAppsScript.Document.Document} doc
- * @param {GoogleAppsScript.Document.Table} table
- * @param {string|null|undefined} borderColorHex - from formatState.textColor
+ * Advanced Docs (get/batchUpdate) needs https://www.googleapis.com/auth/documents in appsscript.json;
+ * drive.file can yield 404 on documents.get for the active editor doc.
+ * Call only after DocumentApp.flush (e.g. saveAndClose): otherwise documents.get may omit the new table.
+ * @param {string} docId
+ * @param {number} bodyChildIndex - body.getChildIndex(table) captured before saveAndClose
  */
-function applyBlockquoteCellBordersViaDocsApi_(doc, table, borderColorHex) {
+function applyBlockquoteCellBordersViaDocsApi_(docId, bodyChildIndex) {
   if (typeof Docs === 'undefined' || !Docs.Documents || !Docs.Documents.batchUpdate) {
     return;
   }
-  var docId = doc.getId();
-  var body = doc.getBody();
-  var bodyChildIndex = body.getChildIndex(table);
   var tableStart = null;
   var attempt;
   for (attempt = 0; attempt < 3; attempt++) {
@@ -172,8 +181,9 @@ function applyBlockquoteCellBordersViaDocsApi_(doc, table, borderColorHex) {
     return;
   }
 
-  var rgb = hexToDocsRgb01_(borderColorHex);
-  var zero = docsTableBorderPt_(0, { red: 0, green: 0, blue: 0 });
+  var rgb = hexToDocsRgb01_(BLOCKQUOTE_BORDER_LEFT_COLOR);
+  var black01 = { red: 0, green: 0, blue: 0 };
+  var zero = docsTableBorderPt_(0, black01);
   var leftRgb = docsTableBorderPt_(BLOCKQUOTE_BORDER_LEFT_PT, rgb);
 
   var tableRange = {
@@ -186,6 +196,7 @@ function applyBlockquoteCellBordersViaDocsApi_(doc, table, borderColorHex) {
     columnSpan: 1
   };
 
+  // Single request: two-step updates sometimes dropped the colored left border after flush.
   var requests = [
     {
       updateTableCellStyle: {
@@ -194,18 +205,9 @@ function applyBlockquoteCellBordersViaDocsApi_(doc, table, borderColorHex) {
           borderTop: zero,
           borderRight: zero,
           borderBottom: zero,
-          borderLeft: zero
-        },
-        fields: 'borderTop,borderRight,borderBottom,borderLeft'
-      }
-    },
-    {
-      updateTableCellStyle: {
-        tableRange: tableRange,
-        tableCellStyle: {
           borderLeft: leftRgb
         },
-        fields: 'borderLeft'
+        fields: 'borderTop,borderRight,borderBottom,borderLeft'
       }
     }
   ];
@@ -264,8 +266,6 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
     fontWarning = applyBeautifiedInsertToParagraph_(p, item, formatState) || fontWarning;
   }
 
-  applyBlockquoteCellBordersViaDocsApi_(doc, table, formatState && formatState.textColor);
-
   var lastTableIndex = body.getChildIndex(table);
   var isLastInDoc = (lastTableIndex >= body.getNumChildren() - 1);
 
@@ -287,6 +287,25 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
   } catch (e) {
     // setCursor is unavailable in non-UI contexts (e.g. triggers); fail silently
   }
+
+  // Default table chrome (thin frame on all sides) is not cleared by cell-level API until the
+  // structural write is visible to the Docs API; flush first. Table.setBorderWidth(0) reduces
+  // DocumentApp-level outline before we set the left accent via batchUpdate.
+  var docId = doc.getId();
+  var bodyChildIndex = body.getChildIndex(table);
+  try {
+    if (typeof table.setBorderWidth === 'function') {
+      table.setBorderWidth(0);
+    }
+  } catch (ignore) {
+  }
+  try {
+    if (typeof doc.saveAndClose === 'function') {
+      doc.saveAndClose();
+    }
+  } catch (ignore) {
+  }
+  applyBlockquoteCellBordersViaDocsApi_(docId, bodyChildIndex);
 
   return { fontWarning: fontWarning };
 }
