@@ -579,6 +579,130 @@ function runDocumentServiceTests() {
     expect(rgb.blue > 0.46 && rgb.blue < 0.49).toBe(true);
   });
 
+  // ── resolveTableStartIndexForDocsApi_ ──────────────────────
+
+  results.push('\nresolveTableStartIndexForDocsApi_()');
+
+  var originalDocs = typeof Docs !== 'undefined' ? Docs : undefined;
+
+  function stubDocsGet(contentArray) {
+    Docs = {
+      Documents: {
+        get: function () {
+          return { body: { content: contentArray } };
+        },
+        batchUpdate: function () {}
+      }
+    };
+  }
+
+  function restoreDocs() {
+    if (originalDocs !== undefined) {
+      Docs = originalDocs;
+    }
+  }
+
+  it('ordinal 1 returns startIndex of the only table', function () {
+    stubDocsGet([
+      { sectionBreak: {} },
+      { paragraph: {}, startIndex: 0 },
+      { table: {}, startIndex: 42 }
+    ]);
+    var result = resolveTableStartIndexForDocsApi_('fake-id', 1);
+    expect(result).toBe(42);
+    restoreDocs();
+  });
+
+  it('ordinal 3 returns startIndex of the third table (skips paragraphs)', function () {
+    stubDocsGet([
+      { sectionBreak: {} },
+      { paragraph: {}, startIndex: 0 },
+      { table: {}, startIndex: 10 },
+      { paragraph: {}, startIndex: 20 },
+      { table: {}, startIndex: 30 },
+      { paragraph: {}, startIndex: 50 },
+      { table: {}, startIndex: 70 }
+    ]);
+    var result = resolveTableStartIndexForDocsApi_('fake-id', 3);
+    expect(result).toBe(70);
+    restoreDocs();
+  });
+
+  it('ordinal 2 with only 1 table returns null (propagation delay)', function () {
+    stubDocsGet([
+      { sectionBreak: {} },
+      { table: {}, startIndex: 10 },
+      { paragraph: {}, startIndex: 30 }
+    ]);
+    var result = resolveTableStartIndexForDocsApi_('fake-id', 2);
+    expect(result).toBe(null);
+    restoreDocs();
+  });
+
+  it('ordinal 0 returns null (invalid)', function () {
+    stubDocsGet([
+      { sectionBreak: {} },
+      { table: {}, startIndex: 10 }
+    ]);
+    var result = resolveTableStartIndexForDocsApi_('fake-id', 0);
+    expect(result).toBe(null);
+    restoreDocs();
+  });
+
+  it('empty content array returns null', function () {
+    stubDocsGet([]);
+    var result = resolveTableStartIndexForDocsApi_('fake-id', 1);
+    expect(result).toBe(null);
+    restoreDocs();
+  });
+
+  // ── tableOrdinal computation in insertBlockquoteTableAtPosition_ ──
+
+  results.push('\ninsertBlockquoteTableAtPosition_() — ordinal targeting');
+
+  var capturedTableOrdinal = null;
+  var originalApplyBorders = applyBlockquoteCellBordersViaDocsApi_;
+  applyBlockquoteCellBordersViaDocsApi_ = function (docId, tableOrdinal) {
+    capturedTableOrdinal = tableOrdinal;
+  };
+
+  it('single table in empty doc gets tableOrdinal 1', function () {
+    capturedTableOrdinal = null;
+    var body = createMockBody(['']);
+    var doc = createMockDoc(body, body._children[0]);
+    insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
+    expect(capturedTableOrdinal).toBe(1);
+  });
+
+  it('new table after one pre-existing table gets tableOrdinal 2', function () {
+    capturedTableOrdinal = null;
+    var body = createMockBody(['text before', 'cursor here']);
+    var existingTable = createMockTable();
+    body._children.splice(1, 0, existingTable);
+    var cursorPara = body._children[2];
+    var doc = createMockDoc(body, cursorPara);
+    insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
+    expect(capturedTableOrdinal).toBe(2);
+  });
+
+  it('new table between two pre-existing tables gets tableOrdinal 2', function () {
+    capturedTableOrdinal = null;
+    var body = createMockBody(['before', 'middle', 'after']);
+    var table1 = createMockTable();
+    body._children.splice(1, 0, table1);
+    var table2 = createMockTable();
+    body._children.splice(3, 0, table2);
+    // body: [para"before", table1, para"middle", table2, para"after"]
+    var cursorPara = body._children[2]; // para "middle"
+    var doc = createMockDoc(body, cursorPara);
+    insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
+    // inserted after "middle" at index 3, pushing table2 to 4
+    // body: [para"before", table1, para"middle", newTable, table2, para"after"]
+    expect(capturedTableOrdinal).toBe(2);
+  });
+
+  applyBlockquoteCellBordersViaDocsApi_ = originalApplyBorders;
+
   // ── Restore ─────────────────────────────────────────────────
   applyFormat = originalApplyFormat;
 

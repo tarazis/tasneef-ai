@@ -122,12 +122,14 @@ function docsTableBorderPt_(pt, rgb01) {
 }
 
 /**
- * Resolves structural startIndex of a table for Docs API batchUpdate.
+ * Resolves structural startIndex of a table for Docs API batchUpdate using
+ * ordinal position (Nth table in the document) rather than array-index heuristics.
+ * Returns null when the expected table is not yet visible (triggers caller retry).
  * @param {string} docId
- * @param {number} bodyChildIndex - body.getChildIndex(table)
+ * @param {number} tableOrdinal - 1-based ordinal: "this is the Nth table in the body"
  * @return {number|null}
  */
-function resolveTableStartIndexForDocsApi_(docId, bodyChildIndex) {
+function resolveTableStartIndexForDocsApi_(docId, tableOrdinal) {
   if (typeof Docs === 'undefined' || !Docs.Documents || !Docs.Documents.get) {
     return null;
   }
@@ -139,17 +141,16 @@ function resolveTableStartIndexForDocsApi_(docId, bodyChildIndex) {
     return null;
   }
   var content = docJson.body && docJson.body.content;
-  if (!content || bodyChildIndex < 0) {
+  if (!content || tableOrdinal < 1) {
     return null;
   }
-  var primary = bodyChildIndex + 1;
-  if (primary < content.length && content[primary].table != null && content[primary].startIndex != null) {
-    return content[primary].startIndex;
-  }
-  for (var d = -2; d <= 4; d++) {
-    var j = bodyChildIndex + d;
-    if (j >= 0 && j < content.length && content[j].table != null && content[j].startIndex != null) {
-      return content[j].startIndex;
+  var tablesFound = 0;
+  for (var i = 0; i < content.length; i++) {
+    if (content[i].table != null && content[i].startIndex != null) {
+      tablesFound++;
+      if (tablesFound === tableOrdinal) {
+        return content[i].startIndex;
+      }
     }
   }
   return null;
@@ -161,20 +162,20 @@ function resolveTableStartIndexForDocsApi_(docId, bodyChildIndex) {
  * drive.file can yield 404 on documents.get for the active editor doc.
  * Call only after DocumentApp.flush (e.g. saveAndClose): otherwise documents.get may omit the new table.
  * @param {string} docId
- * @param {number} bodyChildIndex - body.getChildIndex(table) captured before saveAndClose
+ * @param {number} tableOrdinal - 1-based ordinal position of the target table among all body tables
  */
-function applyBlockquoteCellBordersViaDocsApi_(docId, bodyChildIndex) {
+function applyBlockquoteCellBordersViaDocsApi_(docId, tableOrdinal) {
   if (typeof Docs === 'undefined' || !Docs.Documents || !Docs.Documents.batchUpdate) {
     return;
   }
   var tableStart = null;
   var attempt;
-  for (attempt = 0; attempt < 3; attempt++) {
-    tableStart = resolveTableStartIndexForDocsApi_(docId, bodyChildIndex);
+  for (attempt = 0; attempt < 5; attempt++) {
+    tableStart = resolveTableStartIndexForDocsApi_(docId, tableOrdinal);
     if (tableStart != null) {
       break;
     }
-    Utilities.sleep(150);
+    Utilities.sleep(200);
   }
   if (tableStart == null) {
     Logger.log('blockquote borders: could not resolve table start index');
@@ -293,6 +294,12 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
   // DocumentApp-level outline before we set the left accent via batchUpdate.
   var docId = doc.getId();
   var bodyChildIndex = body.getChildIndex(table);
+  var tableOrdinal = 0;
+  for (var ci = 0; ci <= bodyChildIndex; ci++) {
+    if (body.getChild(ci).getType() === DocumentApp.ElementType.TABLE) {
+      tableOrdinal++;
+    }
+  }
   try {
     if (typeof table.setBorderWidth === 'function') {
       table.setBorderWidth(0);
@@ -305,7 +312,7 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
     }
   } catch (ignore) {
   }
-  applyBlockquoteCellBordersViaDocsApi_(docId, bodyChildIndex);
+  applyBlockquoteCellBordersViaDocsApi_(docId, tableOrdinal);
 
   return { fontWarning: fontWarning };
 }
