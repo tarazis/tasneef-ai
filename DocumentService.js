@@ -235,14 +235,14 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
   var insertIndex = anchor.insertIndex;
   var removeTarget = anchor.removeTarget;
 
-  // Top buffer: 1pt invisible paragraph to create spacing above the table.
+  // Top buffer: 1pt paragraph whose spacingAfter creates a visible gap above the table.
   // Skip when inserting at position 0 (empty doc) — nothing above to space from.
   var tableOffset = 0;
   if (insertIndex > 0) {
     var topBuffer = body.insertParagraph(insertIndex, '');
     topBuffer.editAsText().setFontSize(1);
     topBuffer.setSpacingBefore(0);
-    topBuffer.setSpacingAfter(0);
+    topBuffer.setSpacingAfter(INSERT_SPACING_OUTER_PT);
     tableOffset = 1;
   }
 
@@ -286,11 +286,11 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
     fontWarning = applyBeautifiedInsertToParagraph_(p, item, formatState) || fontWarning;
   }
 
-  // Bottom buffer: 1pt invisible paragraph for spacing below the table.
+  // Bottom buffer: 1pt paragraph whose spacingBefore creates a visible gap below the table.
   var tableIdx = body.getChildIndex(table);
   var bottomBuffer = body.insertParagraph(tableIdx + 1, '');
   bottomBuffer.editAsText().setFontSize(1);
-  bottomBuffer.setSpacingBefore(0);
+  bottomBuffer.setSpacingBefore(INSERT_SPACING_OUTER_PT);
   bottomBuffer.setSpacingAfter(0);
 
   // Normal typing paragraph so the user has a clean line to continue writing.

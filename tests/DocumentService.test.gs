@@ -542,7 +542,7 @@ function runDocumentServiceTests() {
     expect(body._children[0].getType()).toBe(DocumentApp.ElementType.TABLE);
     expect(body._children[1]._text).toBe('');
     expect(body._children[1]._fontSize).toBe(1);
-    expect(body._children[1]._spacingBefore).toBe(0);
+    expect(body._children[1]._spacingBefore).toBe(INSERT_SPACING_OUTER_PT);
     expect(body._children[1]._spacingAfter).toBe(0);
     expect(body._children[2]._text).toBe('');
     expect(body._children[2]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
@@ -587,11 +587,11 @@ function runDocumentServiceTests() {
     expect(body._children[1]._text).toBe('');
     expect(body._children[1]._fontSize).toBe(1);
     expect(body._children[1]._spacingBefore).toBe(0);
-    expect(body._children[1]._spacingAfter).toBe(0);
+    expect(body._children[1]._spacingAfter).toBe(INSERT_SPACING_OUTER_PT);
     expect(body._children[2].getType()).toBe(DocumentApp.ElementType.TABLE);
     expect(body._children[3]._text).toBe('');
     expect(body._children[3]._fontSize).toBe(1);
-    expect(body._children[3]._spacingBefore).toBe(0);
+    expect(body._children[3]._spacingBefore).toBe(INSERT_SPACING_OUTER_PT);
     expect(body._children[3]._spacingAfter).toBe(0);
     expect(body._children[4]._text).toBe('');
     expect(body._children[4]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
@@ -609,7 +609,7 @@ function runDocumentServiceTests() {
     expect(body._children[0]._cell._inner[0]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
   });
 
-  it('blockquote: buffer paragraphs have 1pt font and zero spacing', function () {
+  it('blockquote: buffer paragraphs have 1pt font and outer spacing', function () {
     var body = createMockBody(['content above', 'more content']);
     var doc = createMockDoc(body, body._children[1]);
     insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
@@ -620,12 +620,12 @@ function runDocumentServiceTests() {
     expect(topBuf._text).toBe('');
     expect(topBuf._fontSize).toBe(1);
     expect(topBuf._spacingBefore).toBe(0);
-    expect(topBuf._spacingAfter).toBe(0);
+    expect(topBuf._spacingAfter).toBe(INSERT_SPACING_OUTER_PT);
 
     var bottomBuf = body._children[4];
     expect(bottomBuf._text).toBe('');
     expect(bottomBuf._fontSize).toBe(1);
-    expect(bottomBuf._spacingBefore).toBe(0);
+    expect(bottomBuf._spacingBefore).toBe(INSERT_SPACING_OUTER_PT);
     expect(bottomBuf._spacingAfter).toBe(0);
   });
 
