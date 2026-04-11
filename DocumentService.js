@@ -159,11 +159,9 @@ function resolveTableStartIndexForDocsApi_(docId, bodyChildIndex) {
  * Per-side cell borders (left accent only) via Docs API; DocumentApp cannot set per side.
  * Advanced Docs (get/batchUpdate) needs https://www.googleapis.com/auth/documents in appsscript.json;
  * drive.file can yield 404 on documents.get for the active editor doc.
- * Must be called in a SEPARATE google.script.run RPC from the one that created the table:
- * DocumentApp mutations are implicitly flushed when the creating function returns, so the
- * Docs REST API will see the table by the time this second RPC executes.
+ * Call only after DocumentApp.flush (e.g. saveAndClose): otherwise documents.get may omit the new table.
  * @param {string} docId
- * @param {number} bodyChildIndex - body.getChildIndex(table) captured in the creating RPC
+ * @param {number} bodyChildIndex - body.getChildIndex(table) captured before saveAndClose
  */
 function applyBlockquoteCellBordersViaDocsApi_(docId, bodyChildIndex) {
   if (typeof Docs === 'undefined' || !Docs.Documents || !Docs.Documents.batchUpdate) {
@@ -222,24 +220,12 @@ function applyBlockquoteCellBordersViaDocsApi_(docId, bodyChildIndex) {
 }
 
 /**
- * Public RPC entry-point for the second step of blockquote insertion.
- * Called by the client after the creating RPC (insertAyah / insertAyahRange) returns.
- * @param {string} docId
- * @param {number} bodyChildIndex
- */
-function applyBlockquoteBorders(docId, bodyChildIndex) {
-  applyBlockquoteCellBordersViaDocsApi_(docId, bodyChildIndex);
-}
-
-/**
  * Inserts a 1×1 table at the anchor, places beautified paragraphs in the cell, styles the shell.
- * Border clearing (setBorderWidth(0)) is applied here; the left accent border is applied
- * in a separate client RPC via applyBlockquoteBorders after this function's implicit flush.
  * @param {Body} body
  * @param {Document} doc
  * @param {Array<Object>} paragraphsToInsert
  * @param {Object} formatState
- * @return {Object} { fontWarning: string|null, borderInfo: { docId: string, bodyChildIndex: number } }
+ * @return {Object} { fontWarning: string|null }
  */
 function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatState) {
   var anchor = resolveInsertAnchor_(body, doc);
@@ -302,10 +288,9 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
     // setCursor is unavailable in non-UI contexts (e.g. triggers); fail silently
   }
 
-  // Clear the default DocumentApp table outline (thin frame on all four sides).
-  // The left accent border is applied in a separate RPC via the Docs REST API
-  // (see applyBlockquoteBorders); DocumentApp mutations are implicitly flushed
-  // when this function returns, so the REST API will see the table.
+  // Default table chrome (thin frame on all sides) is not cleared by cell-level API until the
+  // structural write is visible to the Docs API; flush first. Table.setBorderWidth(0) reduces
+  // DocumentApp-level outline before we set the left accent via batchUpdate.
   var docId = doc.getId();
   var bodyChildIndex = body.getChildIndex(table);
   try {
@@ -314,8 +299,15 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
     }
   } catch (ignore) {
   }
+  try {
+    if (typeof doc.saveAndClose === 'function') {
+      doc.saveAndClose();
+    }
+  } catch (ignore) {
+  }
+  applyBlockquoteCellBordersViaDocsApi_(docId, bodyChildIndex);
 
-  return { fontWarning: fontWarning, borderInfo: { docId: docId, bodyChildIndex: bodyChildIndex } };
+  return { fontWarning: fontWarning };
 }
 
 /**
@@ -454,11 +446,7 @@ function insertAyah(ayahData, formatState, settings) {
     ? insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatState)
     : insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState);
   var message = result.fontWarning ? 'Ayah inserted. ' + result.fontWarning : 'Ayah inserted.';
-  var response = { success: true, message: message };
-  if (result.borderInfo) {
-    response.borderInfo = result.borderInfo;
-  }
-  return response;
+  return { success: true, message: message };
 }
 
 /**
@@ -530,9 +518,5 @@ function insertAyahRange(rangeData, formatState, settings) {
   var result = useBlockquote
     ? insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatState)
     : insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState);
-  var response = { success: true, message: result.fontWarning ? 'Range inserted. ' + result.fontWarning : 'Range inserted.' };
-  if (result.borderInfo) {
-    response.borderInfo = result.borderInfo;
-  }
-  return response;
+  return { success: true, message: result.fontWarning ? 'Range inserted. ' + result.fontWarning : 'Range inserted.' };
 }

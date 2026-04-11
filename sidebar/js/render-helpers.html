@@ -46,36 +46,6 @@ function renderPreview(containerEl, results) {
 }
 
 /**
- * Finishes an insert operation: re-enables the button and logs warnings.
- */
-function finishInsert(btn, result) {
-  btn.disabled = false;
-  btn.classList.remove('btn-loading');
-  if (result && !result.success) {
-    console.warn('Insert warning:', result.message);
-  }
-}
-
-/**
- * Handles the result of an insert RPC.  If the result carries borderInfo
- * (blockquote path), chains a second RPC to apply the left accent border
- * via the Docs REST API.  The button stays disabled until both RPCs complete.
- */
-function handleInsertResult(btn, result) {
-  if (result && result.borderInfo) {
-    google.script.run
-      .withSuccessHandler(function () { finishInsert(btn, result); })
-      .withFailureHandler(function (err) {
-        console.warn('Border styling failed:', err);
-        finishInsert(btn, result);
-      })
-      .applyBlockquoteBorders(result.borderInfo.docId, result.borderInfo.bodyChildIndex);
-  } else {
-    finishInsert(btn, result);
-  }
-}
-
-/**
  * Shared insert handler for all tabs and all card types.
  * Detects range cards by the presence of data-ayah-start; rebuilds range data from
  * client caches at click time so no global state is needed and arabic-style is respected.
@@ -115,7 +85,13 @@ function onInsertClick(e) {
     var rangeData = buildRangeData(rangeItems);
 
     google.script.run
-      .withSuccessHandler(function(result) { handleInsertResult(btn, result); })
+      .withSuccessHandler(function(result) {
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+        if (result && !result.success) {
+          console.warn('Range insert warning:', result.message);
+        }
+      })
       .withFailureHandler(function(err) {
         btn.disabled = false;
         btn.classList.remove('btn-loading');
@@ -142,7 +118,13 @@ function onInsertClick(e) {
   }
 
   google.script.run
-    .withSuccessHandler(function(result) { handleInsertResult(btn, result); })
+    .withSuccessHandler(function(result) {
+      btn.disabled = false;
+      btn.classList.remove('btn-loading');
+      if (result && !result.success) {
+        console.warn('Insert warning:', result.message);
+      }
+    })
     .withFailureHandler(function(err) {
       btn.disabled = false;
       btn.classList.remove('btn-loading');

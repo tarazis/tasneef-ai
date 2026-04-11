@@ -527,7 +527,7 @@ function runDocumentServiceTests() {
   it('blockquote: body ends with table then cleanup; inner spacing matches paragraph path', function () {
     var body = createMockBody(['']);
     var doc = createMockDoc(body, body._children[0]);
-    var result = insertBlockquoteTableAtPosition_(body, doc, arabicOnlyAyahAndCitation(), {});
+    insertBlockquoteTableAtPosition_(body, doc, arabicOnlyAyahAndCitation(), {});
 
     expect(body._children.length).toBe(2);
     expect(body._children[0].getType()).toBe(DocumentApp.ElementType.TABLE);
@@ -544,10 +544,6 @@ function runDocumentServiceTests() {
     expect(cell._inner[0]._spacingBefore).toBe(INSERT_SPACING_OUTER_PT);
     expect(cell._inner[0]._spacingAfter).toBe(INSERT_SPACING_INNER_PT);
     expect(cell._inner[1]._spacingAfter).toBe(INSERT_SPACING_OUTER_PT);
-
-    // borderInfo returned for two-step RPC border application
-    expect(result.borderInfo.docId).toBe('mock-doc-id');
-    expect(result.borderInfo.bodyChildIndex).toBe(0);
   });
 
   it('blockquote: three paragraphs in cell with translation spacing', function () {
@@ -574,11 +570,6 @@ function runDocumentServiceTests() {
     expect(body._children[0]._text).toBe('existing');
     expect(body._children[1].getType()).toBe(DocumentApp.ElementType.TABLE);
     expect(body._children[2]._text).toBe('after');
-  });
-
-  it('applyBlockquoteBorders does not throw when Docs API is unavailable', function () {
-    // In the test environment typeof Docs === 'undefined', so this should no-op gracefully
-    applyBlockquoteBorders('mock-doc-id', 0);
   });
 
   it('hexToDocsRgb01_ parses normalized hex for Docs border color', function () {
