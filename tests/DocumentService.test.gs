@@ -82,7 +82,31 @@ function runDocumentServiceTests() {
         return {
           _owner: para,
           setFontSize: function (s) { para._fontSize = s; return this; },
-          getFontSize: function () { return para._fontSize; }
+          getFontSize: function () { return para._fontSize; },
+          getAttributes: function (charIndex) {
+            if (!para._charAttrs) return null;
+            return para._charAttrs[charIndex] || null;
+          },
+          setAttributes: function (startOffset, endOffset, attrs) {
+            if (!para._charAttrs) para._charAttrs = {};
+            for (var ai = startOffset; ai <= endOffset; ai++) {
+              para._charAttrs[ai] = attrs;
+            }
+            return this;
+          },
+          deleteText: function (startOffset, endOffset) {
+            var t = para._text;
+            para._text = t.substring(0, startOffset) + t.substring(endOffset + 1);
+            if (para._charAttrs) {
+              var newAttrs = {};
+              for (var ai = 0; ai < startOffset; ai++) {
+                if (para._charAttrs[ai]) newAttrs[ai] = para._charAttrs[ai];
+              }
+              para._charAttrs = newAttrs;
+            }
+            para._textChildren = [createMockText(para._text, para)];
+            return this;
+          }
         };
       }
     };
@@ -898,7 +922,9 @@ function runDocumentServiceTests() {
 
   it('cursor in middle of paragraph — splits then insert region has top buffer', function () {
     var body = createMockBody(['hello world']);
-    var doc = createMockDoc(body, body._children[0], null, 6);
+    var para = body._children[0];
+    var textEl = para._textChildren[0];
+    var doc = createMockDoc(body, textEl, null, 6);
     var anchor = resolveIsolatedInsertAnchor_(body, doc);
     expect(body._children[0]._text).toBe('hello ');
     expect(body._children[1]._text).toBe('world');
@@ -1095,6 +1121,158 @@ function runDocumentServiceTests() {
     expect(body._children[3]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
     expect(body._children[4]._text).toBe('second');
     expect(body._children[5]._text).toBe('third');
+  });
+
+  // ── normalizeToContainerOffset_ — Paragraph element with child-index offset ──
+
+  results.push('\nnormalizeToContainerOffset_() — Paragraph element child-index to char-offset');
+
+  it('Paragraph cursor offset 0 (before all children) returns char offset 0', function () {
+    var body = createMockBody(['hello world']);
+    var para = body._children[0];
+    var result = normalizeToContainerOffset_(para, 0);
+    expect(result.container).toBe(para);
+    expect(result.offset).toBe(0);
+  });
+
+  it('Paragraph cursor offset 1 (after 1 TEXT child) returns char offset = child text length', function () {
+    var body = createMockBody(['hello world']);
+    var para = body._children[0];
+    var result = normalizeToContainerOffset_(para, 1);
+    expect(result.container).toBe(para);
+    expect(result.offset).toBe(11);
+  });
+
+  it('Paragraph cursor offset 2 with two TEXT children sums both lengths', function () {
+    var body = createMockBody(['hello world']);
+    var para = body._children[0];
+    var text1 = createMockText('hello ', para);
+    var text2 = createMockText('world', para);
+    para._textChildren = [text1, text2];
+    var result = normalizeToContainerOffset_(para, 2);
+    expect(result.container).toBe(para);
+    expect(result.offset).toBe(11);
+  });
+
+  it('Paragraph cursor offset 1 with two TEXT children returns first child length only', function () {
+    var body = createMockBody(['hello world']);
+    var para = body._children[0];
+    var text1 = createMockText('hello ', para);
+    var text2 = createMockText('world', para);
+    para._textChildren = [text1, text2];
+    var result = normalizeToContainerOffset_(para, 1);
+    expect(result.container).toBe(para);
+    expect(result.offset).toBe(6);
+  });
+
+  it('Paragraph cursor offset exceeding child count clamps to total text length', function () {
+    var body = createMockBody(['abc']);
+    var para = body._children[0];
+    var result = normalizeToContainerOffset_(para, 5);
+    expect(result.container).toBe(para);
+    expect(result.offset).toBe(3);
+  });
+
+  // ── splitParagraphAt_ — formatting preservation ──
+
+  results.push('\nsplitParagraphAt_() — formatting preservation');
+
+  it('split preserves "before" text via deleteText (not setText)', function () {
+    var body = createMockBody(['hello world']);
+    var para = body._children[0];
+    para._charAttrs = {};
+    para._charAttrs[0] = { BOLD: true };
+    para._charAttrs[1] = { BOLD: true };
+    para._charAttrs[2] = { BOLD: true };
+    para._charAttrs[3] = { BOLD: true };
+    para._charAttrs[4] = { BOLD: true };
+
+    splitParagraphAt_(body, para, 6);
+
+    expect(para._text).toBe('hello ');
+    expect(body._children[1]._text).toBe('world');
+    expect(para._charAttrs[0]).toEqual({ BOLD: true });
+    expect(para._charAttrs[4]).toEqual({ BOLD: true });
+    expect(para._charAttrs[6]).toBe(undefined);
+  });
+
+  it('split reapplies character attributes to "after" paragraph', function () {
+    var body = createMockBody(['hello world']);
+    var para = body._children[0];
+    para._charAttrs = {};
+    for (var ci = 6; ci < 11; ci++) {
+      para._charAttrs[ci] = { ITALIC: true, FONT_FAMILY: 'Arial' };
+    }
+
+    splitParagraphAt_(body, para, 6);
+
+    var np = body._children[1];
+    expect(np._text).toBe('world');
+    expect(np._charAttrs[0]).toEqual({ ITALIC: true, FONT_FAMILY: 'Arial' });
+    expect(np._charAttrs[4]).toEqual({ ITALIC: true, FONT_FAMILY: 'Arial' });
+  });
+
+  it('split copies paragraph-level attributes to new paragraph', function () {
+    var body = createMockBody(['hello world']);
+    var para = body._children[0];
+    para._heading = DocumentApp.ParagraphHeading.HEADING1;
+    para._align = DocumentApp.HorizontalAlignment.CENTER;
+    para._ltr = false;
+    para._spacingBefore = 10;
+    para._spacingAfter = 5;
+    para.getHeading = function () { return this._heading; };
+    para.getAlignment = function () { return this._align; };
+    para.getLeftToRight = function () { return this._ltr; };
+    para.getSpacingBefore = function () { return this._spacingBefore; };
+    para.getSpacingAfter = function () { return this._spacingAfter; };
+
+    splitParagraphAt_(body, para, 6);
+
+    var np = body._children[1];
+    expect(np._heading).toBe(DocumentApp.ParagraphHeading.HEADING1);
+    expect(np._align).toBe(DocumentApp.HorizontalAlignment.CENTER);
+    expect(np._ltr).toBe(false);
+    expect(np._spacingBefore).toBe(10);
+    expect(np._spacingAfter).toBe(5);
+  });
+
+  it('split at offset 0 or offset >= len is a no-op', function () {
+    var body = createMockBody(['hello']);
+    splitParagraphAt_(body, body._children[0], 0);
+    expect(body._children.length).toBe(1);
+    expect(body._children[0]._text).toBe('hello');
+
+    splitParagraphAt_(body, body._children[0], 5);
+    expect(body._children.length).toBe(1);
+    expect(body._children[0]._text).toBe('hello');
+
+    splitParagraphAt_(body, body._children[0], 10);
+    expect(body._children.length).toBe(1);
+    expect(body._children[0]._text).toBe('hello');
+  });
+
+  // ── resolveIsolatedInsertAnchor_ — Paragraph cursor element ──
+
+  results.push('\nresolveIsolatedInsertAnchor_() — Paragraph cursor element (child-index offset)');
+
+  it('Paragraph cursor at child-index 0 inserts before paragraph', function () {
+    var body = createMockBody(['first', 'second']);
+    var para = body._children[1];
+    var doc = createMockDoc(body, para, null, 0);
+    var anchor = resolveIsolatedInsertAnchor_(body, doc);
+    expect(anchor.baseIndex).toBe(1);
+    expect(anchor.topBuffer).toBe(true);
+    expect(anchor.removeTarget).toBe(null);
+  });
+
+  it('Paragraph cursor at child-index 1 (after all children) inserts after paragraph', function () {
+    var body = createMockBody(['hello']);
+    var para = body._children[0];
+    var doc = createMockDoc(body, para, null, 1);
+    var anchor = resolveIsolatedInsertAnchor_(body, doc);
+    expect(anchor.baseIndex).toBe(1);
+    expect(anchor.topBuffer).toBe(false);
+    expect(anchor.removeTarget).toBe(null);
   });
 
   // ── Restore ─────────────────────────────────────────────────

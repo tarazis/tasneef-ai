@@ -84,7 +84,14 @@ function normalizeToContainerOffset_(element, offsetInElement) {
     return { container: container, offset: acc + offsetInElement };
   }
   if (element === container) {
-    return { container: container, offset: offsetInElement };
+    var charOff = 0;
+    for (var ci = 0; ci < offsetInElement && ci < container.getNumChildren(); ci++) {
+      var cch = container.getChild(ci);
+      if (cch.getType() === DocumentApp.ElementType.TEXT) {
+        charOff += cch.asText().getText().length;
+      }
+    }
+    return { container: container, offset: charOff };
   }
   return { container: container, offset: container.getText().length };
 }
@@ -167,19 +174,37 @@ function findListItemBlockBounds_(body, listItem) {
 
 /**
  * Splits a body-level paragraph at a character offset; second half becomes a new paragraph below.
- * May lose inline formatting at the split (DocumentApp limitation).
+ * Preserves inline (character-level) formatting on both halves by using deleteText (which keeps
+ * attributes on remaining text) and reapplying captured attributes to the new paragraph.
  * @param {Body} body
  * @param {GoogleAppsScript.Document.Paragraph} paragraph
  * @param {number} offset
  */
 function splitParagraphAt_(body, paragraph, offset) {
   var text = paragraph.getText();
-  var before = text.substring(0, offset);
+  var len = text.length;
+  if (offset <= 0 || offset >= len) return;
+
   var after = text.substring(offset);
   var idx = body.getChildIndex(paragraph);
-  paragraph.setText(before);
-  body.insertParagraph(idx + 1, after);
-  var np = body.getChild(idx + 1).asParagraph();
+
+  var srcText = paragraph.editAsText();
+  var afterAttrs = [];
+  for (var i = offset; i < len; i++) {
+    afterAttrs.push(srcText.getAttributes(i));
+  }
+
+  srcText.deleteText(offset, len - 1);
+
+  var np = body.insertParagraph(idx + 1, after);
+
+  var npText = np.editAsText();
+  for (var j = 0; j < afterAttrs.length; j++) {
+    if (afterAttrs[j]) {
+      npText.setAttributes(j, j, afterAttrs[j]);
+    }
+  }
+
   try {
     np.setHeading(paragraph.getHeading());
     np.setAlignment(paragraph.getAlignment());
@@ -217,12 +242,18 @@ function resolveFallbackInsertAnchor_(body) {
 function resolveIsolatedInsertAnchor_(body, doc) {
   var pos = getActivePositionNormalized_(doc);
   if (!pos) {
+    Logger.log('resolveIsolatedInsertAnchor_: no cursor/selection — using fallback');
     return resolveFallbackInsertAnchor_(body);
   }
+  Logger.log('resolveIsolatedInsertAnchor_: element type=' + pos.element.getType() +
+             ', offset=' + pos.offset);
   var norm = normalizeToContainerOffset_(pos.element, pos.offset);
   if (!norm) {
+    Logger.log('resolveIsolatedInsertAnchor_: normalizeToContainerOffset_ returned null — using fallback');
     return resolveFallbackInsertAnchor_(body);
   }
+  Logger.log('resolveIsolatedInsertAnchor_: normalized offset=' + norm.offset +
+             ', container text length=' + norm.container.getText().length);
   var container = norm.container;
   var off = norm.offset;
   if (off < 0) {
