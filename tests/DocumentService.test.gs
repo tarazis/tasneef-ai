@@ -535,7 +535,7 @@ function runDocumentServiceTests() {
     expect(body._children[1]._heading).toBe(DocumentApp.ParagraphHeading.NORMAL);
 
     var cell = body._children[0]._cell;
-    expect(cell._bg).toBe(BLOCKQUOTE_CELL_BACKGROUND);
+    expect(cell._bg).toBe(null);
     expect(cell._padL).toBe(21);
     expect(cell._padT).toBe(6);
     expect(cell._padR).toBe(18);

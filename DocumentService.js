@@ -197,7 +197,8 @@ function applyBlockquoteCellBordersViaDocsApi_(docId, tableOrdinal) {
     columnSpan: 1
   };
 
-  // Single request: two-step updates sometimes dropped the colored left border after flush.
+  var bgRgb = hexToDocsRgb01_(BLOCKQUOTE_CELL_BACKGROUND);
+
   var requests = [
     {
       updateTableCellStyle: {
@@ -206,9 +207,10 @@ function applyBlockquoteCellBordersViaDocsApi_(docId, tableOrdinal) {
           borderTop: zero,
           borderRight: zero,
           borderBottom: zero,
-          borderLeft: leftRgb
+          borderLeft: leftRgb,
+          backgroundColor: { color: { rgbColor: bgRgb } }
         },
-        fields: 'borderTop,borderRight,borderBottom,borderLeft'
+        fields: 'borderTop,borderRight,borderBottom,borderLeft,backgroundColor'
       }
     }
   ];
@@ -248,7 +250,6 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
   }
 
   var cell = table.getRow(0).getCell(0);
-  cell.setBackgroundColor(BLOCKQUOTE_CELL_BACKGROUND);
   cell.setPaddingLeft(21);
   cell.setPaddingTop(6);
   cell.setPaddingRight(18);
