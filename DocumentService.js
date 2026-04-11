@@ -13,18 +13,51 @@ var BLOCKQUOTE_BORDER_LEFT_COLOR = '#3A8F7A';
 var BLOCKQUOTE_CELL_BACKGROUND = '#F5F5F5';
 
 /**
+ * Walks an element up to its nearest body-level ancestor (direct child of body).
+ * If the element is already a direct child, returns it unchanged.
+ * Returns null when the element cannot be traced to a body-level child.
+ * @param {Body} body
+ * @param {GoogleAppsScript.Document.Element} element
+ * @return {GoogleAppsScript.Document.Element|null}
+ */
+function resolveBodyLevelAncestor_(body, element) {
+  var el = element;
+  while (el) {
+    if (body.getChildIndex(el) !== -1) return el;
+    el = el.getParent();
+  }
+  return null;
+}
+
+/**
  * Resolves where to insert the next body-level block (paragraphs or table).
+ * Tries getCursor() first; falls back to getSelection() (handles text-selection edge case);
+ * final fallback inserts after the last non-empty paragraph.
+ * When the resolved paragraph is nested (e.g. inside a blockquote table cell), walks up
+ * to the body-level ancestor so getChildIndex always succeeds.
  * @param {Body} body
  * @param {Document} doc
  * @return {{ insertIndex: number, removeTarget: GoogleAppsScript.Document.Paragraph|null }}
  */
 function resolveInsertAnchor_(body, doc) {
+  var cursorElement = null;
   var cursor = doc.getCursor();
+  if (cursor) {
+    cursorElement = cursor.getElement();
+  } else {
+    var selection = doc.getSelection();
+    if (selection) {
+      var ranges = selection.getRangeElements();
+      if (ranges && ranges.length > 0) {
+        cursorElement = ranges[0].getElement();
+      }
+    }
+  }
+
   var insertIndex;
   var removeTarget = null;
 
-  if (cursor) {
-    var cursorElement = cursor.getElement();
+  if (cursorElement) {
     var cursorParagraph;
 
     if (cursorElement.getType() === DocumentApp.ElementType.PARAGRAPH) {
@@ -34,14 +67,23 @@ function resolveInsertAnchor_(body, doc) {
       while (parent && parent.getType() !== DocumentApp.ElementType.PARAGRAPH) {
         parent = parent.getParent();
       }
-      cursorParagraph = parent ? parent.asParagraph() : body.getParagraphs()[0];
+      cursorParagraph = parent ? parent.asParagraph() : null;
     }
 
-    if (cursorParagraph.getText() === '') {
-      insertIndex = body.getChildIndex(cursorParagraph);
-      removeTarget = cursorParagraph;
+    var bodyChild = cursorParagraph
+      ? resolveBodyLevelAncestor_(body, cursorParagraph)
+      : resolveBodyLevelAncestor_(body, cursorElement);
+
+    if (bodyChild) {
+      if (bodyChild.getType() === DocumentApp.ElementType.PARAGRAPH &&
+          bodyChild.asParagraph().getText() === '') {
+        insertIndex = body.getChildIndex(bodyChild);
+        removeTarget = bodyChild.asParagraph();
+      } else {
+        insertIndex = body.getChildIndex(bodyChild) + 1;
+      }
     } else {
-      insertIndex = body.getChildIndex(cursorParagraph) + 1;
+      insertIndex = body.getNumChildren();
     }
   } else {
     var paragraphs = body.getParagraphs();
@@ -160,7 +202,7 @@ function resolveTableStartIndexForDocsApi_(docId, tableOrdinal) {
  * Per-side cell borders (left accent only) via Docs API; DocumentApp cannot set per side.
  * Advanced Docs (get/batchUpdate) needs https://www.googleapis.com/auth/documents in appsscript.json;
  * drive.file can yield 404 on documents.get for the active editor doc.
- * Call only after DocumentApp.flush (e.g. saveAndClose): otherwise documents.get may omit the new table.
+ * Call only after the document has been flushed (auto-flush on function return, or saveAndClose).
  * @param {string} docId
  * @param {number} tableOrdinal - 1-based ordinal position of the target table among all body tables
  */
@@ -224,11 +266,14 @@ function applyBlockquoteCellBordersViaDocsApi_(docId, tableOrdinal) {
 
 /**
  * Inserts a 1×1 table at the anchor, places beautified paragraphs in the cell, styles the shell.
+ * Border styling is NOT applied here — the caller receives pendingBorders and must invoke
+ * applyBlockquoteBorders() in a separate server call so that the auto-flush between calls
+ * makes the table visible to the Docs REST API without needing saveAndClose().
  * @param {Body} body
  * @param {Document} doc
  * @param {Array<Object>} paragraphsToInsert
  * @param {Object} formatState
- * @return {Object} { fontWarning: string|null }
+ * @return {Object} { fontWarning: string|null, pendingBorders: {docId: string, tableOrdinal: number}|null }
  */
 function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatState) {
   var anchor = resolveInsertAnchor_(body, doc);
@@ -307,15 +352,22 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
       tableOrdinal++;
     }
   }
-  try {
-    if (typeof doc.saveAndClose === 'function') {
-      doc.saveAndClose();
-    }
-  } catch (ignore) {
-  }
-  applyBlockquoteCellBordersViaDocsApi_(docId, tableOrdinal);
 
-  return { fontWarning: fontWarning };
+  return {
+    fontWarning: fontWarning,
+    pendingBorders: { docId: docId, tableOrdinal: tableOrdinal }
+  };
+}
+
+/**
+ * Public entry point for the client to apply blockquote cell borders via a second RPC.
+ * Called after insertAyah/insertAyahRange returns pendingBorders; the auto-flush between
+ * the two server calls ensures the Docs REST API can see the newly inserted table.
+ * @param {string} docId
+ * @param {number} tableOrdinal - 1-based ordinal position of the target table
+ */
+function applyBlockquoteBorders(docId, tableOrdinal) {
+  applyBlockquoteCellBordersViaDocsApi_(docId, tableOrdinal);
 }
 
 /**
@@ -454,7 +506,11 @@ function insertAyah(ayahData, formatState, settings) {
     ? insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatState)
     : insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState);
   var message = result.fontWarning ? 'Ayah inserted. ' + result.fontWarning : 'Ayah inserted.';
-  return { success: true, message: message };
+  var out = { success: true, message: message };
+  if (result.pendingBorders) {
+    out.pendingBorders = result.pendingBorders;
+  }
+  return out;
 }
 
 /**
@@ -526,5 +582,9 @@ function insertAyahRange(rangeData, formatState, settings) {
   var result = useBlockquote
     ? insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatState)
     : insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState);
-  return { success: true, message: result.fontWarning ? 'Range inserted. ' + result.fontWarning : 'Range inserted.' };
+  var out = { success: true, message: result.fontWarning ? 'Range inserted. ' + result.fontWarning : 'Range inserted.' };
+  if (result.pendingBorders) {
+    out.pendingBorders = result.pendingBorders;
+  }
+  return out;
 }

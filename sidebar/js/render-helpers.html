@@ -3,6 +3,21 @@
 //   buildCardHtml, buildRangeData (card-builder.html),
 //   _buildAyahDataForInsert (search-utils.html)
 
+/**
+ * Fire-and-forget: applies blockquote cell borders via a deferred second RPC.
+ * The auto-flush between the insert call and this call ensures the Docs REST API
+ * can see the newly inserted table without needing saveAndClose().
+ */
+function _applyPendingBorders(result) {
+  if (!result || !result.pendingBorders) return;
+  var pb = result.pendingBorders;
+  google.script.run
+    .withFailureHandler(function(err) {
+      console.error('Blockquote border styling failed:', err);
+    })
+    .applyBlockquoteBorders(pb.docId, pb.tableOrdinal);
+}
+
 function makeSkeleton(count) {
   var html = '';
   for (var i = 0; i < count; i++) {
@@ -91,6 +106,7 @@ function onInsertClick(e) {
         if (result && !result.success) {
           console.warn('Range insert warning:', result.message);
         }
+        _applyPendingBorders(result);
       })
       .withFailureHandler(function(err) {
         btn.disabled = false;
@@ -124,6 +140,7 @@ function onInsertClick(e) {
       if (result && !result.success) {
         console.warn('Insert warning:', result.message);
       }
+      _applyPendingBorders(result);
     })
     .withFailureHandler(function(err) {
       btn.disabled = false;

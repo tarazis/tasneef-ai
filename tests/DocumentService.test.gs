@@ -153,7 +153,7 @@ function runDocumentServiceTests() {
     };
   }
 
-  function createMockDoc(body, cursorParagraph) {
+  function createMockDoc(body, cursorParagraph, selectionElements) {
     return {
       getBody: function () { return body; },
       getId: function () { return 'mock-doc-id'; },
@@ -161,6 +161,16 @@ function runDocumentServiceTests() {
         if (!cursorParagraph) return null;
         return {
           getElement: function () { return cursorParagraph; }
+        };
+      },
+      getSelection: function () {
+        if (!selectionElements || selectionElements.length === 0) return null;
+        return {
+          getRangeElements: function () {
+            return selectionElements.map(function (el) {
+              return { getElement: function () { return el; } };
+            });
+          }
         };
       },
       setCursor: function () {},
@@ -737,50 +747,100 @@ function runDocumentServiceTests() {
 
   // ── tableOrdinal computation in insertBlockquoteTableAtPosition_ ──
 
-  results.push('\ninsertBlockquoteTableAtPosition_() — ordinal targeting');
+  results.push('\ninsertBlockquoteTableAtPosition_() — ordinal targeting (pendingBorders)');
 
-  var capturedTableOrdinal = null;
-  var originalApplyBorders = applyBlockquoteCellBordersViaDocsApi_;
-  applyBlockquoteCellBordersViaDocsApi_ = function (docId, tableOrdinal) {
-    capturedTableOrdinal = tableOrdinal;
-  };
-
-  it('single table in empty doc gets tableOrdinal 1', function () {
-    capturedTableOrdinal = null;
+  it('single table in empty doc returns pendingBorders with tableOrdinal 1', function () {
     var body = createMockBody(['']);
     var doc = createMockDoc(body, body._children[0]);
-    insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
-    expect(capturedTableOrdinal).toBe(1);
+    var result = insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
+    expect(result.pendingBorders.docId).toBe('mock-doc-id');
+    expect(result.pendingBorders.tableOrdinal).toBe(1);
   });
 
-  it('new table after one pre-existing table gets tableOrdinal 2', function () {
-    capturedTableOrdinal = null;
+  it('new table after one pre-existing table returns tableOrdinal 2', function () {
     var body = createMockBody(['text before', 'cursor here']);
     var existingTable = createMockTable();
     body._children.splice(1, 0, existingTable);
     var cursorPara = body._children[2];
     var doc = createMockDoc(body, cursorPara);
-    insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
-    expect(capturedTableOrdinal).toBe(2);
+    var result = insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
+    expect(result.pendingBorders.tableOrdinal).toBe(2);
   });
 
-  it('new table between two pre-existing tables gets tableOrdinal 2', function () {
-    capturedTableOrdinal = null;
+  it('new table between two pre-existing tables returns tableOrdinal 2', function () {
     var body = createMockBody(['before', 'middle', 'after']);
     var table1 = createMockTable();
     body._children.splice(1, 0, table1);
     var table2 = createMockTable();
     body._children.splice(3, 0, table2);
-    // body: [para"before", table1, para"middle", table2, para"after"]
-    var cursorPara = body._children[2]; // para "middle"
+    var cursorPara = body._children[2];
     var doc = createMockDoc(body, cursorPara);
-    insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
-    // inserted after "middle" at index 3, pushing table2 to 4
-    // body: [para"before", table1, para"middle", newTable, table2, para"after"]
-    expect(capturedTableOrdinal).toBe(2);
+    var result = insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
+    expect(result.pendingBorders.tableOrdinal).toBe(2);
   });
 
-  applyBlockquoteCellBordersViaDocsApi_ = originalApplyBorders;
+  it('blockquote does NOT call applyBlockquoteCellBordersViaDocsApi_ inline', function () {
+    var called = false;
+    var origBorders = applyBlockquoteCellBordersViaDocsApi_;
+    applyBlockquoteCellBordersViaDocsApi_ = function () { called = true; };
+    var body = createMockBody(['']);
+    var doc = createMockDoc(body, body._children[0]);
+    insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
+    expect(called).toBe(false);
+    applyBlockquoteCellBordersViaDocsApi_ = origBorders;
+  });
+
+  // ── resolveInsertAnchor_ — getSelection() fallback ──────────
+
+  results.push('\nresolveInsertAnchor_() — getSelection() fallback');
+
+  it('selection on non-empty body paragraph inserts after it', function () {
+    var body = createMockBody(['first', 'second', 'third']);
+    var doc = createMockDoc(body, null, [body._children[1]]);
+    var anchor = resolveInsertAnchor_(body, doc);
+    expect(anchor.insertIndex).toBe(2);
+    expect(anchor.removeTarget).toBe(null);
+  });
+
+  it('selection on empty body paragraph reuses it', function () {
+    var body = createMockBody(['first', '', 'third']);
+    var doc = createMockDoc(body, null, [body._children[1]]);
+    var anchor = resolveInsertAnchor_(body, doc);
+    expect(anchor.insertIndex).toBe(1);
+    expect(anchor.removeTarget).toBe(body._children[1]);
+  });
+
+  // ── resolveInsertAnchor_ — nested cursor (inside table cell) ──
+
+  results.push('\nresolveInsertAnchor_() — nested cursor inside table');
+
+  it('cursor inside table cell paragraph resolves to body-level table index + 1', function () {
+    var body = createMockBody(['before']);
+    var tbl = createMockTable();
+    body._children.push(tbl);
+    body._children.push(createMockParagraph('after'));
+    // Cursor is on the paragraph inside the table cell
+    var cellPara = tbl._cell._inner[0];
+    cellPara.getParent = function () { return tbl; };
+    var doc = createMockDoc(body, cellPara);
+    var anchor = resolveInsertAnchor_(body, doc);
+    // Table is at body index 1 → insert after it at index 2
+    expect(anchor.insertIndex).toBe(2);
+    expect(anchor.removeTarget).toBe(null);
+  });
+
+  it('selection inside table cell resolves to body-level table index + 1', function () {
+    var body = createMockBody(['before']);
+    var tbl = createMockTable();
+    body._children.push(tbl);
+    body._children.push(createMockParagraph('after'));
+    var cellPara = tbl._cell._inner[0];
+    cellPara.getParent = function () { return tbl; };
+    var doc = createMockDoc(body, null, [cellPara]);
+    var anchor = resolveInsertAnchor_(body, doc);
+    expect(anchor.insertIndex).toBe(2);
+    expect(anchor.removeTarget).toBe(null);
+  });
 
   // ── Restore ─────────────────────────────────────────────────
   applyFormat = originalApplyFormat;
