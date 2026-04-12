@@ -294,10 +294,22 @@
   .settings-panel-loading .startup-spinner { flex-shrink: 0; }
   .settings-section { margin-bottom: var(--space-xl); }
   .settings-section-title { margin: 0 0 var(--space-lg); font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
-  .settings-row { display: flex; align-items: center; justify-content: space-between; padding: var(--space-md) 0; border-bottom: 1px solid var(--color-border); }
-  .settings-row--stacked { flex-direction: column; align-items: flex-start; gap: var(--space-sm); }
-  .settings-row-label { font-size: 13px; color: var(--color-text-primary); }
-  .settings-row .form-select { font-size: 13px; }
+  .settings-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+    padding: var(--space-md) 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .settings-row-label {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--color-text-primary);
+    cursor: pointer;
+  }
+  .settings-row .toggle-switch { margin-inline-start: auto; }
 
   /* Toggle switch */
   .toggle-switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
