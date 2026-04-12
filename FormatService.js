@@ -7,59 +7,87 @@
 
 var ARABIC_INDIC = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
 var FALLBACK_FONT = 'Amiri';
-/** Google Docs font family for inserted English translation (Google Fonts name). */
+/** Google Docs font family for inserted English translation and English citation (Google Fonts name). */
 var ENGLISH_TRANSLATION_INSERT_FONT = 'Figtree';
 
-/** Inserted English translation: this fraction of the ayah font size (points), rounded up (15% smaller than Arabic). */
-var ENGLISH_TRANSLATION_FONT_SIZE_RATIO = 0.85;
+/** Fixed typography for inserted Quran Arabic (user still picks font family, variant, bold). */
+var INSERT_QURAN_FONT_SIZE_PT = 16;
+var INSERT_QURAN_TEXT_COLOR = '#202124';
 
-/**
- * Format state for the English translation paragraph: Figtree; font size 85% of Arabic, rounded up (min 1 pt);
- * never bold; regular font variant (no weight or italic from the Arabic font variant); same color as Arabic.
- * @param {Object|null|undefined} formatState - Sidebar format state
- * @return {Object}
- */
-function formatStateForEnglishTranslation(formatState) {
-  if (!formatState) {
-    return { fontName: ENGLISH_TRANSLATION_INSERT_FONT, bold: false };
-  }
+/** Fixed typography for inserted translation and citation (English or Arabic script). */
+var INSERT_TRANSLATION_FONT_SIZE_PT = 12;
+var INSERT_CITATION_FONT_SIZE_PT = 11;
+var INSERT_SECONDARY_TEXT_COLOR = '#5F6368';
+
+function shallowCopyFormatState_(formatState) {
   var out = {};
+  if (!formatState) {
+    return out;
+  }
   for (var k in formatState) {
     if (Object.prototype.hasOwnProperty.call(formatState, k)) {
       out[k] = formatState[k];
     }
-  }
-  out.fontName = ENGLISH_TRANSLATION_INSERT_FONT;
-  out.fontVariant = 'regular';
-  out.bold = false;
-  if (formatState.fontSize != null && !isNaN(Number(formatState.fontSize))) {
-    var sz = Number(formatState.fontSize);
-    out.fontSize = Math.max(1, Math.ceil(sz * ENGLISH_TRANSLATION_FONT_SIZE_RATIO));
   }
   return out;
 }
 
+function formatStateForInsertQuranArabic_(formatState) {
+  var out = shallowCopyFormatState_(formatState);
+  out.fontName = out.fontName || FALLBACK_FONT;
+  out.fontVariant = out.fontVariant != null ? out.fontVariant : 'regular';
+  out.fontSize = INSERT_QURAN_FONT_SIZE_PT;
+  out.textColor = INSERT_QURAN_TEXT_COLOR;
+  return out;
+}
+
+function formatStateForInsertTranslationEnglish_() {
+  return {
+    fontName: ENGLISH_TRANSLATION_INSERT_FONT,
+    fontVariant: 'regular',
+    bold: false,
+    fontSize: INSERT_TRANSLATION_FONT_SIZE_PT,
+    textColor: INSERT_SECONDARY_TEXT_COLOR
+  };
+}
+
+function formatStateForInsertCitationEnglish_() {
+  return {
+    fontName: ENGLISH_TRANSLATION_INSERT_FONT,
+    fontVariant: 'regular',
+    bold: false,
+    fontSize: INSERT_CITATION_FONT_SIZE_PT,
+    textColor: INSERT_SECONDARY_TEXT_COLOR
+  };
+}
+
+function formatStateForInsertCitationArabic_(formatState) {
+  var out = shallowCopyFormatState_(formatState);
+  out.fontName = out.fontName || FALLBACK_FONT;
+  out.fontVariant = out.fontVariant != null ? out.fontVariant : 'regular';
+  out.bold = false;
+  out.fontSize = INSERT_CITATION_FONT_SIZE_PT;
+  out.textColor = INSERT_SECONDARY_TEXT_COLOR;
+  return out;
+}
+
 /**
- * Shallow copy of formatState with fontSize shifted by deltaPt (points), floored at 1.
- * If fontSize is missing or not a finite number, returns a copy without changing fontSize.
- * @param {Object|null|undefined} formatState
- * @param {number} deltaPt e.g. -1 for one point smaller
+ * Resolves DocumentApp format state for one beautified insert paragraph.
+ * @param {Object} item - insert descriptor with insertTextRole: 'quran' | 'translation' | 'citation'
+ * @param {Object|null|undefined} formatState - Sidebar state (fontName, fontVariant, bold for Arabic)
  * @return {Object}
  */
-function formatStateWithFontSizeAdjustment(formatState, deltaPt) {
-  if (!formatState || deltaPt == null || deltaPt === 0) {
-    return formatState;
+function formatStateForBeautifiedInsertParagraph(item, formatState) {
+  var role = item && item.insertTextRole;
+  if (role === 'translation') {
+    return formatStateForInsertTranslationEnglish_();
   }
-  var out = {};
-  for (var k in formatState) {
-    if (Object.prototype.hasOwnProperty.call(formatState, k)) {
-      out[k] = formatState[k];
-    }
+  if (role === 'citation') {
+    return item.useEnglishTranslationFont
+      ? formatStateForInsertCitationEnglish_()
+      : formatStateForInsertCitationArabic_(formatState);
   }
-  if (out.fontSize != null && !isNaN(Number(out.fontSize))) {
-    out.fontSize = Math.max(1, Number(out.fontSize) + deltaPt);
-  }
-  return out;
+  return formatStateForInsertQuranArabic_(formatState);
 }
 
 /**

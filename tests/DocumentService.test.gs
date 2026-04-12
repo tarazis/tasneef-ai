@@ -217,7 +217,8 @@ function runDocumentServiceTests() {
     return [{
       text: '\uFD3F\u00A0test\u00A0\uFD3E',
       align: DocumentApp.HorizontalAlignment.CENTER,
-      rtl: true
+      rtl: true,
+      insertTextRole: 'quran'
     }];
   }
 
@@ -227,21 +228,22 @@ function runDocumentServiceTests() {
         text: '\uFD3F\u00A0arabic\u00A0\uFD3E',
         align: DocumentApp.HorizontalAlignment.CENTER,
         rtl: true,
+        insertTextRole: 'quran',
         spacingBefore: INSERT_SPACING_OUTER_PT,
         spacingAfter: INSERT_SPACING_INNER_PT
       },
       {
         text: '"translation"',
         align: DocumentApp.HorizontalAlignment.CENTER,
-        useEnglishTranslationFont: true,
+        insertTextRole: 'translation',
         spacingAfter: INSERT_SPACING_INNER_PT
       },
       {
         text: '(Al-Fatiha\u00A01:1)',
         align: DocumentApp.HorizontalAlignment.CENTER,
+        insertTextRole: 'citation',
         useEnglishTranslationFont: true,
-        spacingAfter: INSERT_SPACING_OUTER_PT,
-        fontSizeAdjustPt: -1
+        spacingAfter: INSERT_SPACING_OUTER_PT
       }
     ];
   }
@@ -252,6 +254,7 @@ function runDocumentServiceTests() {
         text: '\uFD3F\u00A0ayah\u00A0\uFD3E',
         align: DocumentApp.HorizontalAlignment.CENTER,
         rtl: true,
+        insertTextRole: 'quran',
         spacingBefore: INSERT_SPACING_OUTER_PT,
         spacingAfter: INSERT_SPACING_INNER_PT
       },
@@ -259,8 +262,8 @@ function runDocumentServiceTests() {
         text: '[\u0633\u0648\u0631\u0629:\u0661]',
         align: DocumentApp.HorizontalAlignment.CENTER,
         rtl: true,
-        spacingAfter: INSERT_SPACING_OUTER_PT,
-        fontSizeAdjustPt: -1
+        insertTextRole: 'citation',
+        spacingAfter: INSERT_SPACING_OUTER_PT
       }
     ];
   }
@@ -455,17 +458,21 @@ function runDocumentServiceTests() {
     // [existing, topBuffer, arabic, translation, citation, bottom]
     expect(body._children.length).toBe(6);
     expect(applyFormatCalls.length).toBe(3);
-    expect(applyFormatCalls[0]).toBe(fs);
+    expect(applyFormatCalls[0].fontName).toBe('Scheherazade New');
+    expect(applyFormatCalls[0].fontVariant).toBe('700');
+    expect(applyFormatCalls[0].fontSize).toBe(16);
+    expect(applyFormatCalls[0].bold).toBe(true);
+    expect(applyFormatCalls[0].textColor).toBe('#202124');
     expect(applyFormatCalls[1].fontName).toBe('Figtree');
     expect(applyFormatCalls[1].fontVariant).toBe('regular');
     expect(applyFormatCalls[1].fontSize).toBe(12);
     expect(applyFormatCalls[1].bold).toBe(false);
-    expect(applyFormatCalls[1].textColor).toBe('#112233');
+    expect(applyFormatCalls[1].textColor).toBe('#5F6368');
     expect(applyFormatCalls[2].fontName).toBe('Figtree');
     expect(applyFormatCalls[2].fontVariant).toBe('regular');
     expect(applyFormatCalls[2].fontSize).toBe(11);
     expect(applyFormatCalls[2].bold).toBe(false);
-    expect(applyFormatCalls[2].textColor).toBe('#112233');
+    expect(applyFormatCalls[2].textColor).toBe('#5F6368');
   });
 
   it('Arabic citation paragraph is one point smaller than ayah', function () {
@@ -483,7 +490,10 @@ function runDocumentServiceTests() {
     insertParagraphsAtPosition_(body, doc, arabicOnlyAyahAndCitation(), fs);
     expect(applyFormatCalls.length).toBe(2);
     expect(applyFormatCalls[0].fontSize).toBe(16);
-    expect(applyFormatCalls[1].fontSize).toBe(15);
+    expect(applyFormatCalls[0].textColor).toBe('#202124');
+    expect(applyFormatCalls[1].fontSize).toBe(11);
+    expect(applyFormatCalls[1].textColor).toBe('#5F6368');
+    expect(applyFormatCalls[1].bold).toBe(false);
   });
 
   it('three content paragraphs at end — top buffer, all inserted, cleanup follows', function () {

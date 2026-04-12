@@ -15,10 +15,7 @@ var SETTINGS_DEFAULTS = {
   arabicStyle: 'uthmani',     // "uthmani" | "simple"
   fontName: 'Amiri',
   fontVariant: 'regular',    // Google Fonts API variant token
-  fontSize: 18,
-  bold: false,
-  textColor: '#000000',
-  customSwatchColors: []     // max 5 hex strings, persisted as JSON in User Properties
+  bold: false
 };
 
 var PROPERTY_KEYS = {
@@ -39,12 +36,6 @@ function getSettings() {
 
   for (var key in SETTINGS_DEFAULTS) {
     var storedKey = PROPERTY_KEYS.SETTINGS_PREFIX + key;
-    if (key === 'customSwatchColors') {
-      settings[key] = props.hasOwnProperty(storedKey)
-        ? _parseCustomSwatchColorsFromStored_(props[storedKey])
-        : [];
-      continue;
-    }
     if (props.hasOwnProperty(storedKey)) {
       settings[key] = _coerceValue(props[storedKey], SETTINGS_DEFAULTS[key]);
     } else {
@@ -66,11 +57,6 @@ function saveSetting_(key, value) {
     throw new Error('Unknown setting key: ' + key);
   }
   var storedKey = PROPERTY_KEYS.SETTINGS_PREFIX + key;
-  if (key === 'customSwatchColors') {
-    var clean = _sanitizeCustomSwatchArray_(Array.isArray(value) ? value : []);
-    PropertiesService.getUserProperties().setProperty(storedKey, JSON.stringify(clean));
-    return;
-  }
   PropertiesService.getUserProperties().setProperty(storedKey, String(value));
 }
 
@@ -197,32 +183,3 @@ function normalizeHex6ForSettings_(value) {
   return '#' + s.toUpperCase();
 }
 
-/**
- * @param {*} value - array-like of hex strings
- * @return {string[]} at most 5 normalized hex strings
- */
-function _sanitizeCustomSwatchArray_(value) {
-  var out = [];
-  if (!value || typeof value.length !== 'number') return out;
-  for (var i = 0; i < value.length; i++) {
-    var h = normalizeHex6ForSettings_(value[i]);
-    if (h) out.push(h);
-    if (out.length >= 5) break;
-  }
-  return out;
-}
-
-/**
- * @param {string} raw - JSON array string from User Properties
- * @return {string[]}
- */
-function _parseCustomSwatchColorsFromStored_(raw) {
-  if (!raw) return [];
-  try {
-    var parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed.length !== 'number') return [];
-    return _sanitizeCustomSwatchArray_(parsed);
-  } catch (e) {
-    return [];
-  }
-}

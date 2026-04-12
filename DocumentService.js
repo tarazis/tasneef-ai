@@ -10,7 +10,7 @@ var INSERT_SPACING_INNER_PT = 6;
 /** Blockquote table: left accent (pt); accent color (fixed, not tied to body text color). */
 var BLOCKQUOTE_BORDER_LEFT_PT = 3;
 var BLOCKQUOTE_BORDER_LEFT_COLOR = '#3A8F7A';
-var BLOCKQUOTE_CELL_BACKGROUND = '#F5F5F5';
+var BLOCKQUOTE_CELL_BACKGROUND = '#F8F9FA';
 
 /**
  * Walks an element up to its nearest body-level ancestor (direct child of body).
@@ -178,12 +178,7 @@ function formatBottomTypingParagraph_(p) {
 function applyBeautifiedInsertToParagraph_(p, item, formatState) {
   p.setAlignment(item.align);
   p.setLeftToRight(item.rtl ? false : true);
-  var fs = item.useEnglishTranslationFont
-    ? formatStateForEnglishTranslation(formatState)
-    : formatState;
-  if (item.fontSizeAdjustPt != null && item.fontSizeAdjustPt !== 0) {
-    fs = formatStateWithFontSizeAdjustment(fs, item.fontSizeAdjustPt);
-  }
+  var fs = formatStateForBeautifiedInsertParagraph(item, formatState);
   var fontWarning = applyFormat(p.editAsText(), fs);
   if (item.spacingBefore != null) {
     p.setSpacingBefore(item.spacingBefore);
@@ -445,8 +440,8 @@ function applyBlockquoteBorders(docId, tableOrdinal) {
  *
  * @param {Body} body - The document body
  * @param {Document} doc - The active document
- * @param {Array<Object>} paragraphsToInsert - Array of { text, align, rtl?, useEnglishTranslationFont?, spacingBefore?, spacingAfter?, fontSizeAdjustPt? } (spacing in pt; fontSizeAdjustPt e.g. -1 for citation one pt smaller)
- * @param {Object} formatState - { fontName, fontVariant, fontSize, bold, textColor }
+ * @param {Array<Object>} paragraphsToInsert - Array of { text, align, rtl?, insertTextRole, useEnglishTranslationFont? (citation: English vs Arabic font), spacingBefore?, spacingAfter? } (spacing in pt)
+ * @param {Object} formatState - { fontName, fontVariant, bold } (sizes/colors fixed server-side)
  * @return {Object} { fontWarning: string|null }
  */
 function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState) {
@@ -504,7 +499,7 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
  * Inserts an ayah into the document using resolveIsolatedInsertAnchor_
  * (selection end, list/table escapes, paragraph split/start/end, doc-end fallback).
  * @param {Object} ayahData - { surah, ayah, surahNameArabic, surahNameEnglish, textUthmani, textSimple, translationText }
- * @param {Object} formatState - { fontName, fontVariant, fontSize, bold, textColor }
+ * @param {Object} formatState - { fontName, fontVariant, bold }
  * @param {Object} settings - { showTranslation, arabicStyle, blockquoteInsertion }
  * @return {Object} { success: boolean, message?: string }
  */
@@ -535,27 +530,29 @@ function insertAyah(ayahData, formatState, settings) {
       text: '\uFD3F' + qNbsp + arabicText + qNbsp + '\uFD3E',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true,
+      insertTextRole: 'quran',
       spacingBefore: INSERT_SPACING_OUTER_PT,
       spacingAfter: INSERT_SPACING_INNER_PT
     });
     paragraphsToInsert.push({
       text: '\u201C' + translationText + '\u201D',
       align: DocumentApp.HorizontalAlignment.CENTER,
-      useEnglishTranslationFont: true,
+      insertTextRole: 'translation',
       spacingAfter: INSERT_SPACING_INNER_PT
     });
     paragraphsToInsert.push({
       text: '(' + surahNameEn + qNbsp + ayahData.surah + ':' + ayahData.ayah + ')',
       align: DocumentApp.HorizontalAlignment.CENTER,
+      insertTextRole: 'citation',
       useEnglishTranslationFont: true,
-      spacingAfter: INSERT_SPACING_OUTER_PT,
-      fontSizeAdjustPt: -1
+      spacingAfter: INSERT_SPACING_OUTER_PT
     });
   } else {
     paragraphsToInsert.push({
       text: '\uFD3F' + qNbsp + arabicText + qNbsp + '\uFD3E',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true,
+      insertTextRole: 'quran',
       spacingBefore: INSERT_SPACING_OUTER_PT,
       spacingAfter: INSERT_SPACING_INNER_PT
     });
@@ -563,8 +560,8 @@ function insertAyah(ayahData, formatState, settings) {
       text: '[' + surahNameAr + ':' + qNbsp + ayahNumAr + ']',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true,
-      spacingAfter: INSERT_SPACING_OUTER_PT,
-      fontSizeAdjustPt: -1
+      insertTextRole: 'citation',
+      spacingAfter: INSERT_SPACING_OUTER_PT
     });
   }
 
@@ -583,7 +580,7 @@ function insertAyah(ayahData, formatState, settings) {
 /**
  * Inserts a pre-assembled ayah range using the same anchor rules as insertAyah.
  * @param {Object} rangeData - { surah, ayahStart, ayahEnd, arabicText, translationText, surahNameArabic, surahNameEnglish }
- * @param {Object} formatState - { fontName, fontVariant, fontSize, bold, textColor }
+ * @param {Object} formatState - { fontName, fontVariant, bold }
  * @param {Object} settings - { showTranslation, blockquoteInsertion }
  * @return {Object} { success: boolean, message?: string }
  */
@@ -610,28 +607,30 @@ function insertAyahRange(rangeData, formatState, settings) {
       text: '\uFD3F' + qNbsp + arabicText + qNbsp + '\uFD3E',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true,
+      insertTextRole: 'quran',
       spacingBefore: INSERT_SPACING_OUTER_PT,
       spacingAfter: INSERT_SPACING_INNER_PT
     });
     paragraphsToInsert.push({
       text: '\u201C' + translationText + '\u201D',
       align: DocumentApp.HorizontalAlignment.CENTER,
-      useEnglishTranslationFont: true,
+      insertTextRole: 'translation',
       spacingAfter: INSERT_SPACING_INNER_PT
     });
     paragraphsToInsert.push({
       text: '(' + surahNameEn + qNbsp + rangeData.surah + ':' +
             rangeData.ayahStart + '-' + rangeData.ayahEnd + ')',
       align: DocumentApp.HorizontalAlignment.CENTER,
+      insertTextRole: 'citation',
       useEnglishTranslationFont: true,
-      spacingAfter: INSERT_SPACING_OUTER_PT,
-      fontSizeAdjustPt: -1
+      spacingAfter: INSERT_SPACING_OUTER_PT
     });
   } else {
     paragraphsToInsert.push({
       text: '\uFD3F' + qNbsp + arabicText + qNbsp + '\uFD3E',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true,
+      insertTextRole: 'quran',
       spacingBefore: INSERT_SPACING_OUTER_PT,
       spacingAfter: INSERT_SPACING_INNER_PT
     });
@@ -639,8 +638,8 @@ function insertAyahRange(rangeData, formatState, settings) {
       text: '[' + surahNameAr + ':' + qNbsp + ayahStartAr + qNbsp + '-' + qNbsp + ayahEndAr + ']',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true,
-      spacingAfter: INSERT_SPACING_OUTER_PT,
-      fontSizeAdjustPt: -1
+      insertTextRole: 'citation',
+      spacingAfter: INSERT_SPACING_OUTER_PT
     });
   }
 

@@ -126,29 +126,15 @@ function ensureGoogleFontsPreviewStylesheet(family, variantTokens, onReady) {
   document.head.appendChild(link);
 }
 
-/**
- * Safe CSS color for inline preview (mirrors hex rules used in the color picker).
- * @param {Object} fs - formatState-like { textColor }
- * @return {string} #RRGGBB
- */
-function previewTextColorCss(fs) {
-  var fallback = '#000000';
-  var raw = fs && fs.textColor;
-  if (raw == null || typeof raw !== 'string') return fallback;
-  var s = raw.trim();
-  if (s.charAt(0) === '#') s = s.slice(1);
-  if (s.length === 3 && /^[0-9a-fA-F]{3}$/.test(s)) {
-    s = s.charAt(0) + s.charAt(0) + s.charAt(1) + s.charAt(1) + s.charAt(2) + s.charAt(2);
-  }
-  if (/^[0-9a-fA-F]{6}$/.test(s)) return '#' + s.toUpperCase();
-  return fallback;
-}
+/** Matches server-side insert: Quran Arabic preview in result cards (pt / hex). */
+var INSERT_PREVIEW_ARABIC_PT = 16;
+var INSERT_PREVIEW_ARABIC_COLOR = '#202124';
 
 /**
  * Inline style for Arabic preview (.arabic) from formatState.
  * Bold/weight rules align with FormatService.applyFormat (Docs).
- * @param {Object} fs - formatState-like { fontName, fontVariant, fontSize?, bold?, textColor? }
- *   fontSize is in points (matches DocumentApp Text.setFontSize / Google Docs).
+ * Size and color match fixed document insertion (user font family / variant / bold only).
+ * @param {Object} fs - formatState-like { fontName, fontVariant, bold? }
  * @return {string}
  */
 function arabicPreviewFontStyle(fs) {
@@ -159,12 +145,9 @@ function arabicPreviewFontStyle(fs) {
   if (fs && fs.bold === true && w < 700) {
     w = 700;
   }
-  var sz = parseInt(fs && fs.fontSize, 10);
-  if (isNaN(sz) || sz < 1) sz = 18;
-  var color = previewTextColorCss(fs);
   return "font-family:'" + safeFam + "',serif;font-weight:" + w +
     ';font-style:' + (p.italic ? 'italic' : 'normal') +
-    ';font-size:' + sz + 'pt;color:' + color;
+    ';font-size:' + INSERT_PREVIEW_ARABIC_PT + 'pt;color:' + INSERT_PREVIEW_ARABIC_COLOR;
 }
 
 var _settleArabicPreviewFontsTimer = null;
@@ -194,11 +177,9 @@ function settleArabicPreviewFonts() {
   var fam = (fs && fs.fontName) || 'Amiri';
   if (fam === 'Amiri') return;
 
-  var sz = fs && parseInt(fs.fontSize, 10);
-  if (isNaN(sz) || sz < 1) sz = 18;
   var p = parseGoogleFontVariantClient(fs && fs.fontVariant ? fs.fontVariant : 'regular');
 
-  var styleSpec = (p.italic ? 'italic ' : 'normal ') + p.weight + ' ' + sz + 'pt "' +
+  var styleSpec = (p.italic ? 'italic ' : 'normal ') + p.weight + ' ' + INSERT_PREVIEW_ARABIC_PT + 'pt "' +
     String(fam).replace(/"/g, '') + '"';
 
   if (document.fonts && document.fonts.check && document.fonts.check(styleSpec)) {

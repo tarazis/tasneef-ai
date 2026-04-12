@@ -49,18 +49,8 @@ function parseGoogleFontVariantClient(token) {
   return { weight: 400, italic: false };
 }
 
-function previewTextColorCss(fs) {
-  var fallback = '#000000';
-  var raw = fs && fs.textColor;
-  if (raw == null || typeof raw !== 'string') return fallback;
-  var s = raw.trim();
-  if (s.charAt(0) === '#') s = s.slice(1);
-  if (s.length === 3 && /^[0-9a-fA-F]{3}$/.test(s)) {
-    s = s.charAt(0) + s.charAt(0) + s.charAt(1) + s.charAt(1) + s.charAt(2) + s.charAt(2);
-  }
-  if (/^[0-9a-fA-F]{6}$/.test(s)) return '#' + s.toUpperCase();
-  return fallback;
-}
+var INSERT_PREVIEW_ARABIC_PT = 16;
+var INSERT_PREVIEW_ARABIC_COLOR = '#202124';
 
 function arabicPreviewFontStyle(fs) {
   var fam = (fs && fs.fontName) || 'Amiri';
@@ -70,12 +60,9 @@ function arabicPreviewFontStyle(fs) {
   if (fs && fs.bold === true && w < 700) {
     w = 700;
   }
-  var sz = parseInt(fs && fs.fontSize, 10);
-  if (isNaN(sz) || sz < 1) sz = 18;
-  var color = previewTextColorCss(fs);
   return 'font-family:\'' + safeFam + '\',serif;font-weight:' + w +
     ';font-style:' + (p.italic ? 'italic' : 'normal') +
-    ';font-size:' + sz + 'pt;color:' + color;
+    ';font-size:' + INSERT_PREVIEW_ARABIC_PT + 'pt;color:' + INSERT_PREVIEW_ARABIC_COLOR;
 }
 
 // ─── isConsecutiveRange ───────────────────────────────────────────────────────
@@ -569,7 +556,7 @@ function runTests() {
     assert.ok(html.indexOf('</mark>') < html.indexOf('\uFD3E'), 'closing brace after mark');
   });
 
-  it('single: formatState object applies font-size and color', function () {
+  it('single: formatState object uses fixed insert preview size and color', function () {
     var r = {
       surah: 1, ayah: 1,
       surahNameArabic: 'الفاتحة', surahNameEnglish: 'Al-Fatihah',
@@ -583,8 +570,8 @@ function runTests() {
       textColor: '#2e7d32'
     };
     var html = buildCardHtml(r, fs);
-    assert.ok(html.indexOf('font-size:24pt') >= 0, 'font size in inline style (points, matches Docs)');
-    assert.ok(html.indexOf('color:#2E7D32') >= 0 || html.indexOf('color:#2e7d32') >= 0, 'color in inline style');
+    assert.ok(html.indexOf('font-size:16pt') >= 0, 'fixed 16pt preview');
+    assert.ok(html.indexOf('color:#202124') >= 0, 'fixed insert text color');
   });
 
   it('single: bold with regular variant uses font-weight 700 in preview', function () {
@@ -622,7 +609,7 @@ function runTests() {
     assert.strictEqual(html.indexOf('font-weight:900'), -1, 'does not inflate past variant');
   });
 
-  it('single: invalid textColor falls back to #000000', function () {
+  it('single: invalid textColor in formatState is ignored for Arabic preview', function () {
     var r = {
       surah: 1, ayah: 1,
       surahNameArabic: 'الفاتحة', surahNameEnglish: 'Al-Fatihah',
@@ -636,7 +623,7 @@ function runTests() {
       textColor: 'not-a-color'
     };
     var html = buildCardHtml(r, fs);
-    assert.ok(html.indexOf('color:#000000') >= 0, 'fallback black');
+    assert.ok(html.indexOf('color:#202124') >= 0, 'fixed insert color');
   });
 
   it('single: falls back to "Surah" when surahNameEnglish is empty', function () {
