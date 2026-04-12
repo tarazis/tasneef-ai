@@ -14,8 +14,6 @@ var BLOCKQUOTE_CELL_BACKGROUND = '#F7F7F7';
 
 /**
  * Walks an element up to its nearest body-level ancestor (direct child of body).
- * If the element is already a direct child, returns it unchanged.
- * Returns null when the element cannot be traced to a body-level child.
  * @param {Body} body
  * @param {GoogleAppsScript.Document.Element} element
  * @return {GoogleAppsScript.Document.Element|null}
@@ -27,7 +25,6 @@ function resolveBodyLevelAncestor_(body, element) {
       var idx = body.getChildIndex(el);
       if (idx !== -1) return el;
     } catch (e) {
-      // el is not a direct child of body — keep walking up
     }
     el = el.getParent();
   }
@@ -35,145 +32,372 @@ function resolveBodyLevelAncestor_(body, element) {
 }
 
 /**
- * Returns the element at the active cursor or selection (last range element).
- * Does not compute offsets — only identifies which element the user is in.
- * @param {Document} doc
- * @return {GoogleAppsScript.Document.Element|null}
+ * @param {string} s
+ * @return {number}
  */
-function getActiveCursorElement_(doc) {
-  var sel = doc.getSelection();
-  if (sel) {
-    var ranges = sel.getRangeElements();
-    if (ranges && ranges.length > 0) {
-      return ranges[ranges.length - 1].getElement();
+function countTrailingNewlinesInString_(s) {
+  var c = 0;
+  var i;
+  for (i = s.length - 1; i >= 0; i--) {
+    if (s.charAt(i) === '\n') {
+      c++;
+    } else {
+      break;
     }
   }
-  var cur = doc.getCursor();
-  if (cur) {
-    return cur.getElement();
+  return c;
+}
+
+/**
+ * Counts empty body-level paragraphs/list items and trailing newlines on the first non-empty
+ * encountered when walking backward from gapIdx (exclusive).
+ * @param {Body} body
+ * @param {number} gapIdx
+ * @return {number}
+ */
+function countPrecedingBlankEquivalence_(body, gapIdx) {
+  var total = 0;
+  var i = gapIdx - 1;
+  while (i >= 0) {
+    var ch = body.getChild(i);
+    var t = ch.getType();
+    if (t === DocumentApp.ElementType.PARAGRAPH || t === DocumentApp.ElementType.LIST_ITEM) {
+      var text = ch.asParagraph().getText();
+      if (text === '') {
+        total++;
+        i--;
+      } else {
+        total += countTrailingNewlinesInString_(text);
+        break;
+      }
+    } else {
+      break;
+    }
+  }
+  return total;
+}
+
+/**
+ * @param {Body} body
+ * @param {number} gapIdx
+ * @param {boolean} absoluteDocStart
+ * @return {number} how many empty paragraphs to insert at gapIdx
+ */
+function computeTopBufferParagraphsToAdd_(body, gapIdx, absoluteDocStart) {
+  if (absoluteDocStart) {
+    return 0;
+  }
+  var n = countPrecedingBlankEquivalence_(body, gapIdx);
+  if (n >= 2) {
+    return 0;
+  }
+  if (n === 1) {
+    return 1;
+  }
+  return 2;
+}
+
+/**
+ * @param {GoogleAppsScript.Document.Element} el
+ * @param {number} offset
+ * @return {{ host: GoogleAppsScript.Document.Paragraph, charOffset: number }|null}
+ */
+function resolveHostParagraphAndCharOffset_(el, offset) {
+  var type = el.getType();
+  if (type === DocumentApp.ElementType.TEXT) {
+    var textEl = el.asText();
+    var host = textEl.getParent();
+    var ht = host.getType();
+    if (ht !== DocumentApp.ElementType.PARAGRAPH && ht !== DocumentApp.ElementType.LIST_ITEM) {
+      return null;
+    }
+    var local = offset;
+    var acc = 0;
+    var j;
+    for (j = 0; j < host.getNumChildren(); j++) {
+      var ch = host.getChild(j);
+      if (ch.getType() === DocumentApp.ElementType.TEXT) {
+        var len = ch.asText().getText().length;
+        if (ch === textEl) {
+          return { host: /** @type {GoogleAppsScript.Document.Paragraph} */ (host), charOffset: acc + local };
+        }
+        acc += len;
+      }
+    }
+    return null;
+  }
+  if (type === DocumentApp.ElementType.PARAGRAPH || type === DocumentApp.ElementType.LIST_ITEM) {
+    return { host: /** @type {GoogleAppsScript.Document.Paragraph} */ (el), charOffset: offset };
   }
   return null;
 }
 
 /**
- * Contiguous list-item indices in the body sharing the same list id.
- * @param {Body} body
- * @param {GoogleAppsScript.Document.ListItem} listItem
- * @return {{ startIndex: number, endIndex: number }}
+ * @param {GoogleAppsScript.Document.RangeElement} re
+ * @return {number}
  */
-function findListItemBlockBounds_(body, listItem) {
-  var idx = body.getChildIndex(listItem);
-  var id = listItem.getListId();
-  var start = idx;
-  var i;
-  for (i = idx - 1; i >= 0; i--) {
-    var ch = body.getChild(i);
-    if (ch.getType() !== DocumentApp.ElementType.LIST_ITEM) {
-      break;
-    }
-    if (ch.asListItem().getListId() !== id) {
-      break;
-    }
-    start = i;
+function rangeElementInsertCharOffset_(re) {
+  var el = re.getElement();
+  if (re.isPartial()) {
+    return re.getEndOffsetInclusive() + 1;
   }
-  var end = idx;
-  for (i = idx + 1; i < body.getNumChildren(); i++) {
-    var ch2 = body.getChild(i);
-    if (ch2.getType() !== DocumentApp.ElementType.LIST_ITEM) {
-      break;
-    }
-    if (ch2.asListItem().getListId() !== id) {
-      break;
-    }
-    end = i;
+  if (el.getType() === DocumentApp.ElementType.TEXT) {
+    return el.asText().getText().length;
   }
-  return { startIndex: start, endIndex: end };
+  if (el.getType() === DocumentApp.ElementType.PARAGRAPH || el.getType() === DocumentApp.ElementType.LIST_ITEM) {
+    return el.asParagraph().getText().length;
+  }
+  return 0;
 }
 
 /**
- * When no cursor/selection: append after the last body child with isolation buffers.
- * @param {Body} body
- * @return {{ baseIndex: number, topBuffer: boolean, removeTarget: GoogleAppsScript.Document.Paragraph|null }}
+ * Resolves cursor/selection to host paragraph (or list item as paragraph) and character offset.
+ * @param {Document} doc
+ * @return {{ host: GoogleAppsScript.Document.Paragraph, charOffset: number }|null}
  */
-function resolveFallbackInsertAnchor_(body) {
-  var n = body.getNumChildren();
-  if (n === 1) {
-    var only = body.getChild(0);
-    if (only.getType() === DocumentApp.ElementType.PARAGRAPH &&
-        only.asParagraph().getText() === '') {
-      return { baseIndex: 0, topBuffer: false, removeTarget: only.asParagraph() };
+function resolveActiveHostAndOffset_(doc) {
+  var sel = doc.getSelection();
+  if (sel) {
+    var ranges = sel.getRangeElements();
+    if (ranges && ranges.length > 0) {
+      var last = ranges[ranges.length - 1];
+      return resolveHostParagraphAndCharOffset_(last.getElement(), rangeElementInsertCharOffset_(last));
     }
   }
-  return { baseIndex: n, topBuffer: n > 0, removeTarget: null };
+  var cur = doc.getCursor();
+  if (cur) {
+    return resolveHostParagraphAndCharOffset_(cur.getElement(), cur.getOffset());
+  }
+  return null;
 }
 
 /**
- * Resolves where to insert isolated content (blockquote table or plain paragraphs).
- * Strategy: find the body-level element containing the cursor, then insert after it.
- * Empty paragraphs are reused (replaced). Never modifies existing text.
- * topBuffer: insert an empty paragraph immediately before the block when the insert
- * is not at body start (baseIndex > 0 after a non-empty paragraph), or when reusing
- * an empty paragraph not at index 0 (childIdx > 0).
  * @param {Body} body
  * @param {Document} doc
- * @return {{ baseIndex: number, topBuffer: boolean, removeTarget: GoogleAppsScript.Document.Paragraph|null }}
+ * @return {{
+ *   gapBodyIndex: number,
+ *   reuseFirstParagraphForFirstAyah: boolean,
+ *   remainderText: string,
+ *   remainderIsListItem: boolean,
+ *   templateListItem: GoogleAppsScript.Document.ListItem|null,
+ *   absoluteDocStart: boolean,
+ *   hasFollowingStructural: boolean
+ * }}
  */
-function resolveIsolatedInsertAnchor_(body, doc) {
-  var el = getActiveCursorElement_(doc);
-  if (!el) {
-    Logger.log('resolveIsolatedInsertAnchor_: no cursor/selection — using fallback');
-    return resolveFallbackInsertAnchor_(body);
-  }
-
-  var bodyChild = resolveBodyLevelAncestor_(body, el);
-  if (!bodyChild) {
-    Logger.log('resolveIsolatedInsertAnchor_: could not resolve body-level ancestor — using fallback');
-    return resolveFallbackInsertAnchor_(body);
-  }
-
-  var childIdx = body.getChildIndex(bodyChild);
-
-  if (bodyChild.getType() === DocumentApp.ElementType.PARAGRAPH &&
-      bodyChild.asParagraph().getText() === '') {
+function buildInsertPlan_(body, doc) {
+  var n = body.getNumChildren();
+  var hostInfo = resolveActiveHostAndOffset_(doc);
+  if (!hostInfo) {
+    var absStart = n === 0;
     return {
-      baseIndex: childIdx,
-      topBuffer: childIdx > 0,
-      removeTarget: bodyChild.asParagraph()
+      gapBodyIndex: n,
+      reuseFirstParagraphForFirstAyah: false,
+      remainderText: '',
+      remainderIsListItem: false,
+      templateListItem: null,
+      absoluteDocStart: absStart,
+      hasFollowingStructural: false
     };
   }
 
-  if (bodyChild.getType() === DocumentApp.ElementType.LIST_ITEM) {
-    var bounds = findListItemBlockBounds_(body, bodyChild.asListItem());
-    var afterList = bounds.endIndex + 1;
-    return { baseIndex: afterList, topBuffer: afterList > 0, removeTarget: null };
+  var host = hostInfo.host;
+  var charOffset = hostInfo.charOffset;
+  var bodyChild = resolveBodyLevelAncestor_(body, host);
+  if (!bodyChild) {
+    return {
+      gapBodyIndex: n,
+      reuseFirstParagraphForFirstAyah: false,
+      remainderText: '',
+      remainderIsListItem: false,
+      templateListItem: null,
+      absoluteDocStart: n === 0,
+      hasFollowingStructural: false
+    };
   }
 
   if (bodyChild.getType() === DocumentApp.ElementType.TABLE) {
-    var afterTable = childIdx + 1;
-    return { baseIndex: afterTable, topBuffer: afterTable > 0, removeTarget: null };
+    var tIdx = body.getChildIndex(bodyChild);
+    var gapIdxTable = tIdx + 1;
+    return {
+      gapBodyIndex: gapIdxTable,
+      reuseFirstParagraphForFirstAyah: false,
+      remainderText: '',
+      remainderIsListItem: false,
+      templateListItem: null,
+      absoluteDocStart: gapIdxTable === 0,
+      hasFollowingStructural: gapIdxTable < n
+    };
   }
 
-  var baseAfter = childIdx + 1;
-  return { baseIndex: baseAfter, topBuffer: baseAfter > 0, removeTarget: null };
+  var childIdx = body.getChildIndex(bodyChild);
+  var fullText = host.getText();
+  var safeOffset = Math.max(0, Math.min(charOffset, fullText.length));
+  var before = fullText.substring(0, safeOffset);
+  var after = fullText.substring(safeOffset);
+
+  if (n === 1 && bodyChild.getType() === DocumentApp.ElementType.PARAGRAPH &&
+      fullText === '' && safeOffset === 0) {
+    return {
+      gapBodyIndex: 0,
+      reuseFirstParagraphForFirstAyah: true,
+      remainderText: '',
+      remainderIsListItem: false,
+      templateListItem: null,
+      absoluteDocStart: true,
+      hasFollowingStructural: false
+    };
+  }
+
+  host.setText(before);
+  var gapIdx = childIdx + 1;
+  var isList = bodyChild.getType() === DocumentApp.ElementType.LIST_ITEM;
+  var templateLi = isList ? bodyChild.asListItem() : null;
+
+  return {
+    gapBodyIndex: gapIdx,
+    reuseFirstParagraphForFirstAyah: false,
+    remainderText: after,
+    remainderIsListItem: isList,
+    templateListItem: templateLi,
+    absoluteDocStart: gapIdx === 0 && before === '',
+    hasFollowingStructural: (gapIdx < body.getNumChildren()) || (after.length > 0)
+  };
 }
 
 /**
- * Normal empty paragraph after an insert block (typing / isolation).
- * @param {GoogleAppsScript.Document.Paragraph} p
+ * @param {boolean} hasFollowingStructural
+ * @return {number} 1 or 2
  */
-function formatBottomTypingParagraph_(p) {
-  p.setHeading(DocumentApp.ParagraphHeading.NORMAL);
-  p.setLeftToRight(true);
-  p.setSpacingBefore(0);
-  p.setSpacingAfter(0);
+function computeBottomBufferParagraphCount_(hasFollowingStructural) {
+  return hasFollowingStructural ? 2 : 1;
+}
+
+/**
+ * Inserts n empty paragraphs at body index `atIndex` (each insert shifts; repeat at same index).
+ * @param {Body} body
+ * @param {number} atIndex
+ * @param {number} n
+ */
+function insertEmptyParagraphBuffersAt_(body, atIndex, n) {
+  var k;
+  for (k = 0; k < n; k++) {
+    body.insertParagraph(atIndex, '');
+  }
+}
+
+/**
+ * @param {Body} body
+ * @param {Document} doc
+ * @param {Array<Object>} paragraphsToInsert
+ * @param {Object} formatState
+ * @param {boolean} useBlockquote
+ * @return {Object}
+ */
+function insertAyahPayloadShared_(body, doc, paragraphsToInsert, formatState, useBlockquote) {
+  var plan = buildInsertPlan_(body, doc);
+  var gapIdx = plan.gapBodyIndex;
+  var topN = computeTopBufferParagraphsToAdd_(body, gapIdx, plan.absoluteDocStart);
+  insertEmptyParagraphBuffersAt_(body, gapIdx, topN);
+  gapIdx += topN;
+
+  var fontWarning = null;
+  var pendingBorders = null;
+  var table = null;
+  var i;
+  var item;
+  var p;
+  var curIdx;
+
+  if (useBlockquote) {
+    table = body.insertTable(gapIdx, [['']]);
+    if (plan.reuseFirstParagraphForFirstAyah) {
+      try {
+        var displaced = body.getChild(gapIdx + 1);
+        if (displaced.getType() === DocumentApp.ElementType.PARAGRAPH &&
+            displaced.asParagraph().getText() === '') {
+          body.removeChild(displaced);
+        }
+      } catch (ignoreRm) {
+      }
+    }
+    try {
+      if (typeof table.setBorderWidth === 'function') {
+        table.setBorderWidth(0);
+      }
+    } catch (ignore) {
+    }
+    var cell = table.getRow(0).getCell(0);
+    cell.setPaddingLeft(21);
+    cell.setPaddingTop(6);
+    cell.setPaddingRight(18);
+    cell.setPaddingBottom(6);
+
+    for (i = 0; i < paragraphsToInsert.length; i++) {
+      item = paragraphsToInsert[i];
+      if (i === 0) {
+        p = cell.getChild(0).asParagraph();
+        p.setText(item.text);
+      } else {
+        p = cell.insertParagraph(i, item.text);
+      }
+      fontWarning = applyBeautifiedInsertToParagraph_(p, item, formatState) || fontWarning;
+    }
+
+    gapIdx = body.getChildIndex(table) + 1;
+    var docId = doc.getId();
+    var bodyChildIndex = body.getChildIndex(table);
+    var tableOrdinal = 0;
+    for (var ci = 0; ci <= bodyChildIndex; ci++) {
+      if (body.getChild(ci).getType() === DocumentApp.ElementType.TABLE) {
+        tableOrdinal++;
+      }
+    }
+    pendingBorders = { docId: docId, tableOrdinal: tableOrdinal };
+  } else {
+    curIdx = gapIdx;
+    for (i = 0; i < paragraphsToInsert.length; i++) {
+      item = paragraphsToInsert[i];
+      if (i === 0 && plan.reuseFirstParagraphForFirstAyah) {
+        p = body.getChild(gapIdx).asParagraph();
+        p.setText(item.text);
+        curIdx = gapIdx + 1;
+      } else {
+        p = body.insertParagraph(curIdx, item.text);
+        curIdx++;
+      }
+      fontWarning = applyBeautifiedInsertToParagraph_(p, item, formatState) || fontWarning;
+    }
+    gapIdx = curIdx;
+  }
+
+  var bottomN = computeBottomBufferParagraphCount_(plan.hasFollowingStructural);
+  insertEmptyParagraphBuffersAt_(body, gapIdx, bottomN);
+  var cursorPara = body.getChild(gapIdx + bottomN - 1).asParagraph();
+
+  var remainderInsertIdx = gapIdx + bottomN;
+  if (plan.remainderText.length > 0) {
+    if (plan.remainderIsListItem && plan.templateListItem) {
+      var newLi = body.insertListItem(remainderInsertIdx, plan.templateListItem);
+      newLi.setText(plan.remainderText);
+    } else {
+      body.insertParagraph(remainderInsertIdx, plan.remainderText);
+    }
+  }
+
+  try {
+    doc.setCursor(doc.newPosition(cursorPara, 0));
+  } catch (e) {
+  }
+
+  return { fontWarning: fontWarning, pendingBorders: pendingBorders };
 }
 
 /**
  * Applies beautified insert formatting to a paragraph (body or table cell).
  * @param {GoogleAppsScript.Document.Paragraph} p
- * @param {Object} item - insert descriptor
+ * @param {Object} item
  * @param {Object} formatState
- * @return {string|null} fontWarning from applyFormat
+ * @return {string|null}
  */
 function applyBeautifiedInsertToParagraph_(p, item, formatState) {
   p.setAlignment(item.align);
@@ -191,7 +415,7 @@ function applyBeautifiedInsertToParagraph_(p, item, formatState) {
 
 /**
  * @param {string|null|undefined} hex
- * @return {{ red: number, green: number, blue: number }} RGB in 0–1 for Docs API
+ * @return {{ red: number, green: number, blue: number }}
  */
 function hexToDocsRgb01_(hex) {
   var h = normalizeHex6ForSettings_(hex);
@@ -209,8 +433,8 @@ function hexToDocsRgb01_(hex) {
 
 /**
  * @param {number} pt
- * @param {{ red: number, green: number, blue: number }} rgb01
- * @return {Object} Docs API TableCellBorder (OptionalColor nested per docs OptionalColor schema)
+ * @param {{ red: number, green: number, blue: number}} rgb01
+ * @return {Object}
  */
 function docsTableBorderPt_(pt, rgb01) {
   return {
@@ -221,11 +445,8 @@ function docsTableBorderPt_(pt, rgb01) {
 }
 
 /**
- * Resolves structural startIndex of a table for Docs API batchUpdate using
- * ordinal position (Nth table in the document) rather than array-index heuristics.
- * Returns null when the expected table is not yet visible (triggers caller retry).
  * @param {string} docId
- * @param {number} tableOrdinal - 1-based ordinal: "this is the Nth table in the body"
+ * @param {number} tableOrdinal
  * @return {number|null}
  */
 function resolveTableStartIndexForDocsApi_(docId, tableOrdinal) {
@@ -256,12 +477,8 @@ function resolveTableStartIndexForDocsApi_(docId, tableOrdinal) {
 }
 
 /**
- * Per-side cell borders (left accent only) via Docs API; DocumentApp cannot set per side.
- * Advanced Docs (get/batchUpdate) needs https://www.googleapis.com/auth/documents in appsscript.json;
- * drive.file can yield 404 on documents.get for the active editor doc.
- * Call only after the document has been flushed (auto-flush on function return, or saveAndClose).
  * @param {string} docId
- * @param {number} tableOrdinal - 1-based ordinal position of the target table among all body tables
+ * @param {number} tableOrdinal
  */
 function applyBlockquoteCellBordersViaDocsApi_(docId, tableOrdinal) {
   if (typeof Docs === 'undefined' || !Docs.Documents || !Docs.Documents.batchUpdate) {
@@ -322,186 +539,40 @@ function applyBlockquoteCellBordersViaDocsApi_(docId, tableOrdinal) {
 }
 
 /**
- * Inserts a 1×1 table at the anchor, places beautified paragraphs in the cell, styles the shell.
- * Border styling is NOT applied here — the caller receives pendingBorders and must invoke
- * applyBlockquoteBorders() in a separate server call so that the auto-flush between calls
- * makes the table visible to the Docs REST API without needing saveAndClose().
  * @param {Body} body
  * @param {Document} doc
  * @param {Array<Object>} paragraphsToInsert
  * @param {Object} formatState
- * @return {Object} { fontWarning: string|null, pendingBorders: {docId: string, tableOrdinal: number}|null }
+ * @return {Object}
  */
 function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatState) {
-  var anchor = resolveIsolatedInsertAnchor_(body, doc);
-  var insertIndex = anchor.baseIndex;
-  var removeTarget = anchor.removeTarget;
-
-  var tableOffset = 0;
-  if (anchor.topBuffer) {
-    body.insertParagraph(insertIndex, '');
-    tableOffset = 1;
-  }
-
-  var table = body.insertTable(insertIndex + tableOffset, [['']]);
-
-  // Hide default table chrome immediately to minimize unstyled flash.
-  try {
-    if (typeof table.setBorderWidth === 'function') {
-      table.setBorderWidth(0);
-    }
-  } catch (ignore) {
-  }
-
-  var removeTargetStillExists = false;
-  if (removeTarget) {
-    var after = body.getChild(insertIndex + tableOffset + 1);
-    if (after === removeTarget) {
-      try {
-        body.removeChild(removeTarget);
-      } catch (ignore) {
-        removeTargetStillExists = true;
-      }
-    }
-  }
-
-  var cell = table.getRow(0).getCell(0);
-  cell.setPaddingLeft(21);
-  cell.setPaddingTop(6);
-  cell.setPaddingRight(18);
-  cell.setPaddingBottom(6);
-
-  var fontWarning = null;
-  for (var i = 0; i < paragraphsToInsert.length; i++) {
-    var item = paragraphsToInsert[i];
-    var p;
-    if (i === 0) {
-      p = cell.getChild(0).asParagraph();
-      p.setText(item.text);
-    } else {
-      p = cell.insertParagraph(i, item.text);
-    }
-    fontWarning = applyBeautifiedInsertToParagraph_(p, item, formatState) || fontWarning;
-  }
-
-  var tableIdx = body.getChildIndex(table);
-  var typingParagraph;
-  if (removeTargetStillExists) {
-    typingParagraph = removeTarget;
-    formatBottomTypingParagraph_(typingParagraph);
-  } else {
-    var nextIdxBq = tableIdx + 1;
-    var nextElBq = nextIdxBq < body.getNumChildren() ? body.getChild(nextIdxBq) : null;
-    if (nextElBq && nextElBq.getType() === DocumentApp.ElementType.PARAGRAPH) {
-      typingParagraph = nextElBq.asParagraph();
-    } else {
-      typingParagraph = body.insertParagraph(tableIdx + 1, '');
-      formatBottomTypingParagraph_(typingParagraph);
-    }
-  }
-
-  try {
-    doc.setCursor(doc.newPosition(typingParagraph, 0));
-  } catch (e) {
-    // setCursor is unavailable in non-UI contexts (e.g. triggers); fail silently
-  }
-
-  var docId = doc.getId();
-  var bodyChildIndex = body.getChildIndex(table);
-  var tableOrdinal = 0;
-  for (var ci = 0; ci <= bodyChildIndex; ci++) {
-    if (body.getChild(ci).getType() === DocumentApp.ElementType.TABLE) {
-      tableOrdinal++;
-    }
-  }
-
-  return {
-    fontWarning: fontWarning,
-    pendingBorders: { docId: docId, tableOrdinal: tableOrdinal }
-  };
+  return insertAyahPayloadShared_(body, doc, paragraphsToInsert, formatState, true);
 }
 
 /**
- * Public entry point for the client to apply blockquote cell borders via a second RPC.
- * Called after insertAyah/insertAyahRange returns pendingBorders; the auto-flush between
- * the two server calls ensures the Docs REST API can see the newly inserted table.
  * @param {string} docId
- * @param {number} tableOrdinal - 1-based ordinal position of the target table
+ * @param {number} tableOrdinal
  */
 function applyBlockquoteBorders(docId, tableOrdinal) {
   applyBlockquoteCellBordersViaDocsApi_(docId, tableOrdinal);
 }
 
 /**
- * Inserts beautified paragraphs with the same isolation rules as blockquote inserts
- * (resolveIsolatedInsertAnchor_: selection end, list/table escapes, split/start/end).
- * Adds a bottom empty paragraph only when no body paragraph already follows; otherwise
- * cursor moves to the start of the following paragraph.
- *
- * @param {Body} body - The document body
- * @param {Document} doc - The active document
- * @param {Array<Object>} paragraphsToInsert - Array of { text, align, rtl?, insertTextRole, spacingBefore?, spacingAfter? } (spacing in pt)
- * @param {Object} formatState - legacy payload; Quran Arabic forced to Amiri regular in FormatService
- * @return {Object} { fontWarning: string|null }
+ * @param {Body} body
+ * @param {Document} doc
+ * @param {Array<Object>} paragraphsToInsert
+ * @param {Object} formatState
+ * @return {Object}
  */
 function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState) {
-  var anchor = resolveIsolatedInsertAnchor_(body, doc);
-  var idx = anchor.baseIndex;
-  var removeTarget = anchor.removeTarget;
-
-  if (anchor.topBuffer) {
-    body.insertParagraph(idx, '');
-    idx++;
-  }
-
-  var contentStart = idx;
-  var fontWarning = null;
-  var i;
-  var item;
-  var p;
-
-  for (i = 0; i < paragraphsToInsert.length; i++) {
-    item = paragraphsToInsert[i];
-    if (i === 0 && removeTarget && body.getChild(contentStart) === removeTarget) {
-      p = removeTarget;
-      p.setText(item.text);
-    } else {
-      p = body.insertParagraph(contentStart + i, item.text);
-    }
-    fontWarning = applyBeautifiedInsertToParagraph_(p, item, formatState) || fontWarning;
-  }
-
-  var bottomIdx = contentStart + paragraphsToInsert.length;
-  var bottom;
-  if (bottomIdx < body.getNumChildren()) {
-    var nextElPlain = body.getChild(bottomIdx);
-    if (nextElPlain.getType() === DocumentApp.ElementType.PARAGRAPH) {
-      bottom = nextElPlain.asParagraph();
-    } else {
-      bottom = body.insertParagraph(bottomIdx, '');
-      formatBottomTypingParagraph_(bottom);
-    }
-  } else {
-    bottom = body.insertParagraph(bottomIdx, '');
-    formatBottomTypingParagraph_(bottom);
-  }
-
-  try {
-    doc.setCursor(doc.newPosition(bottom, 0));
-  } catch (e) {
-    // setCursor is unavailable in non-UI contexts (e.g. triggers); fail silently
-  }
-
-  return { fontWarning: fontWarning };
+  return insertAyahPayloadShared_(body, doc, paragraphsToInsert, formatState, false);
 }
 
 /**
- * Inserts an ayah into the document using resolveIsolatedInsertAnchor_
- * (selection end, list/table escapes, paragraph split/start/end, doc-end fallback).
- * @param {Object} ayahData - { surah, ayah, surahNameArabic, surahNameEnglish, textUthmani, textSimple, translationText }
- * @param {Object} formatState - legacy payload; Quran Arabic forced to Amiri regular in FormatService
- * @param {Object} settings - { showTranslation, arabicStyle, blockquoteInsertion }
- * @return {Object} { success: boolean, message?: string }
+ * @param {Object} ayahData
+ * @param {Object} formatState
+ * @param {Object} settings
+ * @return {Object}
  */
 function insertAyah(ayahData, formatState, settings) {
   if (!ayahData || !ayahData.surah || !ayahData.ayah) {
@@ -509,6 +580,9 @@ function insertAyah(ayahData, formatState, settings) {
   }
 
   var doc = DocumentApp.getActiveDocument();
+  if (!doc) {
+    return { success: false, message: 'No active document' };
+  }
   var body = doc.getBody();
 
   var arabicStyle = (settings && settings.arabicStyle) || 'uthmani';
@@ -520,7 +594,6 @@ function insertAyah(ayahData, formatState, settings) {
   var translationText = ayahData.translationText || '';
   var surahNameEn = ayahData.surahNameEnglish || '';
 
-  /** U+00A0: ornate Quranic parens (matches preview); Arabic :/ayah and range hyphen; English name/num only. */
   var qNbsp = '\u00A0';
   var paragraphsToInsert = [];
   if (showTranslation && translationText) {
@@ -556,9 +629,7 @@ function insertAyah(ayahData, formatState, settings) {
   }
 
   var useBlockquote = !settings || settings.blockquoteInsertion !== false;
-  var result = useBlockquote
-    ? insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatState)
-    : insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState);
+  var result = insertAyahPayloadShared_(body, doc, paragraphsToInsert, formatState, useBlockquote);
   var message = result.fontWarning ? 'Ayah inserted. ' + result.fontWarning : 'Ayah inserted.';
   var out = { success: true, message: message };
   if (result.pendingBorders) {
@@ -568,24 +639,26 @@ function insertAyah(ayahData, formatState, settings) {
 }
 
 /**
- * Inserts a pre-assembled ayah range using the same anchor rules as insertAyah.
- * @param {Object} rangeData - { surah, ayahStart, ayahEnd, arabicText, translationText, surahNameArabic, surahNameEnglish }
- * @param {Object} formatState - legacy payload; Quran Arabic forced to Amiri regular in FormatService
- * @param {Object} settings - { showTranslation, blockquoteInsertion }
- * @return {Object} { success: boolean, message?: string }
+ * @param {Object} rangeData
+ * @param {Object} formatState
+ * @param {Object} settings
+ * @return {Object}
  */
 function insertAyahRange(rangeData, formatState, settings) {
   if (!rangeData || !rangeData.surah || !rangeData.ayahStart) {
     return { success: false, message: 'Invalid range data.' };
   }
 
-  var doc    = DocumentApp.getActiveDocument();
-  var body   = doc.getBody();
+  var doc = DocumentApp.getActiveDocument();
+  if (!doc) {
+    return { success: false, message: 'No active document' };
+  }
+  var body = doc.getBody();
 
   var showTranslation = settings && settings.showTranslation !== false;
-  var arabicText      = rangeData.arabicText || '';
+  var arabicText = rangeData.arabicText || '';
   var translationText = rangeData.translationText || '';
-  var surahNameEn     = rangeData.surahNameEnglish || '';
+  var surahNameEn = rangeData.surahNameEnglish || '';
 
   var qNbsp = '\u00A0';
   var paragraphsToInsert = [];
@@ -623,9 +696,7 @@ function insertAyahRange(rangeData, formatState, settings) {
   }
 
   var useBlockquote = !settings || settings.blockquoteInsertion !== false;
-  var result = useBlockquote
-    ? insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatState)
-    : insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState);
+  var result = insertAyahPayloadShared_(body, doc, paragraphsToInsert, formatState, useBlockquote);
   var out = { success: true, message: result.fontWarning ? 'Range inserted. ' + result.fontWarning : 'Range inserted.' };
   if (result.pendingBorders) {
     out.pendingBorders = result.pendingBorders;
