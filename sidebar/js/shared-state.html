@@ -6,7 +6,13 @@ var formatState = {
   bold: false
 };
 
-var _settings = {};
+/** Mirrors SettingsService SETTINGS_DEFAULTS for booleans used before first getSettings(). */
+var _settings = {
+  showTranslation: true,
+  blockquoteInsertion: true,
+  insertArabic: true,
+  arabicStyle: 'uthmani'
+};
 var _surahList = [];
 
 var MAX_RESULTS      = 50;

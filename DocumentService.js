@@ -10,7 +10,7 @@ var INSERT_SPACING_INNER_PT = 6;
 /** Blockquote table: left accent (pt); accent color (fixed, not tied to body text color). */
 var BLOCKQUOTE_BORDER_LEFT_PT = 3;
 var BLOCKQUOTE_BORDER_LEFT_COLOR = '#3A8F7A';
-var BLOCKQUOTE_CELL_BACKGROUND = '#F8F9FA';
+var BLOCKQUOTE_CELL_BACKGROUND = '#F7F7F7';
 
 /**
  * Walks an element up to its nearest body-level ancestor (direct child of body).

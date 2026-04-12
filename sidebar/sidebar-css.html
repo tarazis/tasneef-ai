@@ -48,10 +48,38 @@
   .sidebar { display: flex; flex-direction: column; height: 100vh; width: 350px; max-width: 100%; position: relative; }
 
   /* ─── Tab Navigation ──────────────────────────────────────────────────────── */
-  .tab-nav { display: flex; gap: 3px; border-bottom: 2px solid var(--color-border); flex-shrink: 0; padding: var(--space-md) var(--sidebar-inline) 0; }
-  .tab-btn { flex: 1 1 0; min-width: 0; padding: var(--space-sm); border: none; background: none; font-size: 12px; font-weight: 500; color: var(--color-text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast); border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
-  .tab-btn:hover { color: var(--color-primary); background: var(--color-primary-lighter); }
-  .tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); background: var(--color-primary-light); }
+  .tab-nav { display: flex; gap: 3px; border-bottom: 2px solid var(--color-border); flex-shrink: 0; padding: var(--space-sm) var(--sidebar-inline) 0; }
+  .tab-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: var(--space-sm);
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    -webkit-tap-highlight-color: transparent;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .tab-btn::-moz-focus-inner {
+    border: 0;
+    padding: 0;
+  }
+  .tab-btn:hover:not(.active) { color: var(--color-primary); }
+  .tab-btn:active { background: transparent; }
+  .tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); background: transparent; }
 
   /* AI tab: sparkles left of label */
   .tab-btn--ai {
@@ -59,7 +87,7 @@
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 7px;
+    gap: 3px;
     white-space: nowrap;
   }
   .tab-btn--ai .tab-btn-ai-icon {
@@ -69,13 +97,13 @@
     flex-shrink: 0;
     line-height: 0;
     color: inherit;
+    transform-origin: center center;
   }
-  @keyframes sparkle-pulse {
-    0%, 100% { opacity: 1; transform: scale(1); filter: drop-shadow(0 0 2px rgba(13, 110, 79, 0.35)); }
-    50% { opacity: 0.55; transform: scale(0.82); filter: drop-shadow(0 0 5px rgba(13, 110, 79, 0.55)); }
+  @keyframes ai-tab-sparkle-spin {
+    to { transform: rotate(360deg); }
   }
   .tab-btn--ai:hover .tab-btn-ai-icon {
-    animation: sparkle-pulse 1.9s ease-in-out infinite;
+    animation: ai-tab-sparkle-spin 4s linear infinite;
   }
   .tab-btn--ai .tab-btn-ai-icon svg {
     width: 1em;
@@ -86,14 +114,13 @@
   .tab-btn--ai .tab-btn-ai-label {
     flex-shrink: 0;
     white-space: nowrap;
-    line-height: 1.2;
+    line-height: 1;
     padding: 0;
   }
 
   @media (prefers-reduced-motion: reduce) {
     .tab-btn--ai:hover .tab-btn-ai-icon {
       animation: none;
-      filter: none;
     }
   }
 

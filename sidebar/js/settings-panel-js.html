@@ -1,8 +1,6 @@
 <script>
 // Depends on globals: _settings, formatState (shared-state.html)
 
-var settingsPanelLoadGen = 0;
-
 function setSettingsPanelLoading(isLoading) {
   var loading = document.getElementById('settings-panel-loading');
   var body = document.getElementById('settings-panel-body');
@@ -48,13 +46,12 @@ function showSettingsPage() {
   var page = document.getElementById('settings-page');
   if (page) page.classList.remove('hidden');
 
-  var gen = ++settingsPanelLoadGen;
-  setSettingsPanelLoading(true);
-  loadSettingsIntoPanel(gen);
+  setSettingsPanelLoading(false);
+  applyTranslationCheckboxFromPayload(_settings);
+  applyBlockquoteCheckboxFromPayload(_settings);
 }
 
 function hideSettingsPage() {
-  settingsPanelLoadGen++;
   var page = document.getElementById('settings-page');
   if (page) page.classList.add('hidden');
   var ids = ['sidebar-tab-nav', 'sidebar-tab-content', 'bottom-bar'];
@@ -108,24 +105,7 @@ function initSettings() {
 function refreshSettings() {
   google.script.run.withSuccessHandler(function (s) {
     _settings = s;
-  }).getSettings();
-}
-
-function loadSettingsIntoPanel(gen) {
-  google.script.run
-    .withSuccessHandler(function (s) {
-      if (gen !== settingsPanelLoadGen) return;
-      applyTranslationCheckboxFromPayload(s);
-      applyBlockquoteCheckboxFromPayload(s);
-      setSettingsPanelLoading(false);
-    })
-    .withFailureHandler(function () {
-      if (gen !== settingsPanelLoadGen) return;
-      applyTranslationCheckboxFromPayload(null);
-      applyBlockquoteCheckboxFromPayload(null);
-      setSettingsPanelLoading(false);
-    })
-    .getSettings();
+    }).getSettings();
 }
 
 function initSettingsPanelHandlers() {
@@ -171,6 +151,11 @@ function onSettingsLoaded(settings) {
   _settings = settings;
   if (typeof window.refreshAllResultCardPreviews === 'function') {
     window.refreshAllResultCardPreviews();
+  }
+  var page = document.getElementById('settings-page');
+  if (page && !page.classList.contains('hidden')) {
+    applyTranslationCheckboxFromPayload(_settings);
+    applyBlockquoteCheckboxFromPayload(_settings);
   }
 }
 </script>
