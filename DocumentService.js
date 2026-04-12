@@ -111,6 +111,9 @@ function resolveFallbackInsertAnchor_(body) {
  * Resolves where to insert isolated content (blockquote table or plain paragraphs).
  * Strategy: find the body-level element containing the cursor, then insert after it.
  * Empty paragraphs are reused (replaced). Never modifies existing text.
+ * topBuffer: insert an empty paragraph immediately before the block when the insert
+ * is not at body start (baseIndex > 0 after a non-empty paragraph), or when reusing
+ * an empty paragraph not at index 0 (childIdx > 0).
  * @param {Body} body
  * @param {Document} doc
  * @return {{ baseIndex: number, topBuffer: boolean, removeTarget: GoogleAppsScript.Document.Paragraph|null }}
@@ -132,7 +135,11 @@ function resolveIsolatedInsertAnchor_(body, doc) {
 
   if (bodyChild.getType() === DocumentApp.ElementType.PARAGRAPH &&
       bodyChild.asParagraph().getText() === '') {
-    return { baseIndex: childIdx, topBuffer: false, removeTarget: bodyChild.asParagraph() };
+    return {
+      baseIndex: childIdx,
+      topBuffer: childIdx > 0,
+      removeTarget: bodyChild.asParagraph()
+    };
   }
 
   if (bodyChild.getType() === DocumentApp.ElementType.LIST_ITEM) {
@@ -146,7 +153,8 @@ function resolveIsolatedInsertAnchor_(body, doc) {
     return { baseIndex: afterTable, topBuffer: afterTable > 0, removeTarget: null };
   }
 
-  return { baseIndex: childIdx + 1, topBuffer: false, removeTarget: null };
+  var baseAfter = childIdx + 1;
+  return { baseIndex: baseAfter, topBuffer: baseAfter > 0, removeTarget: null };
 }
 
 /**
@@ -385,10 +393,17 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
   var typingParagraph;
   if (removeTargetStillExists) {
     typingParagraph = removeTarget;
+    formatBottomTypingParagraph_(typingParagraph);
   } else {
-    typingParagraph = body.insertParagraph(tableIdx + 1, '');
+    var nextIdxBq = tableIdx + 1;
+    var nextElBq = nextIdxBq < body.getNumChildren() ? body.getChild(nextIdxBq) : null;
+    if (nextElBq && nextElBq.getType() === DocumentApp.ElementType.PARAGRAPH) {
+      typingParagraph = nextElBq.asParagraph();
+    } else {
+      typingParagraph = body.insertParagraph(tableIdx + 1, '');
+      formatBottomTypingParagraph_(typingParagraph);
+    }
   }
-  formatBottomTypingParagraph_(typingParagraph);
 
   try {
     doc.setCursor(doc.newPosition(typingParagraph, 0));
@@ -425,7 +440,8 @@ function applyBlockquoteBorders(docId, tableOrdinal) {
 /**
  * Inserts beautified paragraphs with the same isolation rules as blockquote inserts
  * (resolveIsolatedInsertAnchor_: selection end, list/table escapes, split/start/end).
- * Always adds a bottom buffer paragraph; cursor moves there.
+ * Adds a bottom empty paragraph only when no body paragraph already follows; otherwise
+ * cursor moves to the start of the following paragraph.
  *
  * @param {Body} body - The document body
  * @param {Document} doc - The active document
@@ -461,8 +477,19 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
   }
 
   var bottomIdx = contentStart + paragraphsToInsert.length;
-  var bottom = body.insertParagraph(bottomIdx, '');
-  formatBottomTypingParagraph_(bottom);
+  var bottom;
+  if (bottomIdx < body.getNumChildren()) {
+    var nextElPlain = body.getChild(bottomIdx);
+    if (nextElPlain.getType() === DocumentApp.ElementType.PARAGRAPH) {
+      bottom = nextElPlain.asParagraph();
+    } else {
+      bottom = body.insertParagraph(bottomIdx, '');
+      formatBottomTypingParagraph_(bottom);
+    }
+  } else {
+    bottom = body.insertParagraph(bottomIdx, '');
+    formatBottomTypingParagraph_(bottom);
+  }
 
   try {
     doc.setCursor(doc.newPosition(bottom, 0));
