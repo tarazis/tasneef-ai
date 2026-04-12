@@ -49,31 +49,23 @@ function runFormatServiceTests() {
 
   results.push('\nformatStateForBeautifiedInsertParagraph()');
 
-  it('translation role yields Figtree 12pt secondary color', function () {
+  it('translation role yields Figtree 12pt same color as Quran', function () {
     var item = { insertTextRole: 'translation' };
     var a = formatStateForBeautifiedInsertParagraph(item, {});
     expect(a.fontName).toBe('Figtree');
     expect(a.fontVariant).toBe('regular');
     expect(a.fontSize).toBe(12);
     expect(a.bold).toBe(false);
-    expect(a.textColor).toBe('#5F6368');
+    expect(a.textColor).toBe('#202124');
   });
-  it('citation English uses Figtree 11pt', function () {
-    var item = { insertTextRole: 'citation', useEnglishTranslationFont: true };
-    var a = formatStateForBeautifiedInsertParagraph(item, {});
+  it('citation role yields Figtree 11pt same color as Quran', function () {
+    var item = { insertTextRole: 'citation' };
+    var a = formatStateForBeautifiedInsertParagraph(item, { fontName: 'Amiri', bold: true });
     expect(a.fontName).toBe('Figtree');
-    expect(a.fontSize).toBe(11);
-    expect(a.textColor).toBe('#5F6368');
-  });
-  it('citation Arabic uses user font, 11pt, bold off', function () {
-    var fs = { fontName: 'Amiri', fontVariant: '700', bold: true };
-    var item = { insertTextRole: 'citation', useEnglishTranslationFont: false };
-    var a = formatStateForBeautifiedInsertParagraph(item, fs);
-    expect(a.fontName).toBe('Amiri');
-    expect(a.fontVariant).toBe('700');
+    expect(a.fontVariant).toBe('regular');
     expect(a.fontSize).toBe(11);
     expect(a.bold).toBe(false);
-    expect(a.textColor).toBe('#5F6368');
+    expect(a.textColor).toBe('#202124');
   });
   it('quran role forces 16pt primary color; keeps user font and bold', function () {
     var fs = { fontName: 'Scheherazade New', fontVariant: 'regular', bold: true };

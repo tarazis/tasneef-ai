@@ -14,10 +14,9 @@ var ENGLISH_TRANSLATION_INSERT_FONT = 'Figtree';
 var INSERT_QURAN_FONT_SIZE_PT = 16;
 var INSERT_QURAN_TEXT_COLOR = '#202124';
 
-/** Fixed typography for inserted translation and citation (English or Arabic script). */
+/** Fixed typography for inserted translation and English citation (same color as Quran body). */
 var INSERT_TRANSLATION_FONT_SIZE_PT = 12;
 var INSERT_CITATION_FONT_SIZE_PT = 11;
-var INSERT_SECONDARY_TEXT_COLOR = '#5F6368';
 
 function shallowCopyFormatState_(formatState) {
   var out = {};
@@ -47,7 +46,7 @@ function formatStateForInsertTranslationEnglish_() {
     fontVariant: 'regular',
     bold: false,
     fontSize: INSERT_TRANSLATION_FONT_SIZE_PT,
-    textColor: INSERT_SECONDARY_TEXT_COLOR
+    textColor: INSERT_QURAN_TEXT_COLOR
   };
 }
 
@@ -57,18 +56,8 @@ function formatStateForInsertCitationEnglish_() {
     fontVariant: 'regular',
     bold: false,
     fontSize: INSERT_CITATION_FONT_SIZE_PT,
-    textColor: INSERT_SECONDARY_TEXT_COLOR
+    textColor: INSERT_QURAN_TEXT_COLOR
   };
-}
-
-function formatStateForInsertCitationArabic_(formatState) {
-  var out = shallowCopyFormatState_(formatState);
-  out.fontName = out.fontName || FALLBACK_FONT;
-  out.fontVariant = out.fontVariant != null ? out.fontVariant : 'regular';
-  out.bold = false;
-  out.fontSize = INSERT_CITATION_FONT_SIZE_PT;
-  out.textColor = INSERT_SECONDARY_TEXT_COLOR;
-  return out;
 }
 
 /**
@@ -83,9 +72,7 @@ function formatStateForBeautifiedInsertParagraph(item, formatState) {
     return formatStateForInsertTranslationEnglish_();
   }
   if (role === 'citation') {
-    return item.useEnglishTranslationFont
-      ? formatStateForInsertCitationEnglish_()
-      : formatStateForInsertCitationArabic_(formatState);
+    return formatStateForInsertCitationEnglish_();
   }
   return formatStateForInsertQuranArabic_(formatState);
 }

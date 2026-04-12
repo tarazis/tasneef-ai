@@ -440,7 +440,7 @@ function applyBlockquoteBorders(docId, tableOrdinal) {
  *
  * @param {Body} body - The document body
  * @param {Document} doc - The active document
- * @param {Array<Object>} paragraphsToInsert - Array of { text, align, rtl?, insertTextRole, useEnglishTranslationFont? (citation: English vs Arabic font), spacingBefore?, spacingAfter? } (spacing in pt)
+ * @param {Array<Object>} paragraphsToInsert - Array of { text, align, rtl?, insertTextRole, spacingBefore?, spacingAfter? } (spacing in pt)
  * @param {Object} formatState - { fontName, fontVariant, bold } (sizes/colors fixed server-side)
  * @return {Object} { fontWarning: string|null }
  */
@@ -518,9 +518,7 @@ function insertAyah(ayahData, formatState, settings) {
     ? ayahData.textUthmani
     : (ayahData.textSimple || ayahData.textUthmani || '');
   var translationText = ayahData.translationText || '';
-  var surahNameAr = ayahData.surahNameArabic || '';
   var surahNameEn = ayahData.surahNameEnglish || '';
-  var ayahNumAr = toArabicIndic(ayahData.ayah);
 
   /** U+00A0: ornate Quranic parens (matches preview); Arabic :/ayah and range hyphen; English name/num only. */
   var qNbsp = '\u00A0';
@@ -544,7 +542,6 @@ function insertAyah(ayahData, formatState, settings) {
       text: '(' + surahNameEn + qNbsp + ayahData.surah + ':' + ayahData.ayah + ')',
       align: DocumentApp.HorizontalAlignment.CENTER,
       insertTextRole: 'citation',
-      useEnglishTranslationFont: true,
       spacingAfter: INSERT_SPACING_OUTER_PT
     });
   } else {
@@ -554,13 +551,6 @@ function insertAyah(ayahData, formatState, settings) {
       rtl: true,
       insertTextRole: 'quran',
       spacingBefore: INSERT_SPACING_OUTER_PT,
-      spacingAfter: INSERT_SPACING_INNER_PT
-    });
-    paragraphsToInsert.push({
-      text: '[' + surahNameAr + ':' + qNbsp + ayahNumAr + ']',
-      align: DocumentApp.HorizontalAlignment.CENTER,
-      rtl: true,
-      insertTextRole: 'citation',
       spacingAfter: INSERT_SPACING_OUTER_PT
     });
   }
@@ -595,10 +585,7 @@ function insertAyahRange(rangeData, formatState, settings) {
   var showTranslation = settings && settings.showTranslation !== false;
   var arabicText      = rangeData.arabicText || '';
   var translationText = rangeData.translationText || '';
-  var surahNameAr     = rangeData.surahNameArabic || '';
   var surahNameEn     = rangeData.surahNameEnglish || '';
-  var ayahStartAr     = toArabicIndic(rangeData.ayahStart);
-  var ayahEndAr       = toArabicIndic(rangeData.ayahEnd);
 
   var qNbsp = '\u00A0';
   var paragraphsToInsert = [];
@@ -622,7 +609,6 @@ function insertAyahRange(rangeData, formatState, settings) {
             rangeData.ayahStart + '-' + rangeData.ayahEnd + ')',
       align: DocumentApp.HorizontalAlignment.CENTER,
       insertTextRole: 'citation',
-      useEnglishTranslationFont: true,
       spacingAfter: INSERT_SPACING_OUTER_PT
     });
   } else {
@@ -632,13 +618,6 @@ function insertAyahRange(rangeData, formatState, settings) {
       rtl: true,
       insertTextRole: 'quran',
       spacingBefore: INSERT_SPACING_OUTER_PT,
-      spacingAfter: INSERT_SPACING_INNER_PT
-    });
-    paragraphsToInsert.push({
-      text: '[' + surahNameAr + ':' + qNbsp + ayahStartAr + qNbsp + '-' + qNbsp + ayahEndAr + ']',
-      align: DocumentApp.HorizontalAlignment.CENTER,
-      rtl: true,
-      insertTextRole: 'citation',
       spacingAfter: INSERT_SPACING_OUTER_PT
     });
   }

@@ -242,13 +242,13 @@ function runDocumentServiceTests() {
         text: '(Al-Fatiha\u00A01:1)',
         align: DocumentApp.HorizontalAlignment.CENTER,
         insertTextRole: 'citation',
-        useEnglishTranslationFont: true,
         spacingAfter: INSERT_SPACING_OUTER_PT
       }
     ];
   }
 
-  function arabicOnlyAyahAndCitation() {
+  /** Single ornate ayah when translation is off (matches insertAyah / insertAyahRange). */
+  function arabicOnlyAyahInsert() {
     return [
       {
         text: '\uFD3F\u00A0ayah\u00A0\uFD3E',
@@ -256,13 +256,6 @@ function runDocumentServiceTests() {
         rtl: true,
         insertTextRole: 'quran',
         spacingBefore: INSERT_SPACING_OUTER_PT,
-        spacingAfter: INSERT_SPACING_INNER_PT
-      },
-      {
-        text: '[\u0633\u0648\u0631\u0629:\u0661]',
-        align: DocumentApp.HorizontalAlignment.CENTER,
-        rtl: true,
-        insertTextRole: 'citation',
         spacingAfter: INSERT_SPACING_OUTER_PT
       }
     ];
@@ -402,15 +395,13 @@ function runDocumentServiceTests() {
 
   results.push('\ninsertParagraphsAtPosition_() — paragraph spacing (insert beautify)');
 
-  it('Arabic-only two-paragraph block applies 12/6/12 pt spacing', function () {
+  it('Arabic-only single ayah applies outer spacing on one paragraph', function () {
     var body = createMockBody(['']);
     var doc = createMockDoc(body, body._children[0]);
-    insertParagraphsAtPosition_(body, doc, arabicOnlyAyahAndCitation(), {});
+    insertParagraphsAtPosition_(body, doc, arabicOnlyAyahInsert(), {});
     expect(body._children[0]._spacingBefore).toBe(INSERT_SPACING_OUTER_PT);
-    expect(body._children[0]._spacingAfter).toBe(INSERT_SPACING_INNER_PT);
-    expect(body._children[1]._spacingBefore).toBe(null);
-    expect(body._children[1]._spacingAfter).toBe(INSERT_SPACING_OUTER_PT);
-    expect(body._children[2]._text).toBe('');
+    expect(body._children[0]._spacingAfter).toBe(INSERT_SPACING_OUTER_PT);
+    expect(body._children[1]._text).toBe('');
   });
 
   it('Arabic + translation three-paragraph block applies outer and inner spacing', function () {
@@ -467,15 +458,15 @@ function runDocumentServiceTests() {
     expect(applyFormatCalls[1].fontVariant).toBe('regular');
     expect(applyFormatCalls[1].fontSize).toBe(12);
     expect(applyFormatCalls[1].bold).toBe(false);
-    expect(applyFormatCalls[1].textColor).toBe('#5F6368');
+    expect(applyFormatCalls[1].textColor).toBe('#202124');
     expect(applyFormatCalls[2].fontName).toBe('Figtree');
     expect(applyFormatCalls[2].fontVariant).toBe('regular');
     expect(applyFormatCalls[2].fontSize).toBe(11);
     expect(applyFormatCalls[2].bold).toBe(false);
-    expect(applyFormatCalls[2].textColor).toBe('#5F6368');
+    expect(applyFormatCalls[2].textColor).toBe('#202124');
   });
 
-  it('Arabic citation paragraph is one point smaller than ayah', function () {
+  it('Arabic-only insert applies single Quran format call', function () {
     applyFormatCalls = [];
     applyFormatReturnValue = null;
     var fs = {
@@ -487,13 +478,11 @@ function runDocumentServiceTests() {
     };
     var body = createMockBody(['']);
     var doc = createMockDoc(body, body._children[0]);
-    insertParagraphsAtPosition_(body, doc, arabicOnlyAyahAndCitation(), fs);
-    expect(applyFormatCalls.length).toBe(2);
+    insertParagraphsAtPosition_(body, doc, arabicOnlyAyahInsert(), fs);
+    expect(applyFormatCalls.length).toBe(1);
     expect(applyFormatCalls[0].fontSize).toBe(16);
     expect(applyFormatCalls[0].textColor).toBe('#202124');
-    expect(applyFormatCalls[1].fontSize).toBe(11);
-    expect(applyFormatCalls[1].textColor).toBe('#5F6368');
-    expect(applyFormatCalls[1].bold).toBe(false);
+    expect(applyFormatCalls[0].bold).toBe(false);
   });
 
   it('three content paragraphs at end — top buffer, all inserted, cleanup follows', function () {
@@ -586,7 +575,7 @@ function runDocumentServiceTests() {
   it('blockquote: empty doc — table + typing paragraph; inner spacing matches', function () {
     var body = createMockBody(['']);
     var doc = createMockDoc(body, body._children[0]);
-    insertBlockquoteTableAtPosition_(body, doc, arabicOnlyAyahAndCitation(), {});
+    insertBlockquoteTableAtPosition_(body, doc, arabicOnlyAyahInsert(), {});
 
     expect(body._children.length).toBe(2);
     expect(body._children[0].getType()).toBe(DocumentApp.ElementType.TABLE);
@@ -600,10 +589,9 @@ function runDocumentServiceTests() {
     expect(cell._padT).toBe(6);
     expect(cell._padR).toBe(18);
     expect(cell._padB).toBe(6);
-    expect(cell._inner.length).toBe(2);
+    expect(cell._inner.length).toBe(1);
     expect(cell._inner[0]._spacingBefore).toBe(INSERT_SPACING_OUTER_PT);
-    expect(cell._inner[0]._spacingAfter).toBe(INSERT_SPACING_INNER_PT);
-    expect(cell._inner[1]._spacingAfter).toBe(INSERT_SPACING_OUTER_PT);
+    expect(cell._inner[0]._spacingAfter).toBe(INSERT_SPACING_OUTER_PT);
   });
 
   it('blockquote: three paragraphs in cell with translation spacing', function () {
