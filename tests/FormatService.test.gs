@@ -47,6 +47,19 @@ function runFormatServiceTests() {
     expect(toArabicIndic(null)).toBe('null');
   });
 
+  results.push('\nparseGoogleFontVariant()');
+
+  it('parses regular', function () {
+    var p = parseGoogleFontVariant('regular');
+    expect(p.weight).toBe(400);
+    expect(p.italic).toBe(false);
+  });
+  it('parses 700italic', function () {
+    var p = parseGoogleFontVariant('700italic');
+    expect(p.weight).toBe(700);
+    expect(p.italic).toBe(true);
+  });
+
   results.push('\nformatStateForBeautifiedInsertParagraph()');
 
   it('translation role yields Figtree 12pt same color as Quran', function () {
@@ -67,14 +80,15 @@ function runFormatServiceTests() {
     expect(a.bold).toBe(false);
     expect(a.textColor).toBe('#202124');
   });
-  it('quran role forces 16pt primary color; keeps user font and bold', function () {
-    var fs = { fontName: 'Scheherazade New', fontVariant: 'regular', bold: true };
+  it('quran role forces Amiri regular non-bold and 16pt primary color', function () {
+    var fs = { fontName: 'Scheherazade New', fontVariant: '700', bold: true };
     var item = { insertTextRole: 'quran' };
     var a = formatStateForBeautifiedInsertParagraph(item, fs);
-    expect(a.fontName).toBe('Scheherazade New');
+    expect(a.fontName).toBe('Amiri');
+    expect(a.fontVariant).toBe('regular');
     expect(a.fontSize).toBe(16);
     expect(a.textColor).toBe('#202124');
-    expect(a.bold).toBe(true);
+    expect(a.bold).toBe(false);
   });
   it('quran role does not mutate original formatState', function () {
     var fs = { fontName: 'Amiri', fontVariant: 'regular', fontSize: 10, textColor: '#ff00ff' };

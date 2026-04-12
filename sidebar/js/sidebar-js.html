@@ -74,7 +74,12 @@
 
     google.script.run
       .withSuccessHandler(function(s) { onSettingsLoaded(s); onInitDone(); })
-      .withFailureHandler(function() { applyFormatStateToUI(); onInitDone(); })
+      .withFailureHandler(function() {
+        if (typeof window.refreshAllResultCardPreviews === 'function') {
+          window.refreshAllResultCardPreviews();
+        }
+        onInitDone();
+      })
       .getSettings();
 
     google.script.run
@@ -88,17 +93,17 @@
       })
       .getFeedbackFormUrl();
 
-    google.script.run
-      .withSuccessHandler(function(res) { onFontCatalogLoaded(res); onInitDone(); })
-      .withFailureHandler(function() { onFontCatalogLoaded({ ok: false, error: 'RPC_FAIL', catalog: [] }); onInitDone(); })
-      .getCuratedFontCatalog();
+    if (typeof ensureGoogleFontsPreviewStylesheet === 'function') {
+      ensureGoogleFontsPreviewStylesheet('Amiri', ['regular'], onInitDone);
+    } else {
+      onInitDone();
+    }
 
     ensureUthmaniCache(onInitDone, onInitDone);
     ensureTranslationCache(onInitDone, onInitDone);
     ensureImlaeiCache(onInitDone, onInitDone);
     ensureSurahMetaCache(onInitDone, onInitDone);
 
-    initFormatBar();
     initSettings();
     initSettingsPanelHandlers();
     initTabNav();

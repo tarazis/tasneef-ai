@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Node tests for Google Fonts variant token parsing (parity with FontService.parseGoogleFontVariant).
+ * Node tests for Google Fonts variant token parsing (parity with FormatService.parseGoogleFontVariant).
  * Run: npm run test:font
  */
 
@@ -18,16 +18,6 @@ function parseGoogleFontVariant(token) {
   var w = parseInt(t, 10);
   if (!isNaN(w)) return { weight: w, italic: italic };
   return { weight: 400, italic: false };
-}
-
-function pickDefaultRegularVariant(variants) {
-  if (!variants || !variants.length) return 'regular';
-  if (variants.indexOf('regular') >= 0) return 'regular';
-  for (var i = 0; i < variants.length; i++) {
-    var p = parseGoogleFontVariant(variants[i]);
-    if (p.weight === 400 && !p.italic) return variants[i];
-  }
-  return variants[0];
 }
 
 function buildGoogleFontsPreviewHref(family, variantTokens) {
@@ -102,18 +92,6 @@ it('preview href roman weights only', function () {
 it('preview href mixed roman and italic', function () {
   var h = buildGoogleFontsPreviewHref('Amiri', ['regular', 'italic']);
   assert.ok(h.indexOf('ital,wght@') > 0, h);
-});
-it('pickDefaultRegularVariant prefers regular token', function () {
-  assert.strictEqual(pickDefaultRegularVariant(['700', 'regular', 'italic']), 'regular');
-});
-it('pickDefaultRegularVariant uses first 400 roman when regular missing', function () {
-  assert.strictEqual(pickDefaultRegularVariant(['300', '400', '700']), '400');
-});
-it('pickDefaultRegularVariant falls back to first token', function () {
-  assert.strictEqual(pickDefaultRegularVariant(['700', '800']), '700');
-});
-it('pickDefaultRegularVariant empty → regular', function () {
-  assert.strictEqual(pickDefaultRegularVariant([]), 'regular');
 });
 
 console.log('fontVariant:', passed, 'passed');

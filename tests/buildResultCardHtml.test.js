@@ -57,9 +57,6 @@ function arabicPreviewFontStyle(fs) {
   var safeFam = String(fam).replace(/['\\<>]/g, '');
   var p = parseGoogleFontVariantClient(fs && fs.fontVariant ? fs.fontVariant : 'regular');
   var w = p.weight;
-  if (fs && fs.bold === true && w < 700) {
-    w = 700;
-  }
   return 'font-family:\'' + safeFam + '\',serif;font-weight:' + w +
     ';font-style:' + (p.italic ? 'italic' : 'normal') +
     ';font-size:' + INSERT_PREVIEW_ARABIC_PT + 'pt;color:' + INSERT_PREVIEW_ARABIC_COLOR;
@@ -574,7 +571,7 @@ function runTests() {
     assert.ok(html.indexOf('color:#202124') >= 0, 'fixed insert text color');
   });
 
-  it('single: bold with regular variant uses font-weight 700 in preview', function () {
+  it('single: legacy bold flag does not change Arabic preview weight', function () {
     var r = {
       surah: 1, ayah: 1,
       surahNameArabic: 'الفاتحة', surahNameEnglish: 'Al-Fatihah',
@@ -588,25 +585,7 @@ function runTests() {
       textColor: '#000000'
     };
     var html = buildCardHtml(r, fs);
-    assert.ok(html.indexOf('font-weight:700') >= 0, 'bold maps to weight 700');
-  });
-
-  it('single: bold does not bump weight when variant is already 700', function () {
-    var r = {
-      surah: 1, ayah: 1,
-      surahNameArabic: 'الفاتحة', surahNameEnglish: 'Al-Fatihah',
-      arabicText: 'بسم الله'
-    };
-    var fs = {
-      fontName: 'Amiri',
-      fontVariant: '700',
-      fontSize: 18,
-      bold: true,
-      textColor: '#000000'
-    };
-    var html = buildCardHtml(r, fs);
-    assert.ok(html.indexOf('font-weight:700') >= 0, 'stays at variant weight 700');
-    assert.strictEqual(html.indexOf('font-weight:900'), -1, 'does not inflate past variant');
+    assert.ok(html.indexOf('font-weight:400') >= 0, 'regular weight for preview');
   });
 
   it('single: invalid textColor in formatState is ignored for Arabic preview', function () {

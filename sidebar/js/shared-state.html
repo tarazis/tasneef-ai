@@ -1,4 +1,5 @@
 <script>
+/** Preview + payload shape for inserts; Quran Arabic is Amiri regular (server enforces same for Docs). */
 var formatState = {
   fontName: 'Amiri',
   fontVariant: 'regular',
@@ -11,7 +12,6 @@ var _surahList = [];
 var MAX_RESULTS      = 50;
 var EXACT_DEBOUNCE_MS = 200;
 var EXACT_MIN_CHARS  = 2;
-var SAVE_DEBOUNCE_MS = 500;
 
 window.getFormatState = function() { return Object.assign({}, formatState); };
 </script>

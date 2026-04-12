@@ -1,7 +1,7 @@
 /**
  * FormatService.gs
  * Applies formatting to Google Docs text elements.
- * Font fallback to Amiri with toast on failure.
+ * Quran Arabic is always Amiri regular non-bold; font fallback to Amiri with toast on failure.
  * Weighted Google Fonts use setFontFamily("Family;WEIGHT") with setItalic for italic tokens.
  */
 
@@ -10,7 +10,7 @@ var FALLBACK_FONT = 'Amiri';
 /** Google Docs font family for inserted English translation and English citation (Google Fonts name). */
 var ENGLISH_TRANSLATION_INSERT_FONT = 'Figtree';
 
-/** Fixed typography for inserted Quran Arabic (user still picks font family, variant, bold). */
+/** Fixed typography for inserted Quran Arabic (Amiri only; client formatState is ignored for family/variant/bold). */
 var INSERT_QURAN_FONT_SIZE_PT = 16;
 var INSERT_QURAN_TEXT_COLOR = '#202124';
 
@@ -31,10 +31,36 @@ function shallowCopyFormatState_(formatState) {
   return out;
 }
 
+/**
+ * Parses a Google Fonts API variant token (e.g. regular, italic, 500, 700italic).
+ * Regular = weight 400 (Docs / CSS convention).
+ * @param {string} token
+ * @return {{ weight: number, italic: boolean }}
+ */
+function parseGoogleFontVariant(token) {
+  if (token == null || typeof token !== 'string') {
+    return { weight: 400, italic: false };
+  }
+  var t = token.replace(/\s/g, '');
+  if (t === '') return { weight: 400, italic: false };
+  if (t === 'regular') return { weight: 400, italic: false };
+  if (t === 'italic') return { weight: 400, italic: true };
+  var italic = /italic$/i.test(t);
+  if (italic) {
+    t = t.replace(/italic$/i, '');
+  }
+  var w = parseInt(t, 10);
+  if (!isNaN(w)) {
+    return { weight: w, italic: italic };
+  }
+  return { weight: 400, italic: false };
+}
+
 function formatStateForInsertQuranArabic_(formatState) {
   var out = shallowCopyFormatState_(formatState);
-  out.fontName = out.fontName || FALLBACK_FONT;
-  out.fontVariant = out.fontVariant != null ? out.fontVariant : 'regular';
+  out.fontName = FALLBACK_FONT;
+  out.fontVariant = 'regular';
+  out.bold = false;
   out.fontSize = INSERT_QURAN_FONT_SIZE_PT;
   out.textColor = INSERT_QURAN_TEXT_COLOR;
   return out;
@@ -63,7 +89,7 @@ function formatStateForInsertCitationEnglish_() {
 /**
  * Resolves DocumentApp format state for one beautified insert paragraph.
  * @param {Object} item - insert descriptor with insertTextRole: 'quran' | 'translation' | 'citation'
- * @param {Object|null|undefined} formatState - Sidebar state (fontName, fontVariant, bold for Arabic)
+ * @param {Object|null|undefined} formatState - Sidebar state (ignored for Quran Arabic; Amiri regular is enforced)
  * @return {Object}
  */
 function formatStateForBeautifiedInsertParagraph(item, formatState) {

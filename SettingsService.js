@@ -2,7 +2,7 @@
  * SettingsService.gs
  * Manages user preferences via PropertiesService.
  * User settings are persisted to User Properties (per-user, per-script).
- * API keys (Claude, Google Fonts) are in Script Properties (shared, developer-owned).
+ * API keys (Claude) are in Script Properties (shared, developer-owned).
  */
 
 var AI_SEARCH_DAILY_LIMIT = 50;
@@ -12,16 +12,12 @@ var SETTINGS_DEFAULTS = {
   /** When true, ayah/range inserts are wrapped in a styled 1×1 table (blockquote look). */
   blockquoteInsertion: true,
   insertArabic: true,
-  arabicStyle: 'uthmani',     // "uthmani" | "simple"
-  fontName: 'Amiri',
-  fontVariant: 'regular',    // Google Fonts API variant token
-  bold: false
+  arabicStyle: 'uthmani'     // "uthmani" | "simple"
 };
 
 var PROPERTY_KEYS = {
   SETTINGS_PREFIX: 'setting_',
   CLAUDE_API_KEY: 'claude_api_key',
-  GOOGLE_FONTS_API_KEY: 'google_fonts_api_key',
   AI_SEARCH_COUNT: 'ai_search_count'
 };
 
@@ -80,17 +76,6 @@ function saveSettings(settingsObj) {
 function getClaudeApiKey_() {
   return PropertiesService.getScriptProperties()
     .getProperty(PROPERTY_KEYS.CLAUDE_API_KEY) || null;
-}
-
-/**
- * Returns the Google Fonts Developer API key from Script Properties (shared by all users).
- * Set once by the developer in Project Settings → Script Properties.
- * Trailing underscore hides this from google.script.run (prevents client access).
- * @return {string|null}
- */
-function getGoogleFontsApiKey_() {
-  return PropertiesService.getScriptProperties()
-    .getProperty(PROPERTY_KEYS.GOOGLE_FONTS_API_KEY) || null;
 }
 
 /**

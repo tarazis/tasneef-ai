@@ -11,10 +11,9 @@ tasneef-ai/
 ├── Code.js                        Entry point: exposes doGet(), include()
 ├── ClaudeAPI.js                   Claude API wrapper — intent classification only
 ├── DocumentService.js             Inserts ayah/range into the active Doc
-├── FontService.js                 Fetches Arabic font list from GitHub Pages
-├── FormatService.js               Applies font/size/bold/color to inserted text
+├── FormatService.js               Typography for inserted text (Quran Arabic: Amiri regular; translation/citation: Figtree)
 ├── NormalizeArabic.js             Server-side Arabic normalization (parity with client)
-├── SettingsService.js             User Properties: fontName, fontSize, bold, textColor, showTranslation, API key
+├── SettingsService.js             User Properties: showTranslation, blockquoteInsertion, arabicStyle, AI search count, etc.
 ├── appsscript.json                Apps Script manifest
 │
 ├── client/
@@ -25,7 +24,6 @@ tasneef-ai/
 │   ├── sidebar.html               Root template: HTML shell + ordered script includes
 │   ├── sidebar-css.html           All CSS
 │   ├── components/
-│   │   ├── format-bar.html        Format bar HTML (font/size/bold/color controls)
 │   │   ├── logo-img.html          Logo <img> snippet
 │   │   ├── settings-panel.html    Settings overlay HTML
 │   │   ├── tab-ai-search.html     AI Search tab HTML
@@ -36,10 +34,10 @@ tasneef-ai/
 │       ├── quran-caches.html      4 makeClientCache instances + public accessor functions
 │       ├── search-utils.html      searchImlaeiClient(), _buildResultsFromReferences(), _buildAyahDataForInsert()
 │       ├── card-builder.html      buildCardHtml(), buildRangeData(), isConsecutiveRange(), escapeHtml(), toArabicIndicClient()
-│       ├── pagination.html        pagReset(), pagRenderPage(), pagClear(), PAGE_SIZE
+│       ├── pagination.html        pagReset(), pagRenderPage(), pagClear(), PAGE_SIZE, refreshAllResultCardPreviews
 │       ├── render-helpers.html    renderPreview(), onInsertClick(), makeSkeleton()
-│       ├── format-bar.html        debouncedSave(), applyFormatStateToUI(), initFormatBar()
-│       ├── settings-panel-js.html initSettings(), refreshSettings(), loadSettingsIntoPanel(), initSettingsPanelHandlers(), onSettingsLoaded(), onFontsLoaded()
+│       ├── font-variant-utils.html parseGoogleFontVariantClient(), ensureGoogleFontsPreviewStylesheet(), arabicPreviewFontStyle()
+│       ├── settings-panel-js.html initSettings(), refreshSettings(), loadSettingsIntoPanel(), initSettingsPanelHandlers(), onSettingsLoaded()
 │       ├── tab-direct-insert-js.html  initDirectInsertTab()
 │       ├── tab-exact-search-js.html   initExactSearchTab()
 │       ├── tab-ai-search-js.html      _conversationMessages, initAISearchTab(), clearAISearch()
@@ -50,7 +48,6 @@ tasneef-ai/
     ├── normalizeArabic.test.js    Node tests for normalization + search
     ├── buildResultCardHtml.test.js Node tests for card builder + pagination
     ├── ClaudeAPI.test.gs          Apps Script tests
-    ├── FontService.test.gs        Apps Script tests
     ├── FormatService.test.gs      Apps Script tests
     ├── NormalizeArabic.test.gs    Apps Script tests
     └── SettingsService.test.gs    Apps Script tests
@@ -68,11 +65,11 @@ client/normalizeArabic          — defines normalizeArabic(), _mapNormalizedToO
 sidebar/js/quran-caches         — calls makeClientCache(); defines cache APIs + accessor fns
 sidebar/js/search-utils         — calls normalizeArabic, _mapNormalizedToOriginal, cache accessors
 sidebar/js/shared-state         — defines formatState, _settings, _surahList, constants, window.getFormatState
+sidebar/js/font-variant-utils   — Amiri preview stylesheet + arabicPreviewFontStyle (used by card-builder)
 sidebar/js/card-builder         — pure rendering utils; no runtime deps on earlier globals
 sidebar/js/pagination           — calls buildCardHtml (card-builder), window.getFormatState (shared-state)
 sidebar/js/render-helpers       — calls buildCardHtml, buildRangeData (card-builder); _buildAyahDataForInsert (search-utils)
-sidebar/js/format-bar           — reads/writes formatState, SAVE_DEBOUNCE_MS (shared-state); reads window._activeTab, window._refreshDirectInsert
-sidebar/js/settings-panel-js    — reads/writes _settings, formatState; calls applyFormatStateToUI (format-bar); header New chat → clearAISearch
+sidebar/js/settings-panel-js    — reads/writes _settings; onSettingsLoaded refreshes card previews; header New chat → clearAISearch
 sidebar/js/tab-direct-insert-js — reads _surahList, MAX_RESULTS; calls cache accessors, renderPreview, onInsertClick; sets window._refreshDirectInsert
 sidebar/js/tab-exact-search-js  — calls pagClear/Reset/RenderPage, searchImlaeiClient, onInsertClick
 sidebar/js/tab-ai-search-js     — calls all of the above; reads/writes _conversationMessages; calls window.setupTextarea
@@ -81,7 +78,8 @@ sidebar/js/sidebar-js           — IIFE: exposes window.setupTextarea; calls in
 
 **Key ordering constraints:**
 - `quran-caches` must follow `makeClientCache` (calls the factory at parse time)
-- `shared-state` must precede `format-bar` and all tab modules (they write to `formatState`, `_settings`, `_surahList`)
+- `shared-state` must precede `font-variant-utils`, `card-builder`, and all tab modules (they read or write `formatState`, `_settings`, `_surahList`)
+- `font-variant-utils` must precede `card-builder` (`arabicPreviewFontStyle`, `ensureGoogleFontsPreviewStylesheet`)
 - `card-builder` must precede `pagination` and `render-helpers` (both call `buildCardHtml`)
 - `search-utils` must precede `render-helpers` (calls `_buildAyahDataForInsert`)
 - `sidebar-js` must be last — its IIFE calls `init()` which calls all `init*()` functions
@@ -93,19 +91,17 @@ sidebar/js/sidebar-js           — IIFE: exposes window.setupTextarea; calls in
 ### State variables (`sidebar/js/shared-state.html`)
 | Variable | Type | Initial value | Writers | Readers |
 |---|---|---|---|---|
-| `formatState` | object | `{fontName:'Amiri', fontSize:18, bold:false, textColor:'#000000'}` | `onSettingsLoaded`, `initFormatBar` event handlers | `debouncedSave`, `applyFormatStateToUI`, `renderPreview`, `window.getFormatState` |
+| `formatState` | object | `{fontName:'Amiri', fontVariant:'regular', bold:false}` (fixed for Quran preview; server forces same for inserts) | — | `renderPreview`, `window.getFormatState`, insert payloads |
 | `_settings` | object | `{}` | `onSettingsLoaded`, `refreshSettings` | `onInsertClick`, `_buildResultsFromReferences`, `_buildAyahDataForInsert` |
 | `_surahList` | array | `[]` | `initDirectInsertTab` (via `ensureSurahMetaCache` callback) | `searchImlaeiClient`, `_buildResultsFromReferences`, `_buildAyahDataForInsert`, `initDirectInsertTab` |
 | `MAX_RESULTS` | number | `50` | — | `searchImlaeiClient`, `initDirectInsertTab` |
 | `EXACT_DEBOUNCE_MS` | number | `200` | — | `initExactSearchTab` |
 | `EXACT_MIN_CHARS` | number | `2` | — | `initExactSearchTab` |
-| `SAVE_DEBOUNCE_MS` | number | `500` | — | `debouncedSave` |
-
 ### Window-bridge properties (set by IIFE, read by global scripts)
 | Property | Set by | Read by |
 |---|---|---|
-| `window._activeTab` | `sidebar-js` IIFE (`switchTab`) | `format-bar` (`initFormatBar` event handlers) |
-| `window._refreshDirectInsert` | `tab-direct-insert-js` (`initDirectInsertTab`) | `format-bar` (`initFormatBar` event handlers) |
+| `window._activeTab` | `sidebar-js` IIFE (`switchTab`) | (tab visibility helpers) |
+| `window._refreshDirectInsert` | `tab-direct-insert-js` (`initDirectInsertTab`) | `pagination` (`refreshAllResultCardPreviews`) |
 | `clearAISearch()` | `tab-ai-search-js` (global fn) | `settings-panel-js` (`initSettings` header New chat button) |
 | `window.setupTextarea` | `sidebar-js` IIFE | `tab-ai-search-js` (`initAISearchTab`) |
 | `window.getFormatState` | `shared-state` | `render-helpers` (`onInsertClick`), `pagination` (`pagRenderPage`) |
@@ -156,7 +152,7 @@ pagReset(tabId, results)        stores results + resets page counter   [paginati
 pagRenderPage(tabId, containerEl, emptyEl, emptyMsg)
     │
     ├── slices results[0..PAGE_SIZE]
-    ├── calls buildCardHtml(result, window.getFormatState().fontName) for each
+    ├── calls buildCardHtml(result, window.getFormatState()) for each
     ├── appends cards to containerEl
     └── appends "Show more" button if items remain  →  clicking calls pagRenderPage again
 ```
@@ -172,7 +168,7 @@ User clicks .btn-insert-result button
 onInsertClick(e)                             [render-helpers.html]
     │
     ├── reads data-surah, data-ayah (single) OR data-surah, data-ayah-start, data-ayah-end (range)
-    ├── reads window.getFormatState() → fs  (font, size, bold, color)
+    ├── reads window.getFormatState() → fs  (passed to server; Arabic typography enforced in FormatService)
     ├── reads _settings.arabicStyle → 'uthmani' | 'simple' (`'uthmani'` = imlaei-script display; see CLAUDE.md)
     │
     ├── SINGLE:  _buildAyahDataForInsert(surah, ayah, style)
@@ -202,11 +198,6 @@ User selects ayah-start / ayah-end
     → autoRenderPreview()
         → lookupUthmaniAyah() + lookupTranslation() for each ayah in range
         → renderPreview()  →  one card (single or range)
-
-Format bar change (font/size/bold/color)
-    → writes formatState
-    → debouncedSave() → google.script.run.saveSettings()
-    → if _activeTab === 'direct-insert': window._refreshDirectInsert() → autoRenderPreview()
 
 Insert click  →  onInsertClick()  →  insertAyah / insertAyahRange
 ```
@@ -259,7 +250,7 @@ Any non-clarify response resets _conversationMessages = [].
 
 | State | Lives in | Reset by |
 |---|---|---|
-| `formatState` | `shared-state.html` global | `onSettingsLoaded` (page load), user interaction via `initFormatBar` |
+| `formatState` | `shared-state.html` global | Fixed Amiri/regular for Quran preview (server mirrors for inserts) |
 | `_settings` | `shared-state.html` global | `onSettingsLoaded` (page load), `refreshSettings` (settings panel close) |
 | `_surahList` | `shared-state.html` global | `initDirectInsertTab` → `ensureSurahMetaCache` callback (once) |
 | `window._activeTab` | IIFE (`sidebar-js`) | `switchTab()` on every tab click |

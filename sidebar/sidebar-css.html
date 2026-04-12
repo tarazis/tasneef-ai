@@ -26,7 +26,7 @@
     --space-md: 12px;
     --space-lg: 16px;
     --space-xl: 20px;
-    /* Horizontal gutter for sidebar chrome (format bar, tabs, scroll areas, settings) */
+    /* Horizontal gutter for sidebar chrome (tabs, scroll areas, settings) */
     --sidebar-inline: var(--space-sm);
     /* Radii */
     --radius-sm: 6px;
@@ -47,40 +47,8 @@
   body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 13px; color: var(--color-text-primary); background: var(--color-bg); }
   .sidebar { display: flex; flex-direction: column; height: 100vh; width: 350px; max-width: 100%; position: relative; }
 
-  /* ─── (Header removed — format bar is now topmost) ────────────────────────── */
-
-  /* ─── Format Bar ──────────────────────────────────────────────────────────── */
-  .format-bar { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-lg); border-bottom: 1px solid var(--color-border); flex-wrap: wrap; flex-shrink: 0; }
-  .format-bar select, .format-bar input[type="number"] { padding: 6px 8px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 12px; min-width: 0; }
-  .format-bar .font-picker { position: relative; flex: 1; min-width: 80px; max-width: 200px; }
-  .format-bar .font-picker-trigger { width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 12px; background: var(--color-bg); cursor: pointer; height: 30px; }
-  .format-bar .font-picker-trigger:hover { border-color: var(--color-border-hover); }
-  .format-bar .font-picker-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-  .format-bar .font-picker-caret { flex-shrink: 0; color: var(--color-text-secondary); font-size: 10px; }
-  .format-bar .font-picker-dropdown {
-    position: absolute; top: calc(100% + 2px); left: 0; min-width: 100%; width: max-content; max-width: min(318px, calc(100vw - 32px)); max-height: 240px;
-    overflow-y: auto; overflow-x: hidden; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-sm); z-index: 300; box-shadow: var(--shadow-lg);
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-border-hover) var(--color-bg-secondary);
-  }
-  .format-bar .font-picker-dropdown::-webkit-scrollbar { width: 6px; }
-  .format-bar .font-picker-dropdown::-webkit-scrollbar-track { background: var(--color-bg-secondary); border-radius: 3px; }
-  .format-bar .font-picker-dropdown::-webkit-scrollbar-thumb { background: var(--color-border-hover); border-radius: 3px; }
-  .format-bar .font-picker-dropdown::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
-  .format-bar .font-picker-families { list-style: none; margin: 0; padding: var(--space-xs) 0; min-width: 100%; }
-  .format-bar .font-picker-family-name { white-space: nowrap; min-width: 0; }
-  .format-bar .font-picker-family-item { position: relative; padding: 6px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; }
-  .format-bar .font-picker-family-item:hover { background: var(--color-bg-hover); }
-  .format-bar .font-picker-family-item.is-selected { background: var(--color-primary-light); box-shadow: inset 3px 0 0 var(--color-primary); }
-  .format-bar .font-picker-family-item.is-selected:hover { background: var(--color-accent-light); }
-  .format-bar .font-picker-empty { padding: 8px 10px; font-size: 11px; color: var(--color-text-muted); list-style: none; }
-
-  .format-bar .btn-format { padding: 6px 10px; border: 1px solid var(--color-border); background: var(--color-bg); border-radius: var(--radius-sm); font-size: 12px; font-weight: 700; cursor: pointer; height: 30px; }
-  .format-bar .btn-format:hover { border-color: var(--color-border-hover); }
-  .format-bar .btn-format.active { background: var(--color-bg-hover); border-color: var(--color-border-hover); }
-
   /* ─── Tab Navigation ──────────────────────────────────────────────────────── */
-  .tab-nav { display: flex; gap: 3px; border-bottom: 2px solid var(--color-border); flex-shrink: 0; padding: 0 var(--sidebar-inline); }
+  .tab-nav { display: flex; gap: 3px; border-bottom: 2px solid var(--color-border); flex-shrink: 0; padding: var(--space-md) var(--sidebar-inline) 0; }
   .tab-btn { flex: 1 1 0; min-width: 0; padding: var(--space-sm); border: none; background: none; font-size: 12px; font-weight: 500; color: var(--color-text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast); border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
   .tab-btn:hover { color: var(--color-primary); background: var(--color-primary-lighter); }
   .tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); background: var(--color-primary-light); }

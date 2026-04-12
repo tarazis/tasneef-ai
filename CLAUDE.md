@@ -21,12 +21,12 @@ SURAH META:    https://tarazis.github.io/tasneef-data/quran/quran-metadata-surah
 TRANSLATION:   https://tarazis.github.io/tasneef-data/quran/en-sahih-international-simple.json
 ```
 **Naming note:** The primary Arabic feed above is **imlaei-script**. Legacy identifiers in code still say “uthmani” (`UTHMANI_URL`, `ensureUthmaniCache`, `lookupUthmaniAyah`, settings `arabicStyle: 'uthmani'`, payload `textUthmani`) but they all refer to this imlaei-script source, not traditional Uthmani rasm.
-Font URLs live in `FontService.js`:
-```
-QURAN FONTS:  https://tarazis.github.io/tasneef-data/quran/quran-fonts.json
-```
-- INSPECT the actual JSON structure before writing code against it
-- Translation JSON is a flat object keyed by `"surah:ayah"` with `{t: "text"}` values
+
+### Quran typography (inserts + sidebar preview)
+- **Arabic ayah text** in Google Docs is always **Amiri**, regular weight, not bold (`FormatService.js` enforces this regardless of client payload).
+- The sidebar loads **Amiri** once via public Google Fonts CSS (`fonts.googleapis.com/css2`) for accurate card preview.
+
+For the JSON feeds above: **inspect** the actual structure before writing code against them. Translation JSON is a flat object keyed by `"surah:ayah"` with `{t: "text"}` values.
 
 ### Arabic normalization — `NormalizeArabic.js` (server) + `client/normalizeArabic.html` (client)
 - Both files MUST stay in sync — parity enforced by `tests/normalizeArabic.test.js`

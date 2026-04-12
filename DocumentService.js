@@ -441,7 +441,7 @@ function applyBlockquoteBorders(docId, tableOrdinal) {
  * @param {Body} body - The document body
  * @param {Document} doc - The active document
  * @param {Array<Object>} paragraphsToInsert - Array of { text, align, rtl?, insertTextRole, spacingBefore?, spacingAfter? } (spacing in pt)
- * @param {Object} formatState - { fontName, fontVariant, bold } (sizes/colors fixed server-side)
+ * @param {Object} formatState - legacy payload; Quran Arabic forced to Amiri regular in FormatService
  * @return {Object} { fontWarning: string|null }
  */
 function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState) {
@@ -499,7 +499,7 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
  * Inserts an ayah into the document using resolveIsolatedInsertAnchor_
  * (selection end, list/table escapes, paragraph split/start/end, doc-end fallback).
  * @param {Object} ayahData - { surah, ayah, surahNameArabic, surahNameEnglish, textUthmani, textSimple, translationText }
- * @param {Object} formatState - { fontName, fontVariant, bold }
+ * @param {Object} formatState - legacy payload; Quran Arabic forced to Amiri regular in FormatService
  * @param {Object} settings - { showTranslation, arabicStyle, blockquoteInsertion }
  * @return {Object} { success: boolean, message?: string }
  */
@@ -570,7 +570,7 @@ function insertAyah(ayahData, formatState, settings) {
 /**
  * Inserts a pre-assembled ayah range using the same anchor rules as insertAyah.
  * @param {Object} rangeData - { surah, ayahStart, ayahEnd, arabicText, translationText, surahNameArabic, surahNameEnglish }
- * @param {Object} formatState - { fontName, fontVariant, bold }
+ * @param {Object} formatState - legacy payload; Quran Arabic forced to Amiri regular in FormatService
  * @param {Object} settings - { showTranslation, blockquoteInsertion }
  * @return {Object} { success: boolean, message?: string }
  */

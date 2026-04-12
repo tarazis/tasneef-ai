@@ -431,7 +431,7 @@ function runDocumentServiceTests() {
     applyFormatReturnValue = null;
   });
 
-  it('translation paragraph uses Figtree and copies other format fields from sidebar state', function () {
+  it('translation uses Figtree; Arabic Quran uses Amiri regular regardless of sidebar state', function () {
     applyFormatCalls = [];
     applyFormatReturnValue = null;
     var fs = {
@@ -449,10 +449,10 @@ function runDocumentServiceTests() {
     // [existing, topBuffer, arabic, translation, citation, bottom]
     expect(body._children.length).toBe(6);
     expect(applyFormatCalls.length).toBe(3);
-    expect(applyFormatCalls[0].fontName).toBe('Scheherazade New');
-    expect(applyFormatCalls[0].fontVariant).toBe('700');
+    expect(applyFormatCalls[0].fontName).toBe('Amiri');
+    expect(applyFormatCalls[0].fontVariant).toBe('regular');
     expect(applyFormatCalls[0].fontSize).toBe(16);
-    expect(applyFormatCalls[0].bold).toBe(true);
+    expect(applyFormatCalls[0].bold).toBe(false);
     expect(applyFormatCalls[0].textColor).toBe('#202124');
     expect(applyFormatCalls[1].fontName).toBe('Figtree');
     expect(applyFormatCalls[1].fontVariant).toBe('regular');
