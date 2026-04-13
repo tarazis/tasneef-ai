@@ -138,6 +138,15 @@ function _handleRagSearch(classified) {
     return _handleSemanticSearch(classified);
   }
 
+  Logger.log('[RAG SEARCH] Query: "' + query + '" — Pinecone returned ' + matches.length + ' match(es):');
+  for (var j = 0; j < matches.length; j++) {
+    var m = matches[j];
+    var matchMeta = m.metadata || {};
+    Logger.log('  [' + (j + 1) + '] Surah ' + matchMeta.surah_number + ':' + matchMeta.ayah_number +
+      ' — score: ' + m.score.toFixed(4) +
+      (m.score < RAG_SCORE_THRESHOLD ? ' (BELOW threshold, filtered out)' : ' (KEPT)'));
+  }
+
   var validRefs = [];
   for (var i = 0; i < matches.length; i++) {
     if (matches[i].score < RAG_SCORE_THRESHOLD) continue;
@@ -150,7 +159,14 @@ function _handleRagSearch(classified) {
     }
   }
 
-  if (!validRefs.length) return _handleSemanticSearch(classified);
+  Logger.log('[RAG SEARCH] After score filter (threshold=' + RAG_SCORE_THRESHOLD + '): ' + validRefs.length + ' valid ref(s) remain.');
 
-  return { type: 'references', references: _mergeConsecutiveReferences(validRefs) };
+  if (!validRefs.length) {
+    Logger.log('[RAG SEARCH] No valid refs after score filtering — falling back to Claude references.');
+    return _handleSemanticSearch(classified);
+  }
+
+  var merged = _mergeConsecutiveReferences(validRefs);
+  Logger.log('[RAG SEARCH] Final result: ' + merged.length + ' merged group(s) shown to user.');
+  return { type: 'references', references: merged };
 }

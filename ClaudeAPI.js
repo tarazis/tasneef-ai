@@ -195,6 +195,14 @@ function _handleExactSearch(classified) {
 function _handleSemanticSearch(classified) {
   var refs = classified.references;
 
+  var rawCount = (refs && Array.isArray(refs)) ? refs.length : 0;
+  Logger.log('[CLAUDE SEARCH] Claude returned ' + rawCount + ' raw reference(s):');
+  if (refs && Array.isArray(refs)) {
+    for (var ci = 0; ci < refs.length && ci < AI_MAX_REFERENCES; ci++) {
+      Logger.log('  [' + (ci + 1) + '] Surah ' + refs[ci].surah + ':' + refs[ci].ayah + ' (no score — Claude semantic search)');
+    }
+  }
+
   if (!refs || !Array.isArray(refs) || !refs.length) {
     return { type: 'error', error: 'No results found. Try a different query.' };
   }
@@ -208,11 +216,15 @@ function _handleSemanticSearch(classified) {
     }
   }
 
+  Logger.log('[CLAUDE SEARCH] After validation: ' + validRefs.length + ' valid ref(s) remain.');
+
   if (!validRefs.length) {
     return { type: 'error', error: 'No valid results found. Try a different query.' };
   }
 
-  return { type: 'references', references: _mergeConsecutiveReferences(validRefs) };
+  var merged = _mergeConsecutiveReferences(validRefs);
+  Logger.log('[CLAUDE SEARCH] Final result: ' + merged.length + ' merged group(s) shown to user.');
+  return { type: 'references', references: merged };
 }
 
 /**
