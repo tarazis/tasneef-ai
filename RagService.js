@@ -2,12 +2,17 @@
  * RagService.js
  * RAG-powered semantic search via OpenAI embeddings + Pinecone vector DB.
  * Called from ClaudeAPI.js when the user triggers @rag mode on a semantic_search query.
+ * After retrieval, optionally reranks the top candidate ayahs with Claude using English translations.
  *
  * Every failure silently falls back to _handleSemanticSearch (Claude's references).
  */
 
-var RAG_SCORE_THRESHOLD = 0.75;
-var RAG_TOP_K = 10;
+var RAG_SCORE_THRESHOLD = 0.35;
+var RAG_TOP_K = 20;
+var RAG_MAX_EXPAND_QUERIES = 3;
+var RAG_CANDIDATE_POOL = 20;
+var RAG_FINAL_MAX_AYAH = 10;
+var RAG_LOG_QUERY_MAX_LEN = 80;
 var OPENAI_EMBEDDING_URL = 'https://api.openai.com/v1/embeddings';
 var OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small';
 
@@ -40,19 +45,177 @@ function getPineconeApiKey_() {
     .getProperty(PROPERTY_KEYS.PINECONE_API_KEY) || null;
 }
 
+// ─── Query normalization (multi-query expansion) ─────────────────────────────
+
+/**
+ * Builds the list of query strings for RAG from Claude output.
+ * Prefers classified.queries (capped); falls back to legacy classified.query.
+ * @param {Object} classified
+ * @return {string[]}
+ */
+function _normalizeRagQueryStrings_(classified) {
+  var out = [];
+  var raw = classified && classified.queries;
+  if (raw && Array.isArray(raw)) {
+    for (var i = 0; i < raw.length && out.length < RAG_MAX_EXPAND_QUERIES; i++) {
+      var t = (raw[i] === null || raw[i] === undefined) ? '' : String(raw[i]).trim();
+      if (t) out.push(t);
+    }
+  }
+  if (!out.length && classified) {
+    var legacy = (classified.query || '').trim();
+    if (legacy) out.push(legacy);
+  }
+  return out;
+}
+
+/**
+ * Truncates a string for Logger output.
+ * @param {string} s
+ * @return {string}
+ */
+function _truncateForRagLog_(s) {
+  if (!s || typeof s !== 'string') return '';
+  if (s.length <= RAG_LOG_QUERY_MAX_LEN) return s;
+  return s.substring(0, RAG_LOG_QUERY_MAX_LEN) + '…';
+}
+
+/**
+ * Merges Pinecone match lists from multiple query vectors: one row per ayah (max score wins).
+ * @param {Array<{queryIndex: number, queryText: string, matches: Array<{score: number, metadata: Object}>}>} runs
+ * @return {Array<{surah: number, ayah: number, score: number, winningQueryIndex: number, winningQueryText: string}>}
+ */
+function _mergeRagMatchesByAyah_(runs) {
+  var best = {};
+  for (var r = 0; r < runs.length; r++) {
+    var run = runs[r];
+    var qi = run.queryIndex;
+    var qtext = run.queryText || '';
+    var matches = run.matches || [];
+    for (var j = 0; j < matches.length; j++) {
+      var m = matches[j];
+      var meta = m.metadata;
+      if (!meta) continue;
+      var s = parseInt(meta.surah_number, 10);
+      var a = parseInt(meta.ayah_number, 10);
+      if (!(s >= 1 && s <= 114 && a >= 1)) continue;
+      var key = s + ':' + a;
+      var sc = m.score;
+      var row = best[key];
+      if (!row || sc > row.score) {
+        best[key] = {
+          score: sc,
+          surah: s,
+          ayah: a,
+          winningQueryIndex: qi,
+          winningQueryText: qtext
+        };
+      }
+    }
+  }
+  var arr = [];
+  for (var k in best) {
+    if (Object.prototype.hasOwnProperty.call(best, k)) {
+      arr.push(best[k]);
+    }
+  }
+  arr.sort(function (x, y) {
+    return y.score - x.score;
+  });
+  return arr;
+}
+
+/**
+ * Builds final flat {surah, ayah} list: reranked keys first (validated against pool), then Pinecone order to fill/cap.
+ * @param {Array<{surah: number, ayah: number}>} pineconeOrderedRefs - score order, length <= RAG_CANDIDATE_POOL
+ * @param {string[]|null} rerankedKeys - Claude "surah:ayah" keys, or null for score-only
+ * @param {number} [maxOut] - defaults to RAG_FINAL_MAX_AYAH
+ * @return {Array<{surah: number, ayah: number}>}
+ */
+function _finalizeRagAyahRefs_(pineconeOrderedRefs, rerankedKeys, maxOut) {
+  var cap = maxOut != null ? maxOut : RAG_FINAL_MAX_AYAH;
+  var pineconeKeyList = [];
+  for (var i = 0; i < pineconeOrderedRefs.length; i++) {
+    var r = pineconeOrderedRefs[i];
+    pineconeKeyList.push(parseInt(r.surah, 10) + ':' + parseInt(r.ayah, 10));
+  }
+
+  var allowed = {};
+  for (var a = 0; a < pineconeKeyList.length; a++) {
+    allowed[pineconeKeyList[a]] = true;
+  }
+
+  var out = [];
+  var seen = {};
+
+  function pushKey(key) {
+    if (out.length >= cap) return;
+    if (!key || !allowed[key]) return;
+    if (seen[key]) return;
+    seen[key] = true;
+    var parts = String(key).split(':');
+    if (parts.length !== 2) return;
+    var s = parseInt(parts[0], 10);
+    var ay = parseInt(parts[1], 10);
+    if (!(s >= 1 && s <= 114 && ay >= 1)) return;
+    out.push({ surah: s, ayah: ay });
+  }
+
+  if (rerankedKeys && Array.isArray(rerankedKeys)) {
+    for (var j = 0; j < rerankedKeys.length; j++) {
+      pushKey(String(rerankedKeys[j]).trim());
+    }
+  }
+
+  for (var k = 0; k < pineconeKeyList.length; k++) {
+    pushKey(pineconeKeyList[k]);
+  }
+
+  return out;
+}
+
+/**
+ * Fallback text for rerank prompt when originalUserQueryForRerank is not passed (e.g. tests).
+ * @param {Object} classified
+ * @return {string}
+ */
+function _rerankUserQueryFallback_(classified) {
+  var qs = _normalizeRagQueryStrings_(classified);
+  if (qs.length) return qs[0];
+  return String(classified && classified.query ? classified.query : '').trim();
+}
+
+/**
+ * Removes a leading @rag prefix so the reranker receives the same query text as intent classification.
+ * @param {string} text
+ * @return {string}
+ */
+function _stripRagPrefixForRerankUserQuery_(text) {
+  if (!text || typeof text !== 'string') return '';
+  var t = text.trim();
+  if (t.indexOf('@rag') === 0) {
+    t = t.slice(4).trim();
+  }
+  return t;
+}
+
 // ─── API calls ───────────────────────────────────────────────────────────────
 
 /**
- * Calls OpenAI embeddings API to get a vector for the given text.
+ * Calls OpenAI embeddings API for one or more strings (single batch request).
  * @param {string} apiKey - OpenAI API key
- * @param {string} query - Text to embed
- * @return {number[]} 1536-dimensional embedding vector
+ * @param {string[]} inputs - Non-empty list of texts to embed
+ * @return {number[][]} One vector per input, ordered by input index
  * @throws {Error} On non-200 response or malformed body
  */
-function _getEmbedding(apiKey, query) {
+function _getEmbeddings(apiKey, inputs) {
+  if (!inputs || !inputs.length) {
+    throw new Error('OpenAI embeddings: inputs array must be non-empty');
+  }
+
   var payload = {
     model: OPENAI_EMBEDDING_MODEL,
-    input: query
+    input: inputs
   };
 
   var options = {
@@ -69,7 +232,33 @@ function _getEmbedding(apiKey, query) {
   }
 
   var body = JSON.parse(response.getContentText());
-  return body.data[0].embedding;
+  var rows = body.data || [];
+  rows.sort(function (a, b) {
+    return (a.index || 0) - (b.index || 0);
+  });
+
+  var out = [];
+  for (var i = 0; i < rows.length; i++) {
+    if (!rows[i].embedding) {
+      throw new Error('OpenAI embeddings: missing embedding at index ' + i);
+    }
+    out.push(rows[i].embedding);
+  }
+  if (out.length !== inputs.length) {
+    throw new Error('OpenAI embeddings: expected ' + inputs.length + ' vectors, got ' + out.length);
+  }
+  return out;
+}
+
+/**
+ * Calls OpenAI embeddings API to get a vector for the given text.
+ * @param {string} apiKey - OpenAI API key
+ * @param {string} query - Text to embed
+ * @return {number[]} 1536-dimensional embedding vector
+ * @throws {Error} On non-200 response or malformed body
+ */
+function _getEmbedding(apiKey, query) {
+  return _getEmbeddings(apiKey, [query])[0];
 }
 
 /**
@@ -108,55 +297,89 @@ function _queryPinecone(host, apiKey, vector) {
 // ─── Handler ─────────────────────────────────────────────────────────────────
 
 /**
- * Handles semantic search via RAG: embeds query → queries Pinecone → maps to references.
+ * Handles semantic search via RAG: batch-embeds query reformulations, queries Pinecone per vector,
+ * merges by ayah (max score), filters by threshold, optional Claude rerank, cap, merge consecutive refs.
  * Falls back to _handleSemanticSearch on any failure.
- * @param {Object} classified - Claude classification with { query, references }
+ * @param {Object} classified - Claude classification with { queries?, query?, references }
+ * @param {string} [originalUserQueryForRerank] - Last user message as typed (from performAISearch; @rag stripped before rerank prompt)
  * @return {Object} { type: 'references', references: [{surah, ayahStart, ayahEnd}] } or fallback
  */
-function _handleRagSearch(classified) {
-  var query = (classified.query || '').trim();
-  if (!query) return _handleSemanticSearch(classified);
+function _handleRagSearch(classified, originalUserQueryForRerank) {
+  Logger.log('[RAG SEARCH] Entered _handleRagSearch');
+
+  var queryStrings = _normalizeRagQueryStrings_(classified);
+  if (!queryStrings.length) {
+    Logger.log('[RAG SEARCH] FAIL: no queries or legacy query from classification — falling back to Claude.');
+    return _handleSemanticSearch(classified);
+  }
+
+  Logger.log('[RAG SEARCH] Using ' + queryStrings.length + ' expansion query string(s).');
 
   var openAiKey = getOpenAiApiKey_();
-  if (!openAiKey) return _handleSemanticSearch(classified);
+  if (!openAiKey) {
+    Logger.log('[RAG SEARCH] FAIL: openai_api_key not set in Script Properties — falling back to Claude.');
+    return _handleSemanticSearch(classified);
+  }
 
-  var vector;
+  var vectors;
   try {
-    vector = _getEmbedding(openAiKey, query);
+    vectors = _getEmbeddings(openAiKey, queryStrings);
+    Logger.log('[RAG SEARCH] OpenAI batch embedding OK — ' + vectors.length + ' vector(s), dim ' + vectors[0].length);
   } catch (e) {
+    Logger.log('[RAG SEARCH] FAIL: OpenAI embedding error: ' + e.message + ' — falling back to Claude.');
     return _handleSemanticSearch(classified);
   }
 
   var pineconeHost = getPineconeHost_();
   var pineconeKey = getPineconeApiKey_();
-  if (!pineconeHost || !pineconeKey) return _handleSemanticSearch(classified);
-
-  var matches;
-  try {
-    matches = _queryPinecone(pineconeHost, pineconeKey, vector);
-  } catch (e) {
+  if (!pineconeHost || !pineconeKey) {
+    Logger.log('[RAG SEARCH] FAIL: pinecone_host=' + (pineconeHost ? 'SET' : 'MISSING') +
+      ', pinecone_api_key=' + (pineconeKey ? 'SET' : 'MISSING') + ' — falling back to Claude.');
     return _handleSemanticSearch(classified);
   }
 
-  Logger.log('[RAG SEARCH] Query: "' + query + '" — Pinecone returned ' + matches.length + ' match(es):');
-  for (var j = 0; j < matches.length; j++) {
-    var m = matches[j];
-    var matchMeta = m.metadata || {};
-    Logger.log('  [' + (j + 1) + '] Surah ' + matchMeta.surah_number + ':' + matchMeta.ayah_number +
-      ' — score: ' + m.score.toFixed(4) +
-      (m.score < RAG_SCORE_THRESHOLD ? ' (BELOW threshold, filtered out)' : ' (KEPT)'));
+  var runs = [];
+  for (var qi = 0; qi < vectors.length; qi++) {
+    var qLabel = queryStrings[qi];
+    var trunc = _truncateForRagLog_(qLabel);
+    var matches;
+    try {
+      matches = _queryPinecone(pineconeHost, pineconeKey, vectors[qi]);
+    } catch (e) {
+      Logger.log('[RAG SEARCH] FAIL: Pinecone query error (query[' + qi + ']): ' + e.message + ' — falling back to Claude.');
+      return _handleSemanticSearch(classified);
+    }
+
+    for (var j = 0; j < matches.length; j++) {
+      var m = matches[j];
+      var matchMeta = m.metadata || {};
+      Logger.log('[RAG SEARCH] raw match — query[' + qi + '] "' + trunc + '" — Surah ' +
+        matchMeta.surah_number + ':' + matchMeta.ayah_number + ' — score: ' + m.score.toFixed(4));
+    }
+
+    runs.push({
+      queryIndex: qi,
+      queryText: qLabel,
+      matches: matches
+    });
+  }
+
+  var mergedRows = _mergeRagMatchesByAyah_(runs);
+
+  Logger.log('[RAG SEARCH] After merge across queries: ' + mergedRows.length + ' unique ayah key(s), sorted by score desc.');
+
+  for (var mi = 0; mi < mergedRows.length; mi++) {
+    var row = mergedRows[mi];
+    var below = row.score < RAG_SCORE_THRESHOLD;
+    Logger.log('[RAG SEARCH] merged — Surah ' + row.surah + ':' + row.ayah + ' — best score: ' + row.score.toFixed(4) +
+      ' — from query[' + row.winningQueryIndex + '] "' + _truncateForRagLog_(row.winningQueryText) + '"' +
+      (below ? ' (BELOW threshold, filtered out)' : ' (KEPT)'));
   }
 
   var validRefs = [];
-  for (var i = 0; i < matches.length; i++) {
-    if (matches[i].score < RAG_SCORE_THRESHOLD) continue;
-    var meta = matches[i].metadata;
-    if (!meta) continue;
-    var s = parseInt(meta.surah_number, 10);
-    var a = parseInt(meta.ayah_number, 10);
-    if (s >= 1 && s <= 114 && a >= 1) {
-      validRefs.push({ surah: s, ayah: a });
-    }
+  for (var ri = 0; ri < mergedRows.length; ri++) {
+    if (mergedRows[ri].score < RAG_SCORE_THRESHOLD) continue;
+    validRefs.push({ surah: mergedRows[ri].surah, ayah: mergedRows[ri].ayah });
   }
 
   Logger.log('[RAG SEARCH] After score filter (threshold=' + RAG_SCORE_THRESHOLD + '): ' + validRefs.length + ' valid ref(s) remain.');
@@ -166,7 +389,64 @@ function _handleRagSearch(classified) {
     return _handleSemanticSearch(classified);
   }
 
-  var merged = _mergeConsecutiveReferences(validRefs);
-  Logger.log('[RAG SEARCH] Final result: ' + merged.length + ' merged group(s) shown to user.');
+  var pool = validRefs.slice(0, RAG_CANDIDATE_POOL);
+  var pineconeKeysForLog = [];
+  for (var pi = 0; pi < pool.length; pi++) {
+    pineconeKeysForLog.push(pool[pi].surah + ':' + pool[pi].ayah);
+  }
+  Logger.log('[RAG SEARCH] Pinecone-ranked order (top ' + pool.length + '): ' + JSON.stringify(pineconeKeysForLog));
+
+  var userQueryForRerank =
+    (originalUserQueryForRerank && String(originalUserQueryForRerank).trim()) ||
+    _rerankUserQueryFallback_(classified);
+  userQueryForRerank = _stripRagPrefixForRerankUserQuery_(userQueryForRerank);
+  if (!userQueryForRerank) {
+    userQueryForRerank = _rerankUserQueryFallback_(classified);
+  }
+
+  var translationMap = getRagEnglishTranslationMap_();
+  var rerankedKeys = null;
+
+  if (!translationMap) {
+    Logger.log('[RAG SEARCH] WARN: English translation map unavailable — skipping rerank, using Pinecone order.');
+  } else {
+    var lines = [];
+    for (var li = 0; li < pool.length; li++) {
+      var pr = pool[li];
+      var pkey = pr.surah + ':' + pr.ayah;
+      var ttext = translationMap[pkey];
+      if (!ttext || !String(ttext).trim()) {
+        ttext = '[translation unavailable]';
+      }
+      lines.push(pkey + ' — ' + ttext);
+    }
+    var candidateBlock = lines.join('\n');
+
+    var claudeKey = getClaudeApiKey_();
+    if (!claudeKey) {
+      Logger.log('[RAG SEARCH] WARN: Claude API key missing — skipping rerank, using Pinecone order.');
+    } else {
+      var rawRerank = _callClaudeForRagRerank_(claudeKey, userQueryForRerank, candidateBlock);
+      if (!rawRerank) {
+        Logger.log('[RAG SEARCH] WARN: Claude rerank returned empty or HTTP error — using Pinecone order.');
+      } else {
+        rerankedKeys = _parseRerankedAyahKeys_(rawRerank);
+        if (!rerankedKeys) {
+          Logger.log('[RAG SEARCH] WARN: Could not parse reranker JSON array — using Pinecone order.');
+        }
+      }
+    }
+  }
+
+  var finalFlat = _finalizeRagAyahRefs_(pool, rerankedKeys, RAG_FINAL_MAX_AYAH);
+  var finalKeysForLog = [];
+  for (var fi = 0; fi < finalFlat.length; fi++) {
+    finalKeysForLog.push(finalFlat[fi].surah + ':' + finalFlat[fi].ayah);
+  }
+  Logger.log('[RAG SEARCH] Final order (after rerank or fallback, cap ' + RAG_FINAL_MAX_AYAH + '): ' +
+    JSON.stringify(finalKeysForLog));
+
+  var merged = _mergeConsecutiveReferencesInInputOrder_(finalFlat);
+  Logger.log('[RAG SEARCH] SUCCESS — returning ' + merged.length + ' RAG group(s) (not falling back to Claude).');
   return { type: 'references', references: merged };
 }

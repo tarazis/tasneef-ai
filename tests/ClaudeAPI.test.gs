@@ -91,6 +91,17 @@ function runClaudeAPITests() {
     expect(parsed.references[0].surah).toBe(2);
   });
 
+  it('parses a semantic_search JSON object with queries and references', function () {
+    var text = '{"action":"semantic_search","queries":["patience in hardship","sabr during trials"],"references":[{"surah":2,"ayah":153}]}';
+    var parsed = _parseClassificationResponse(text);
+    expect(parsed.action).toBe('semantic_search');
+    expect(parsed.queries.length).toBe(2);
+    expect(parsed.queries[0]).toBe('patience in hardship');
+    expect(parsed.queries[1]).toBe('sabr during trials');
+    expect(parsed.references.length).toBe(1);
+    expect(parsed.references[0].surah).toBe(2);
+  });
+
   it('parses a clarify JSON object', function () {
     var parsed = _parseClassificationResponse('{"action":"clarify","message":"Which surah?"}');
     expect(parsed.action).toBe('clarify');
@@ -118,6 +129,43 @@ function runClaudeAPITests() {
 
   it('returns null for invalid JSON', function () {
     expect(_parseClassificationResponse('not json at all') === null).toBe(true);
+  });
+
+  // ── _parseRerankedAyahKeys_ (unit tests, no network) ───────────────────────
+
+  results.push('\n_parseRerankedAyahKeys_()');
+
+  it('parses a bare JSON array of ayah keys', function () {
+    var keys = _parseRerankedAyahKeys_('["30:21","4:19","2:231"]');
+    expect(keys.length).toBe(3);
+    expect(keys[0]).toBe('30:21');
+    expect(keys[1]).toBe('4:19');
+    expect(keys[2]).toBe('2:231');
+  });
+
+  it('parses JSON array wrapped in markdown fences', function () {
+    var keys = _parseRerankedAyahKeys_('```json\n["2:153","3:200"]\n```');
+    expect(keys.length).toBe(2);
+    expect(keys[0]).toBe('2:153');
+  });
+
+  it('extracts array from surrounding text', function () {
+    var keys = _parseRerankedAyahKeys_('Here: ["67:1","67:2"]');
+    expect(keys.length).toBe(2);
+  });
+
+  it('filters out invalid surah or ayah', function () {
+    var keys = _parseRerankedAyahKeys_('["2:153","0:1","200:1","2:255"]');
+    expect(keys.length).toBe(2);
+    expect(keys[0]).toBe('2:153');
+    expect(keys[1]).toBe('2:255');
+  });
+
+  it('returns null for empty or non-array', function () {
+    expect(_parseRerankedAyahKeys_(null) === null).toBe(true);
+    expect(_parseRerankedAyahKeys_('') === null).toBe(true);
+    expect(_parseRerankedAyahKeys_('{}') === null).toBe(true);
+    expect(_parseRerankedAyahKeys_('[]') === null).toBe(true);
   });
 
   // ── _trimConversationContext (unit tests) ─────────────────────────────────
@@ -264,6 +312,47 @@ function runClaudeAPITests() {
     expect(groups[1].surah).toBe(67);
     expect(groups[1].ayahStart).toBe(1);
     expect(groups[1].ayahEnd).toBe(3);
+  });
+
+  // ── _mergeConsecutiveReferencesInInputOrder_ (RAG score order) ─────────────
+
+  results.push('\n_mergeConsecutiveReferencesInInputOrder_()');
+
+  it('preserves input order across surahs without sorting', function () {
+    var refs = [{ surah: 3, ayah: 124 }, { surah: 2, ayah: 255 }, { surah: 3, ayah: 123 }];
+    var groups = _mergeConsecutiveReferencesInInputOrder_(refs);
+    expect(groups.length).toBe(3);
+    expect(groups[0].surah).toBe(3);
+    expect(groups[0].ayahStart).toBe(124);
+    expect(groups[0].ayahEnd).toBe(124);
+    expect(groups[1].surah).toBe(2);
+    expect(groups[1].ayahStart).toBe(255);
+    expect(groups[2].surah).toBe(3);
+    expect(groups[2].ayahStart).toBe(123);
+  });
+
+  it('merges adjacent consecutive same-surah ayahs in input order', function () {
+    var refs = [{ surah: 3, ayah: 190 }, { surah: 3, ayah: 191 }, { surah: 2, ayah: 255 }];
+    var groups = _mergeConsecutiveReferencesInInputOrder_(refs);
+    expect(groups.length).toBe(2);
+    expect(groups[0].surah).toBe(3);
+    expect(groups[0].ayahStart).toBe(190);
+    expect(groups[0].ayahEnd).toBe(191);
+    expect(groups[1].surah).toBe(2);
+    expect(groups[1].ayahStart).toBe(255);
+  });
+
+  it('keeps non-adjacent same-surah refs separate unlike sorted merge', function () {
+    var refs = [{ surah: 2, ayah: 255 }, { surah: 2, ayah: 153 }];
+    var groups = _mergeConsecutiveReferencesInInputOrder_(refs);
+    expect(groups.length).toBe(2);
+    expect(groups[0].ayahStart).toBe(255);
+    expect(groups[1].ayahStart).toBe(153);
+  });
+
+  it('returns empty for empty or null input order merge', function () {
+    expect(_mergeConsecutiveReferencesInInputOrder_([]).length).toBe(0);
+    expect(_mergeConsecutiveReferencesInInputOrder_(null).length).toBe(0);
   });
 
   // ── _handleSemanticSearch (unit — returns merged reference groups) ────────

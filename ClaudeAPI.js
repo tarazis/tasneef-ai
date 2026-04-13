@@ -12,6 +12,7 @@
 var CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
 var CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
 var CLAUDE_MAX_TOKENS = 1024;
+var CLAUDE_RAG_RERANK_MAX_TOKENS = 512;
 var AI_MAX_REFERENCES = 50;
 var CONVERSATION_CONTEXT_LIMIT = 3;
 var FETCH_AYAH_SAFETY_CAP = 300;
@@ -33,9 +34,11 @@ var UNIFIED_SYSTEM_PROMPT =
   'Extract only the Quranic Arabic text into "query", stripping any surrounding instructions.\n' +
   '{"action":"exact_search","query":"بسم الله الرحمن"}\n\n' +
   '3. semantic_search — User describes a topic, theme, or meaning to search for (in any language).\n' +
-  'Return up to 50 of the most relevant {surah, ayah} references, ordered by relevance.\n' +
-  'Always include a "query" field containing the cleaned English search intent as a string.\n' +
-  '{"action":"semantic_search","query":"patience in hardship","references":[{"surah":2,"ayah":153},{"surah":3,"ayah":200}]}\n\n' +
+  'Include a "queries" array of exactly 3 short strings: reformulate the same user intent from different angles ' +
+  '(different vocabulary, synonyms, Islamic terminology alongside English, and phrasing that could appear ' +
+  'in an English Quran translation or tafseer). Questions in Arabic should still use English-oriented query strings.\n' +
+  'Include a "references" array of up to 50 {surah, ayah} pairs, ordered by relevance, for the standard semantic results path.\n' +
+  '{"action":"semantic_search","queries":["patience and steadfastness in the face of hardship","sabr during trials and tests from Allah","enduring difficulty with faith and perseverance"],"references":[{"surah":2,"ayah":153},{"surah":2,"ayah":155},{"surah":3,"ayah":200}]}\n\n' +
   '4. clarify — The request is ambiguous or missing information.\n' +
   '{"action":"clarify","message":"Your clarifying question here"}\n' +
   '</actions>\n\n' +
@@ -48,6 +51,8 @@ var UNIFIED_SYSTEM_PROMPT =
   'Extract only the Quranic text into "query".\n' +
   '- Use semantic_search when the user describes what to find by meaning, topic, or theme, ' +
   'in any language (including Arabic questions about Quran topics).\n' +
+  '- For semantic_search: always include both "queries" (exactly 3 strings) and "references" (up to 50 pairs). ' +
+  'The add-on uses "queries" for expanded vector retrieval when RAG mode is on; it uses "references" when RAG is off.\n' +
   '- If a surah name is given without an ayah number, return the full surah using fetch_ayah. ' +
   'You must know the correct total ayah count for the surah.\n' +
   '- Never assume or correct a surah name, surah number, or ayah number. ' +
@@ -65,10 +70,14 @@ var UNIFIED_SYSTEM_PROMPT =
   '{"action":"exact_search","query":"إن مع العسر يسرا"}\n\n' +
   'User: "find the verse that contains الله نور السماوات"\n' +
   '{"action":"exact_search","query":"الله نور السماوات"}\n\n' +
+  'User: "verses about the love of the prophet"\n' +
+  '{"action":"semantic_search","queries":["love and devotion to the Messenger Muhammad","preferring the Prophet over worldly attachments and family","sending blessings and salutations upon the Prophet salawat"],"references":[{"surah":3,"ayah":31},{"surah":33,"ayah":56},{"surah":9,"ayah":24},{"surah":48,"ayah":29}]}\n\n' +
+  'User: "ayahs about love between husband and wife"\n' +
+  '{"action":"semantic_search","queries":["love and mercy between spouses mawaddah rahmah","marriage as a sign of Allah and tranquility between partners","the bond between husband and wife in Islam"],"references":[{"surah":30,"ayah":21},{"surah":2,"ayah":187},{"surah":4,"ayah":1}]}\n\n' +
   'User: "verses about patience in hardship"\n' +
-  '{"action":"semantic_search","query":"patience in hardship","references":[{"surah":2,"ayah":153},{"surah":2,"ayah":155},{"surah":3,"ayah":200}]}\n\n' +
+  '{"action":"semantic_search","queries":["patience and steadfastness in the face of hardship","sabr during trials and tests from Allah","enduring difficulty with faith and perseverance"],"references":[{"surah":2,"ayah":153},{"surah":2,"ayah":155},{"surah":3,"ayah":200}]}\n\n' +
   'User: "ما هي الآيات التي تتحدث عن الصبر"\n' +
-  '{"action":"semantic_search","query":"verses about patience","references":[{"surah":2,"ayah":153},{"surah":2,"ayah":155},{"surah":31,"ayah":17}]}\n\n' +
+  '{"action":"semantic_search","queries":["patience and steadfastness in the face of hardship","sabr during trials and tests from Allah","enduring difficulty with faith and perseverance"],"references":[{"surah":2,"ayah":153},{"surah":2,"ayah":155},{"surah":31,"ayah":17}]}\n\n' +
   'User: "show me Al-Imran 190 to 194"\n' +
   '{"action":"fetch_ayah","references":[{"surah":3,"ayahStart":190,"ayahEnd":194}]}\n\n' +
   'User: "give me al baqarah 255 and al mulk 1 to 3"\n' +
@@ -80,6 +89,11 @@ var UNIFIED_SYSTEM_PROMPT =
   'User: "show me surah 116"\n' +
   '{"action":"clarify","message":"Surah 116 is not a valid surah number. The Quran has 114 surahs (1-114). Which surah did you mean?"}\n' +
   '</examples>';
+
+var RAG_RERANK_SYSTEM_PROMPT =
+  'You are a Quran relevance ranker. Given a user\'s search query and a list of candidate ayahs, return the 10 most relevant ayahs ranked by how directly they address the user\'s intent.\n\n' +
+  'Return ONLY a JSON array of ayah keys in order of relevance, most relevant first.\n' +
+  'Example: ["30:21","4:19","2:231"]';
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
@@ -99,9 +113,11 @@ function performAISearch(messages) {
     return { type: 'error', error: 'Please enter a query.' };
   }
 
+  var originalUserMessageForRerank = lastMessage.content.trim();
+
   // Detect and strip @rag prefix for RAG-powered semantic search
   var useRag = false;
-  var rawContent = lastMessage.content.trim();
+  var rawContent = originalUserMessageForRerank;
   if (rawContent.indexOf('@rag') === 0) {
     useRag = true;
     rawContent = rawContent.slice(4).trim();
@@ -149,7 +165,7 @@ function performAISearch(messages) {
       response = _handleExactSearch(classified);
       break;
     case 'semantic_search':
-      response = useRag ? _handleRagSearch(classified) : _handleSemanticSearch(classified);
+      response = useRag ? _handleRagSearch(classified, originalUserMessageForRerank) : _handleSemanticSearch(classified);
       break;
     case 'clarify':
       response = { type: 'clarify', message: classified.message || 'Could you be more specific?' };
@@ -298,6 +314,33 @@ function _mergeConsecutiveReferences(refs) {
 }
 
 /**
+ * Merges consecutive same-surah ayahs into range groups without reordering the input.
+ * Use for RAG (@rag) so Pinecone/rerank order is preserved; unlike _mergeConsecutiveReferences,
+ * which sorts by surah/ayah first for canonical display on other paths.
+ * @param {Array<{surah: number, ayah: number}>} refs - Flat references in desired output order
+ * @return {Array<{surah: number, ayahStart: number, ayahEnd: number}>} Merged groups
+ */
+function _mergeConsecutiveReferencesInInputOrder_(refs) {
+  if (!refs || !refs.length) return [];
+
+  var groups = [];
+  var cur = { surah: refs[0].surah, ayahStart: refs[0].ayah, ayahEnd: refs[0].ayah };
+
+  for (var i = 1; i < refs.length; i++) {
+    var r = refs[i];
+    if (r.surah === cur.surah && r.ayah === cur.ayahEnd + 1) {
+      cur.ayahEnd = r.ayah;
+    } else {
+      groups.push(cur);
+      cur = { surah: r.surah, ayahStart: r.ayah, ayahEnd: r.ayah };
+    }
+  }
+  groups.push(cur);
+
+  return groups;
+}
+
+/**
  * Expands an array of multi-reference items into a flat list of {surah, ayah} pairs.
  * Each item may be a single ayah or a range (ayahStart/ayahEnd).
  * Invalid items are silently skipped; total count is capped at FETCH_AYAH_SAFETY_CAP.
@@ -359,6 +402,101 @@ function _trimConversationContext(messages) {
     valid = valid.slice(valid.length - CONVERSATION_CONTEXT_LIMIT);
   }
   return valid;
+}
+
+/**
+ * Calls Claude to rerank RAG candidate ayahs by English translation relevance.
+ * @param {string} apiKey - Anthropic API key
+ * @param {string} userQuery - User search query for reranking (without @rag prefix)
+ * @param {string} candidateBlock - Lines "surah:ayah — translation"
+ * @return {string|null} Model text, or null on HTTP/body failure
+ */
+function _callClaudeForRagRerank_(apiKey, userQuery, candidateBlock) {
+  if (!apiKey || !candidateBlock || !String(candidateBlock).trim()) {
+    return null;
+  }
+
+  var userContent =
+    'User query: ' + (userQuery || '') + '\n\n' +
+    'Candidate ayahs:\n' +
+    candidateBlock;
+
+  var payload = {
+    model: CLAUDE_MODEL,
+    max_tokens: CLAUDE_RAG_RERANK_MAX_TOKENS,
+    temperature: 0,
+    system: RAG_RERANK_SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: userContent }]
+  };
+
+  var options = {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  var response = UrlFetchApp.fetch(CLAUDE_API_URL, options);
+  if (response.getResponseCode() !== 200) {
+    return null;
+  }
+
+  var body = JSON.parse(response.getContentText());
+  if (!body || !body.content || !body.content.length) {
+    return null;
+  }
+
+  var text = '';
+  for (var i = 0; i < body.content.length; i++) {
+    if (body.content[i].type === 'text') {
+      text += body.content[i].text;
+    }
+  }
+  return text ? text.trim() : null;
+}
+
+/**
+ * Parses Claude rerank response: JSON array of "surah:ayah" keys.
+ * @param {string} text - Raw model output
+ * @return {string[]|null} Validated keys, or null if unusable
+ */
+function _parseRerankedAyahKeys_(text) {
+  if (!text || typeof text !== 'string') return null;
+
+  var cleaned = text.replace(/```json?\s*/gi, '').replace(/```/g, '').trim();
+
+  var parsed;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch (e) {
+    var match = cleaned.match(/\[[\s\S]*\]/);
+    if (!match) return null;
+    try {
+      parsed = JSON.parse(match[0]);
+    } catch (e2) {
+      return null;
+    }
+  }
+
+  if (!Array.isArray(parsed) || !parsed.length) return null;
+
+  var out = [];
+  for (var i = 0; i < parsed.length; i++) {
+    if (typeof parsed[i] !== 'string') continue;
+    var key = parsed[i].trim();
+    var parts = key.split(':');
+    if (parts.length !== 2) continue;
+    var s = parseInt(parts[0], 10);
+    var a = parseInt(parts[1], 10);
+    if (!(s >= 1 && s <= 114 && a >= 1)) continue;
+    out.push(s + ':' + a);
+  }
+
+  return out.length ? out : null;
 }
 
 /**
