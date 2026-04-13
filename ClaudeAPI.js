@@ -34,7 +34,8 @@ var UNIFIED_SYSTEM_PROMPT =
   '{"action":"exact_search","query":"بسم الله الرحمن"}\n\n' +
   '3. semantic_search — User describes a topic, theme, or meaning to search for (in any language).\n' +
   'Return up to 50 of the most relevant {surah, ayah} references, ordered by relevance.\n' +
-  '{"action":"semantic_search","references":[{"surah":2,"ayah":153},{"surah":3,"ayah":200}]}\n\n' +
+  'Always include a "query" field containing the cleaned English search intent as a string.\n' +
+  '{"action":"semantic_search","query":"patience in hardship","references":[{"surah":2,"ayah":153},{"surah":3,"ayah":200}]}\n\n' +
   '4. clarify — The request is ambiguous or missing information.\n' +
   '{"action":"clarify","message":"Your clarifying question here"}\n' +
   '</actions>\n\n' +
@@ -65,9 +66,9 @@ var UNIFIED_SYSTEM_PROMPT =
   'User: "find the verse that contains الله نور السماوات"\n' +
   '{"action":"exact_search","query":"الله نور السماوات"}\n\n' +
   'User: "verses about patience in hardship"\n' +
-  '{"action":"semantic_search","references":[{"surah":2,"ayah":153},{"surah":2,"ayah":155},{"surah":3,"ayah":200}]}\n\n' +
+  '{"action":"semantic_search","query":"patience in hardship","references":[{"surah":2,"ayah":153},{"surah":2,"ayah":155},{"surah":3,"ayah":200}]}\n\n' +
   'User: "ما هي الآيات التي تتحدث عن الصبر"\n' +
-  '{"action":"semantic_search","references":[{"surah":2,"ayah":153},{"surah":2,"ayah":155},{"surah":31,"ayah":17}]}\n\n' +
+  '{"action":"semantic_search","query":"verses about patience","references":[{"surah":2,"ayah":153},{"surah":2,"ayah":155},{"surah":31,"ayah":17}]}\n\n' +
   'User: "show me Al-Imran 190 to 194"\n' +
   '{"action":"fetch_ayah","references":[{"surah":3,"ayahStart":190,"ayahEnd":194}]}\n\n' +
   'User: "give me al baqarah 255 and al mulk 1 to 3"\n' +
@@ -96,6 +97,18 @@ function performAISearch(messages) {
   var lastMessage = messages[messages.length - 1];
   if (!lastMessage || !lastMessage.content || !lastMessage.content.trim()) {
     return { type: 'error', error: 'Please enter a query.' };
+  }
+
+  // Detect and strip @rag prefix for RAG-powered semantic search
+  var useRag = false;
+  var rawContent = lastMessage.content.trim();
+  if (rawContent.indexOf('@rag') === 0) {
+    useRag = true;
+    rawContent = rawContent.slice(4).trim();
+    if (!rawContent) {
+      return { type: 'error', error: 'Please enter a query after @rag.' };
+    }
+    messages[messages.length - 1] = { role: lastMessage.role, content: rawContent };
   }
 
   var apiKey = getClaudeApiKey_();
@@ -136,7 +149,7 @@ function performAISearch(messages) {
       response = _handleExactSearch(classified);
       break;
     case 'semantic_search':
-      response = _handleSemanticSearch(classified);
+      response = useRag ? _handleRagSearch(classified) : _handleSemanticSearch(classified);
       break;
     case 'clarify':
       response = { type: 'clarify', message: classified.message || 'Could you be more specific?' };

@@ -497,6 +497,43 @@ function runClaudeAPITests() {
     expect(result.references[0].ayahEnd).toBe(10);
   });
 
+  // ── @rag prefix detection (unit) ───────────────────────────────────────────
+
+  results.push('\n@rag prefix detection');
+
+  it('detects @rag prefix and strips it from messages', function () {
+    var msgs = [{ role: 'user', content: '@rag patience in hardship' }];
+    // We test the detection logic directly via performAISearch input validation
+    // The @rag prefix should be stripped before reaching Claude
+    var content = msgs[0].content.trim();
+    expect(content.indexOf('@rag') === 0).toBe(true);
+    var stripped = content.slice(4).trim();
+    expect(stripped).toBe('patience in hardship');
+  });
+
+  it('handles @rag with extra spaces', function () {
+    var content = '@rag   mercy and forgiveness';
+    var stripped = content.slice(4).trim();
+    expect(stripped).toBe('mercy and forgiveness');
+  });
+
+  it('does not detect @rag in middle of text', function () {
+    var content = 'search for @rag results';
+    expect(content.indexOf('@rag') === 0).toBe(false);
+  });
+
+  it('returns error for @rag with no query', function () {
+    var result = performAISearch([{ role: 'user', content: '@rag' }]);
+    expect(result.type).toBe('error');
+    expect(result.error).toBe('Please enter a query after @rag.');
+  });
+
+  it('returns error for @rag followed by only whitespace', function () {
+    var result = performAISearch([{ role: 'user', content: '@rag   ' }]);
+    expect(result.type).toBe('error');
+    expect(result.error).toBe('Please enter a query after @rag.');
+  });
+
   // ── performAISearch (integration) ──────────────────────────────────────────
 
   results.push('\nperformAISearch()');

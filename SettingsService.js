@@ -18,7 +18,10 @@ var SETTINGS_DEFAULTS = {
 var PROPERTY_KEYS = {
   SETTINGS_PREFIX: 'setting_',
   CLAUDE_API_KEY: 'claude_api_key',
-  AI_SEARCH_COUNT: 'ai_search_count'
+  AI_SEARCH_COUNT: 'ai_search_count',
+  OPENAI_API_KEY: 'openai_api_key',
+  PINECONE_HOST: 'pinecone_host',
+  PINECONE_API_KEY: 'pinecone_api_key'
 };
 
 /**
