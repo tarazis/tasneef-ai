@@ -38,6 +38,11 @@ function runRagServiceTests() {
         if (typeof actual !== 'number' || actual <= n) {
           throw new Error('Expected > ' + n + ' but got ' + JSON.stringify(actual));
         }
+      },
+      arrayLength: function (n) {
+        if (!Array.isArray(actual) || actual.length !== n) {
+          throw new Error('Expected array length ' + n + ' but got ' + JSON.stringify(actual && actual.length));
+        }
       }
     };
   }
@@ -46,23 +51,173 @@ function runRagServiceTests() {
 
   results.push('\nRAG constants');
 
-  it('RAG_SCORE_THRESHOLD is 0.75', function () {
-    expect(RAG_SCORE_THRESHOLD).toBe(0.75);
+  it('RAG_SCORE_THRESHOLD is 0.35', function () {
+    expect(RAG_SCORE_THRESHOLD).toBe(0.35);
   });
 
-  it('RAG_TOP_K is 10', function () {
-    expect(RAG_TOP_K).toBe(10);
+  it('RAG_TOP_K is 20', function () {
+    expect(RAG_TOP_K).toBe(20);
   });
 
   it('OPENAI_EMBEDDING_MODEL is text-embedding-3-small', function () {
     expect(OPENAI_EMBEDDING_MODEL).toBe('text-embedding-3-small');
   });
 
+  it('RAG_MAX_EXPAND_QUERIES is 3', function () {
+    expect(RAG_MAX_EXPAND_QUERIES).toBe(3);
+  });
+
+  it('RAG_CANDIDATE_POOL is 20', function () {
+    expect(RAG_CANDIDATE_POOL).toBe(20);
+  });
+
+  it('RAG_FINAL_MAX_AYAH is 10', function () {
+    expect(RAG_FINAL_MAX_AYAH).toBe(10);
+  });
+
+  // ── _normalizeRagQueryStrings_ / _mergeRagMatchesByAyah_ (unit) ───────────
+
+  results.push('\n_normalizeRagQueryStrings_()');
+
+  it('collects trimmed queries from classified.queries capped at 3', function () {
+    var q = ['a', ' b ', '', 'c', 'd', 'e', 'f', 'g'];
+    var out = _normalizeRagQueryStrings_({ queries: q });
+    expect(out).arrayLength(3);
+    expect(out[0]).toBe('a');
+    expect(out[1]).toBe('b');
+    expect(out[2]).toBe('c');
+  });
+
+  it('falls back to legacy query when queries missing or empty', function () {
+    var out = _normalizeRagQueryStrings_({ query: '  legacy  ', references: [] });
+    expect(out).arrayLength(1);
+    expect(out[0]).toBe('legacy');
+  });
+
+  it('prefers queries over legacy query when both present', function () {
+    var out = _normalizeRagQueryStrings_({ queries: ['from array'], query: 'legacy' });
+    expect(out).arrayLength(1);
+    expect(out[0]).toBe('from array');
+  });
+
+  results.push('\n_mergeRagMatchesByAyah_()');
+
+  it('keeps higher score when same ayah appears from two query runs', function () {
+    var runs = [
+      {
+        queryIndex: 0,
+        queryText: 'a',
+        matches: [{ score: 0.5, metadata: { surah_number: 2, ayah_number: 255 } }]
+      },
+      {
+        queryIndex: 1,
+        queryText: 'b',
+        matches: [{ score: 0.91, metadata: { surah_number: 2, ayah_number: 255 } }]
+      }
+    ];
+    var merged = _mergeRagMatchesByAyah_(runs);
+    expect(merged).arrayLength(1);
+    expect(merged[0].score).toBe(0.91);
+    expect(merged[0].winningQueryIndex).toBe(1);
+    expect(merged[0].surah).toBe(2);
+    expect(merged[0].ayah).toBe(255);
+  });
+
+  it('sorts merged rows by score descending', function () {
+    var runs = [
+      {
+        queryIndex: 0,
+        queryText: 'q',
+        matches: [
+          { score: 0.4, metadata: { surah_number: 1, ayah_number: 1 } },
+          { score: 0.9, metadata: { surah_number: 2, ayah_number: 255 } }
+        ]
+      }
+    ];
+    var merged = _mergeRagMatchesByAyah_(runs);
+    expect(merged).arrayLength(2);
+    expect(merged[0].score).toBe(0.9);
+    expect(merged[1].score).toBe(0.4);
+  });
+
+  results.push('\n_finalizeRagAyahRefs_()');
+
+  it('uses Pinecone order only when rerankedKeys is null', function () {
+    var pool = [
+      { surah: 2, ayah: 255 },
+      { surah: 1, ayah: 1 },
+      { surah: 3, ayah: 200 }
+    ];
+    var out = _finalizeRagAyahRefs_(pool, null, 10);
+    expect(out).arrayLength(3);
+    expect(out[0].surah).toBe(2);
+    expect(out[0].ayah).toBe(255);
+    expect(out[1].surah).toBe(1);
+    expect(out[2].surah).toBe(3);
+  });
+
+  it('reorders by reranked keys then fills from Pinecone order', function () {
+    var pool = [
+      { surah: 1, ayah: 1 },
+      { surah: 2, ayah: 255 },
+      { surah: 3, ayah: 200 }
+    ];
+    var out = _finalizeRagAyahRefs_(pool, ['3:200', '1:1'], 10);
+    expect(out).arrayLength(3);
+    expect(out[0].surah).toBe(3);
+    expect(out[0].ayah).toBe(200);
+    expect(out[1].surah).toBe(1);
+    expect(out[2].surah).toBe(2);
+  });
+
+  it('caps at maxOut and ignores keys outside the pool', function () {
+    var pool = [
+      { surah: 2, ayah: 153 },
+      { surah: 2, ayah: 155 },
+      { surah: 3, ayah: 200 }
+    ];
+    var out = _finalizeRagAyahRefs_(pool, ['99:1', '2:155', '2:153', '2:155'], 2);
+    expect(out).arrayLength(2);
+    expect(out[0].surah).toBe(2);
+    expect(out[0].ayah).toBe(155);
+    expect(out[1].surah).toBe(2);
+    expect(out[1].ayah).toBe(153);
+  });
+
+  results.push('\n_rerankUserQueryFallback_()');
+
+  it('prefers first expansion string when present', function () {
+    var q = _rerankUserQueryFallback_({
+      queries: ['first expansion', 'second', 'third'],
+      query: 'legacy'
+    });
+    expect(q).toBe('first expansion');
+  });
+
+  it('uses legacy query when queries missing', function () {
+    var q = _rerankUserQueryFallback_({ query: '  legacy text  ' });
+    expect(q).toBe('legacy text');
+  });
+
+  results.push('\n_stripRagPrefixForRerankUserQuery_()');
+
+  it('strips leading @rag and trims', function () {
+    expect(_stripRagPrefixForRerankUserQuery_('@rag patience in hardship')).toBe('patience in hardship');
+  });
+
+  it('strips @rag with extra spaces after token', function () {
+    expect(_stripRagPrefixForRerankUserQuery_('@rag   mercy')).toBe('mercy');
+  });
+
+  it('leaves query unchanged when @rag is not a prefix', function () {
+    expect(_stripRagPrefixForRerankUserQuery_('search @rag topic')).toBe('search @rag topic');
+  });
+
   // ── _handleRagSearch fallback cases (unit, no network) ────────────────────
 
   results.push('\n_handleRagSearch() — fallback to _handleSemanticSearch');
 
-  it('falls back when query is missing', function () {
+  it('falls back when queries and legacy query are missing', function () {
     var classified = { references: [{ surah: 2, ayah: 153 }] };
     var result = _handleRagSearch(classified);
     expect(result.type).toBe('references');
@@ -71,14 +226,14 @@ function runRagServiceTests() {
     expect(result.references[0].ayahStart).toBe(153);
   });
 
-  it('falls back when query is empty string', function () {
-    var classified = { query: '', references: [{ surah: 1, ayah: 1 }] };
+  it('falls back when queries empty and legacy query empty', function () {
+    var classified = { queries: [], query: '', references: [{ surah: 1, ayah: 1 }] };
     var result = _handleRagSearch(classified);
     expect(result.type).toBe('references');
     expect(result.references[0].surah).toBe(1);
   });
 
-  it('falls back when query is whitespace only', function () {
+  it('falls back when queries missing and legacy query whitespace only', function () {
     var classified = { query: '   ', references: [{ surah: 1, ayah: 1 }] };
     var result = _handleRagSearch(classified);
     expect(result.type).toBe('references');
@@ -88,7 +243,7 @@ function runRagServiceTests() {
     // If no OpenAI key in Script Properties, should fall back
     var openAiKey = getOpenAiApiKey_();
     if (!openAiKey) {
-      var classified = { query: 'patience', references: [{ surah: 2, ayah: 153 }] };
+      var classified = { queries: ['patience'], references: [{ surah: 2, ayah: 153 }] };
       var result = _handleRagSearch(classified);
       expect(result.type).toBe('references');
       expect(result.references[0].surah).toBe(2);
@@ -142,6 +297,13 @@ function runRagServiceTests() {
       expect(typeof embedding[0]).toBe('number');
     });
 
+    it('_getEmbeddings returns one vector per input string', function () {
+      var vecs = _getEmbeddings(openAiKey, ['patience in hardship', 'mercy and forgiveness']);
+      expect(vecs).arrayLength(2);
+      expect(vecs[0].length).toBe(1536);
+      expect(vecs[1].length).toBe(1536);
+    });
+
     results.push('\n_queryPinecone() — integration');
 
     it('returns matches with expected metadata fields', function () {
@@ -158,9 +320,9 @@ function runRagServiceTests() {
 
     results.push('\n_handleRagSearch() — integration');
 
-    it('returns valid references for a known query', function () {
+    it('returns valid references for a known queries array', function () {
       var classified = {
-        query: 'patience in hardship',
+        queries: ['patience in hardship', 'steadfastness during trials', 'sabr and perseverance'],
         references: [{ surah: 2, ayah: 153 }]
       };
       var result = _handleRagSearch(classified);
@@ -172,7 +334,7 @@ function runRagServiceTests() {
 
     it('returns merged groups for RAG results', function () {
       var classified = {
-        query: 'mercy and forgiveness',
+        queries: ['mercy and forgiveness', 'Allah is forgiving', 'pardoning sins'],
         references: [{ surah: 1, ayah: 1 }]
       };
       var result = _handleRagSearch(classified);
