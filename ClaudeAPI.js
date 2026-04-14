@@ -38,7 +38,8 @@ var UNIFIED_SYSTEM_PROMPT =
   '(different vocabulary, synonyms, Islamic terminology alongside English, and phrasing that could appear ' +
   'in an English Quran translation or tafseer). Questions in Arabic should still use English-oriented query strings.\n' +
   'Include a "references" array of up to 50 {surah, ayah} pairs, ordered by relevance, for the standard semantic results path.\n' +
-  '{"action":"semantic_search","queries":["patience and steadfastness in the face of hardship","sabr during trials and tests from Allah","enduring difficulty with faith and perseverance"],"references":[{"surah":2,"ayah":153},{"surah":2,"ayah":155},{"surah":3,"ayah":200}]}\n\n' +
+  'Include "rag_supported": true or false (see guidelines).\n' +
+  '{"action":"semantic_search","rag_supported":true,"queries":["patience and steadfastness in the face of hardship","sabr during trials and tests from Allah","enduring difficulty with faith and perseverance"],"references":[{"surah":2,"ayah":153},{"surah":2,"ayah":155},{"surah":3,"ayah":200}]}\n\n' +
   '4. clarify — The request is ambiguous or missing information.\n' +
   '{"action":"clarify","message":"Your clarifying question here"}\n' +
   '</actions>\n\n' +
@@ -51,8 +52,18 @@ var UNIFIED_SYSTEM_PROMPT =
   'Extract only the Quranic text into "query".\n' +
   '- Use semantic_search when the user describes what to find by meaning, topic, or theme, ' +
   'in any language (including Arabic questions about Quran topics).\n' +
-  '- For semantic_search: always include both "queries" (exactly 3 strings) and "references" (up to 50 pairs). ' +
-  'The add-on uses "queries" for expanded vector retrieval when RAG mode is on; it uses "references" when RAG is off.\n' +
+  '- For semantic_search: always include "queries" (exactly 3 strings), "references" (up to 50 pairs), and "rag_supported".\n' +
+  '- For semantic_search: set "rag_supported" to true when the query can be answered by searching ayah content, meaning, or themes, ' +
+  'optionally filtered by surah. Set "rag_supported" to false when the query requires filtering by juz, page number, hizb, ' +
+  'revelation order, makki/madani classification, or any structural metadata beyond surah number. ' +
+  'When rag_supported is false, the "references" array will be used directly as the sole source of results, ' +
+  'so make it especially thorough and include up to 50 references.\n' +
+  '- If the user restricts their search to a specific surah, include a "filter" object with the surah number: ' +
+  '"filter":{"surah":2}. If no surah restriction, omit "filter" entirely.\n' +
+  '- If the user requests a specific number of results (e.g. "give me 5 ayahs about..."), include "limit" with that number: ' +
+  '"limit":5. If not specified, omit "limit".\n' +
+  '- If the user asks for multiple topics or multiple surah filters in one query (e.g. "2 ayahs from baqara about patience and 3 from imran about love"), ' +
+  'use clarify to ask them to search one topic at a time.\n' +
   '- If a surah name is given without an ayah number, return the full surah using fetch_ayah. ' +
   'You must know the correct total ayah count for the surah.\n' +
   '- Never assume or correct a surah name, surah number, or ayah number. ' +
@@ -71,13 +82,23 @@ var UNIFIED_SYSTEM_PROMPT =
   'User: "find the verse that contains الله نور السماوات"\n' +
   '{"action":"exact_search","query":"الله نور السماوات"}\n\n' +
   'User: "verses about the love of the prophet"\n' +
-  '{"action":"semantic_search","queries":["love and devotion to the Messenger Muhammad","preferring the Prophet over worldly attachments and family","sending blessings and salutations upon the Prophet salawat"],"references":[{"surah":3,"ayah":31},{"surah":33,"ayah":56},{"surah":9,"ayah":24},{"surah":48,"ayah":29}]}\n\n' +
+  '{"action":"semantic_search","rag_supported":true,"queries":["love and devotion to the Messenger Muhammad","preferring the Prophet over worldly attachments and family","sending blessings and salutations upon the Prophet salawat"],"references":[{"surah":3,"ayah":31},{"surah":33,"ayah":56},{"surah":9,"ayah":24},{"surah":48,"ayah":29}]}\n\n' +
   'User: "ayahs about love between husband and wife"\n' +
-  '{"action":"semantic_search","queries":["love and mercy between spouses mawaddah rahmah","marriage as a sign of Allah and tranquility between partners","the bond between husband and wife in Islam"],"references":[{"surah":30,"ayah":21},{"surah":2,"ayah":187},{"surah":4,"ayah":1}]}\n\n' +
+  '{"action":"semantic_search","rag_supported":true,"queries":["love and mercy between spouses mawaddah rahmah","marriage as a sign of Allah and tranquility between partners","the bond between husband and wife in Islam"],"references":[{"surah":30,"ayah":21},{"surah":2,"ayah":187},{"surah":4,"ayah":1}]}\n\n' +
   'User: "verses about patience in hardship"\n' +
-  '{"action":"semantic_search","queries":["patience and steadfastness in the face of hardship","sabr during trials and tests from Allah","enduring difficulty with faith and perseverance"],"references":[{"surah":2,"ayah":153},{"surah":2,"ayah":155},{"surah":3,"ayah":200}]}\n\n' +
+  '{"action":"semantic_search","rag_supported":true,"queries":["patience and steadfastness in the face of hardship","sabr during trials and tests from Allah","enduring difficulty with faith and perseverance"],"references":[{"surah":2,"ayah":153},{"surah":2,"ayah":155},{"surah":3,"ayah":200}]}\n\n' +
   'User: "ما هي الآيات التي تتحدث عن الصبر"\n' +
-  '{"action":"semantic_search","queries":["patience and steadfastness in the face of hardship","sabr during trials and tests from Allah","enduring difficulty with faith and perseverance"],"references":[{"surah":2,"ayah":153},{"surah":2,"ayah":155},{"surah":31,"ayah":17}]}\n\n' +
+  '{"action":"semantic_search","rag_supported":true,"queries":["patience and steadfastness in the face of hardship","sabr during trials and tests from Allah","enduring difficulty with faith and perseverance"],"references":[{"surah":2,"ayah":153},{"surah":2,"ayah":155},{"surah":31,"ayah":17}]}\n\n' +
+  'User: "give me 10 ayahs from surah al baqarah about tawheed"\n' +
+  '{"action":"semantic_search","rag_supported":true,"queries":["monotheism and oneness of Allah in Al-Baqarah","tawheed and rejecting false gods","worshiping Allah alone without partners"],"references":[{"surah":2,"ayah":163},{"surah":2,"ayah":255}],"filter":{"surah":2},"limit":10}\n\n' +
+  'User: "ayahs from juz 30 about mercy"\n' +
+  '{"action":"semantic_search","rag_supported":false,"queries":["mercy and compassion of Allah in short surahs","Allah\'s rahma in Juz Amma","forgiveness and mercy in the Quran"],"references":[{"surah":93,"ayah":5},{"surah":85,"ayah":14},{"surah":110,"ayah":3},{"surah":95,"ayah":8},{"surah":107,"ayah":1}]}\n\n' +
+  'User: "makki ayahs about the Day of Judgment"\n' +
+  '{"action":"semantic_search","rag_supported":false,"queries":["Day of Judgment and resurrection in Meccan surahs","Yawm al-Qiyamah warnings to disbelievers","descriptions of the Hereafter in early revelations"],"references":[{"surah":82,"ayah":1},{"surah":81,"ayah":1},{"surah":56,"ayah":1},{"surah":78,"ayah":1},{"surah":99,"ayah":1}]}\n\n' +
+  'User: "5 ayahs about forgiveness"\n' +
+  '{"action":"semantic_search","rag_supported":true,"queries":["Allah\'s forgiveness and pardon for sins","seeking forgiveness and repentance tawbah istighfar","divine mercy toward those who repent"],"references":[{"surah":39,"ayah":53},{"surah":4,"ayah":110},{"surah":3,"ayah":135}],"limit":5}\n\n' +
+  'User: "3 ayahs from baqara about patience and 2 from imran about love"\n' +
+  '{"action":"clarify","message":"I can search one topic at a time. Which would you like first — ayahs about patience from Al-Baqarah, or ayahs about love from Ali \'Imran?"}\n\n' +
   'User: "show me Al-Imran 190 to 194"\n' +
   '{"action":"fetch_ayah","references":[{"surah":3,"ayahStart":190,"ayahEnd":194}]}\n\n' +
   'User: "give me al baqarah 255 and al mulk 1 to 3"\n' +
@@ -114,18 +135,6 @@ function performAISearch(messages) {
   }
 
   var originalUserMessageForRerank = lastMessage.content.trim();
-
-  // Detect and strip @rag prefix for RAG-powered semantic search
-  var useRag = false;
-  var rawContent = originalUserMessageForRerank;
-  if (rawContent.indexOf('@rag') === 0) {
-    useRag = true;
-    rawContent = rawContent.slice(4).trim();
-    if (!rawContent) {
-      return { type: 'error', error: 'Please enter a query after @rag.' };
-    }
-    messages[messages.length - 1] = { role: lastMessage.role, content: rawContent };
-  }
 
   var apiKey = getClaudeApiKey_();
   if (!apiKey) {
@@ -165,7 +174,7 @@ function performAISearch(messages) {
       response = _handleExactSearch(classified);
       break;
     case 'semantic_search':
-      response = useRag ? _handleRagSearch(classified, originalUserMessageForRerank) : _handleSemanticSearch(classified);
+      response = _handleSemanticSearchRouted_(classified, originalUserMessageForRerank);
       break;
     case 'clarify':
       response = { type: 'clarify', message: classified.message || 'Could you be more specific?' };
@@ -244,6 +253,42 @@ function _handleSemanticSearch(classified) {
 }
 
 /**
+ * Routes semantic_search to RAG or Claude references path based on rag_supported flag.
+ * RAG is the default; falls back to Claude references if rag_supported is explicitly false
+ * or if the RAG path throws or returns zero results.
+ * @param {Object} classified - Claude classification with { rag_supported?, queries?, references, filter?, limit? }
+ * @param {string} originalUserMessageForRerank - Last user message as typed
+ * @return {Object} { type: 'references', references } or error
+ */
+function _handleSemanticSearchRouted_(classified, originalUserMessageForRerank) {
+  if (classified.rag_supported === false) {
+    Logger.log('[SEMANTIC] rag_supported=false — using Claude references directly.');
+    return _handleSemanticSearch(classified);
+  }
+
+  // Default: RAG path. Any error falls back to Claude references.
+  var queryStrings = classified.queries;
+  if (!queryStrings || !Array.isArray(queryStrings) || !queryStrings.length) {
+    Logger.log('[RAG SEARCH] No expansion queries provided, falling back to Claude references.');
+    return _handleSemanticSearch(classified);
+  }
+
+  try {
+    var result = _handleRagSearch(classified, originalUserMessageForRerank);
+    // _handleRagSearch already falls back internally on most errors, but it may return
+    // an empty references array if filtering leaves zero results after threshold.
+    if (result && result.type === 'references' && result.references && result.references.length > 0) {
+      return result;
+    }
+    Logger.log('[SEMANTIC] RAG returned empty result set — falling back to Claude references.');
+    return _handleSemanticSearch(classified);
+  } catch (e) {
+    Logger.log('[SEMANTIC] RAG path threw unexpected error: ' + e.message + ' — falling back to Claude references.');
+    return _handleSemanticSearch(classified);
+  }
+}
+
+/**
  * Converts a fetch_ayah classification into merged range groups for client-side resolution.
  * Expands references to flat pairs, then merges consecutive same-surah ayahs into groups.
  * @param {Object} classified - { references?, surah?, ayah?, ayahStart?, ayahEnd? }
@@ -315,7 +360,7 @@ function _mergeConsecutiveReferences(refs) {
 
 /**
  * Merges consecutive same-surah ayahs into range groups without reordering the input.
- * Use for RAG (@rag) so Pinecone/rerank order is preserved; unlike _mergeConsecutiveReferences,
+ * Use for RAG so Pinecone/rerank order is preserved; unlike _mergeConsecutiveReferences,
  * which sorts by surah/ayah first for canonical display on other paths.
  * @param {Array<{surah: number, ayah: number}>} refs - Flat references in desired output order
  * @return {Array<{surah: number, ayahStart: number, ayahEnd: number}>} Merged groups
@@ -407,7 +452,7 @@ function _trimConversationContext(messages) {
 /**
  * Calls Claude to rerank RAG candidate ayahs by English translation relevance.
  * @param {string} apiKey - Anthropic API key
- * @param {string} userQuery - User search query for reranking (without @rag prefix)
+ * @param {string} userQuery - User search query for reranking
  * @param {string} candidateBlock - Lines "surah:ayah — translation"
  * @return {string|null} Model text, or null on HTTP/body failure
  */

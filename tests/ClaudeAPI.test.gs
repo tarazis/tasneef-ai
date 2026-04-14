@@ -586,41 +586,54 @@ function runClaudeAPITests() {
     expect(result.references[0].ayahEnd).toBe(10);
   });
 
-  // ── @rag prefix detection (unit) ───────────────────────────────────────────
+  // ── _handleSemanticSearchRouted_ (unit) ──────────────────────────────────
 
-  results.push('\n@rag prefix detection');
+  results.push('\n_handleSemanticSearchRouted_()');
 
-  it('detects @rag prefix and strips it from messages', function () {
-    var msgs = [{ role: 'user', content: '@rag patience in hardship' }];
-    // We test the detection logic directly via performAISearch input validation
-    // The @rag prefix should be stripped before reaching Claude
-    var content = msgs[0].content.trim();
-    expect(content.indexOf('@rag') === 0).toBe(true);
-    var stripped = content.slice(4).trim();
-    expect(stripped).toBe('patience in hardship');
+  it('uses Claude references directly when rag_supported is false', function () {
+    var classified = {
+      rag_supported: false,
+      queries: ['mercy in Juz Amma'],
+      references: [{ surah: 93, ayah: 5 }, { surah: 85, ayah: 14 }]
+    };
+    var result = _handleSemanticSearchRouted_(classified, 'ayahs from juz 30 about mercy');
+    expect(result.type).toBe('references');
+    // Should come from _handleSemanticSearch (sorted), first surah 85 then 93
+    expect(result.references[0].surah).toBe(85);
+    expect(result.references[1].surah).toBe(93);
   });
 
-  it('handles @rag with extra spaces', function () {
-    var content = '@rag   mercy and forgiveness';
-    var stripped = content.slice(4).trim();
-    expect(stripped).toBe('mercy and forgiveness');
+  it('falls back to Claude references when queries array is empty', function () {
+    var classified = {
+      rag_supported: true,
+      queries: [],
+      references: [{ surah: 2, ayah: 153 }]
+    };
+    var result = _handleSemanticSearchRouted_(classified, 'patience');
+    expect(result.type).toBe('references');
+    expect(result.references[0].surah).toBe(2);
   });
 
-  it('does not detect @rag in middle of text', function () {
-    var content = 'search for @rag results';
-    expect(content.indexOf('@rag') === 0).toBe(false);
+  it('falls back to Claude references when queries is missing', function () {
+    var classified = {
+      rag_supported: true,
+      references: [{ surah: 1, ayah: 1 }]
+    };
+    var result = _handleSemanticSearchRouted_(classified, 'test');
+    expect(result.type).toBe('references');
+    expect(result.references[0].surah).toBe(1);
   });
 
-  it('returns error for @rag with no query', function () {
-    var result = performAISearch([{ role: 'user', content: '@rag' }]);
-    expect(result.type).toBe('error');
-    expect(result.error).toBe('Please enter a query after @rag.');
-  });
-
-  it('returns error for @rag followed by only whitespace', function () {
-    var result = performAISearch([{ role: 'user', content: '@rag   ' }]);
-    expect(result.type).toBe('error');
-    expect(result.error).toBe('Please enter a query after @rag.');
+  it('treats missing rag_supported as true (RAG default path)', function () {
+    var classified = {
+      queries: [],
+      references: [{ surah: 39, ayah: 53 }]
+    };
+    // No rag_supported field — should NOT go the rag_supported:false path
+    // With empty queries it will fall back to Claude references
+    var result = _handleSemanticSearchRouted_(classified, 'forgiveness');
+    expect(result.type).toBe('references');
+    expect(result.references[0].surah).toBe(39);
   });
 
   // ── performAISearch (integration) ──────────────────────────────────────────

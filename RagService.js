@@ -1,7 +1,7 @@
 /**
  * RagService.js
  * RAG-powered semantic search via OpenAI embeddings + Pinecone vector DB.
- * Called from ClaudeAPI.js when the user triggers @rag mode on a semantic_search query.
+ * Called from ClaudeAPI.js for rag_supported semantic_search queries.
  * After retrieval, optionally reranks the top candidate ayahs with Claude using English translations.
  *
  * Every failure silently falls back to _handleSemanticSearch (Claude's references).
@@ -185,20 +185,6 @@ function _rerankUserQueryFallback_(classified) {
   return String(classified && classified.query ? classified.query : '').trim();
 }
 
-/**
- * Removes a leading @rag prefix so the reranker receives the same query text as intent classification.
- * @param {string} text
- * @return {string}
- */
-function _stripRagPrefixForRerankUserQuery_(text) {
-  if (!text || typeof text !== 'string') return '';
-  var t = text.trim();
-  if (t.indexOf('@rag') === 0) {
-    t = t.slice(4).trim();
-  }
-  return t;
-}
-
 // ─── API calls ───────────────────────────────────────────────────────────────
 
 /**
@@ -266,16 +252,21 @@ function _getEmbedding(apiKey, query) {
  * @param {string} host - Pinecone index host URL (e.g. https://tasneef-english-xxx.svc.xxx.pinecone.io)
  * @param {string} apiKey - Pinecone API key
  * @param {number[]} vector - Query vector
+ * @param {Object|null} [surahFilter] - Optional Pinecone metadata filter (e.g. {surah_number:{$eq:2}})
  * @return {Array<{id: string, score: number, metadata: Object}>} Matches array
  * @throws {Error} On non-200 response
  */
-function _queryPinecone(host, apiKey, vector) {
+function _queryPinecone(host, apiKey, vector, surahFilter) {
   var url = host + '/query';
   var payload = {
     vector: vector,
     topK: RAG_TOP_K,
     includeMetadata: true
   };
+
+  if (surahFilter) {
+    payload.filter = surahFilter;
+  }
 
   var options = {
     method: 'post',
@@ -299,21 +290,46 @@ function _queryPinecone(host, apiKey, vector) {
 /**
  * Handles semantic search via RAG: batch-embeds query reformulations, queries Pinecone per vector,
  * merges by ayah (max score), filters by threshold, optional Claude rerank, cap, merge consecutive refs.
- * Falls back to _handleSemanticSearch on any failure.
- * @param {Object} classified - Claude classification with { queries?, query?, references }
- * @param {string} [originalUserQueryForRerank] - Last user message as typed (from performAISearch; @rag stripped before rerank prompt)
+ * Falls back to _handleSemanticSearch on any failure or zero results.
+ * @param {Object} classified - Claude classification with { queries?, query?, references, filter?, limit? }
+ * @param {string} [originalUserQueryForRerank] - Last user message as typed
  * @return {Object} { type: 'references', references: [{surah, ayahStart, ayahEnd}] } or fallback
  */
 function _handleRagSearch(classified, originalUserQueryForRerank) {
+  var DEFAULT_MAX_RESULTS = 10;
+  var MIN_CANDIDATES_FOR_RERANK = 3;
+
   Logger.log('[RAG SEARCH] Entered _handleRagSearch');
 
   var queryStrings = _normalizeRagQueryStrings_(classified);
   if (!queryStrings.length) {
-    Logger.log('[RAG SEARCH] FAIL: no queries or legacy query from classification — falling back to Claude.');
+    Logger.log('[RAG SEARCH] No expansion queries provided, falling back to Claude references.');
     return _handleSemanticSearch(classified);
   }
 
   Logger.log('[RAG SEARCH] Using ' + queryStrings.length + ' expansion query string(s).');
+
+  // Build Pinecone metadata filter for surah restriction
+  var surahFilter = null;
+  if (classified.filter && classified.filter.surah) {
+    var filterSurah = parseInt(classified.filter.surah, 10);
+    if (filterSurah >= 1 && filterSurah <= 114) {
+      surahFilter = { surah_number: { '$eq': filterSurah } };
+      Logger.log('[RAG SEARCH] Pinecone filter active: surah_number = ' + filterSurah);
+    } else {
+      Logger.log('[RAG SEARCH] WARN: classified.filter.surah=' + classified.filter.surah + ' is out of range (1-114), ignoring filter.');
+    }
+  }
+
+  // Compute final result cap from user limit
+  var userLimit = (classified.limit && Number.isInteger(classified.limit) && classified.limit > 0)
+    ? classified.limit : null;
+  var finalCap = userLimit ? Math.min(userLimit, DEFAULT_MAX_RESULTS) : DEFAULT_MAX_RESULTS;
+  if (userLimit) {
+    Logger.log('[RAG SEARCH] Result cap: ' + finalCap + ' (user requested: ' + userLimit + ')');
+  } else {
+    Logger.log('[RAG SEARCH] Result cap: ' + DEFAULT_MAX_RESULTS + ' (default)');
+  }
 
   var openAiKey = getOpenAiApiKey_();
   if (!openAiKey) {
@@ -344,7 +360,7 @@ function _handleRagSearch(classified, originalUserQueryForRerank) {
     var trunc = _truncateForRagLog_(qLabel);
     var matches;
     try {
-      matches = _queryPinecone(pineconeHost, pineconeKey, vectors[qi]);
+      matches = _queryPinecone(pineconeHost, pineconeKey, vectors[qi], surahFilter);
     } catch (e) {
       Logger.log('[RAG SEARCH] FAIL: Pinecone query error (query[' + qi + ']): ' + e.message + ' — falling back to Claude.');
       return _handleSemanticSearch(classified);
@@ -385,7 +401,7 @@ function _handleRagSearch(classified, originalUserQueryForRerank) {
   Logger.log('[RAG SEARCH] After score filter (threshold=' + RAG_SCORE_THRESHOLD + '): ' + validRefs.length + ' valid ref(s) remain.');
 
   if (!validRefs.length) {
-    Logger.log('[RAG SEARCH] No valid refs after score filtering — falling back to Claude references.');
+    Logger.log('[RAG SEARCH] 0 results after threshold filter, falling back to Claude references.');
     return _handleSemanticSearch(classified);
   }
 
@@ -399,7 +415,6 @@ function _handleRagSearch(classified, originalUserQueryForRerank) {
   var userQueryForRerank =
     (originalUserQueryForRerank && String(originalUserQueryForRerank).trim()) ||
     _rerankUserQueryFallback_(classified);
-  userQueryForRerank = _stripRagPrefixForRerankUserQuery_(userQueryForRerank);
   if (!userQueryForRerank) {
     userQueryForRerank = _rerankUserQueryFallback_(classified);
   }
@@ -407,7 +422,10 @@ function _handleRagSearch(classified, originalUserQueryForRerank) {
   var translationMap = getRagEnglishTranslationMap_();
   var rerankedKeys = null;
 
-  if (!translationMap) {
+  // Skip rerank when too few candidates to meaningfully rank
+  if (pool.length < MIN_CANDIDATES_FOR_RERANK) {
+    Logger.log('[RAG SEARCH] Only ' + pool.length + ' candidates after filter, skipping rerank.');
+  } else if (!translationMap) {
     Logger.log('[RAG SEARCH] WARN: English translation map unavailable — skipping rerank, using Pinecone order.');
   } else {
     var lines = [];
@@ -438,15 +456,15 @@ function _handleRagSearch(classified, originalUserQueryForRerank) {
     }
   }
 
-  var finalFlat = _finalizeRagAyahRefs_(pool, rerankedKeys, RAG_FINAL_MAX_AYAH);
+  var finalFlat = _finalizeRagAyahRefs_(pool, rerankedKeys, finalCap);
   var finalKeysForLog = [];
   for (var fi = 0; fi < finalFlat.length; fi++) {
     finalKeysForLog.push(finalFlat[fi].surah + ':' + finalFlat[fi].ayah);
   }
-  Logger.log('[RAG SEARCH] Final order (after rerank or fallback, cap ' + RAG_FINAL_MAX_AYAH + '): ' +
+  Logger.log('[RAG SEARCH] Final order (after rerank or fallback, cap ' + finalCap + '): ' +
     JSON.stringify(finalKeysForLog));
 
   var merged = _mergeConsecutiveReferencesInInputOrder_(finalFlat);
-  Logger.log('[RAG SEARCH] SUCCESS — returning ' + merged.length + ' RAG group(s) (not falling back to Claude).');
+  Logger.log('[RAG SEARCH] SUCCESS — returning ' + merged.length + ' RAG group(s).');
   return { type: 'references', references: merged };
 }

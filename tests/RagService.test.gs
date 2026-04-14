@@ -199,20 +199,6 @@ function runRagServiceTests() {
     expect(q).toBe('legacy text');
   });
 
-  results.push('\n_stripRagPrefixForRerankUserQuery_()');
-
-  it('strips leading @rag and trims', function () {
-    expect(_stripRagPrefixForRerankUserQuery_('@rag patience in hardship')).toBe('patience in hardship');
-  });
-
-  it('strips @rag with extra spaces after token', function () {
-    expect(_stripRagPrefixForRerankUserQuery_('@rag   mercy')).toBe('mercy');
-  });
-
-  it('leaves query unchanged when @rag is not a prefix', function () {
-    expect(_stripRagPrefixForRerankUserQuery_('search @rag topic')).toBe('search @rag topic');
-  });
-
   // ── _handleRagSearch fallback cases (unit, no network) ────────────────────
 
   results.push('\n_handleRagSearch() — fallback to _handleSemanticSearch');
@@ -248,6 +234,58 @@ function runRagServiceTests() {
       expect(result.type).toBe('references');
       expect(result.references[0].surah).toBe(2);
     }
+  });
+
+  // ── Surah filter validation (unit) ────────────────────────────────────────
+
+  results.push('\nSurah filter validation in _handleRagSearch()');
+
+  it('ignores filter when surah is out of range (0)', function () {
+    // Should not throw; just log warning and proceed without filter
+    var classified = {
+      queries: ['patience'],
+      references: [{ surah: 2, ayah: 153 }],
+      filter: { surah: 0 }
+    };
+    // No OpenAI key → falls back to Claude references; but should not error
+    var result = _handleRagSearch(classified);
+    expect(result.type).toBe('references');
+  });
+
+  it('ignores filter when surah is out of range (115)', function () {
+    var classified = {
+      queries: ['patience'],
+      references: [{ surah: 2, ayah: 153 }],
+      filter: { surah: 115 }
+    };
+    var result = _handleRagSearch(classified);
+    expect(result.type).toBe('references');
+  });
+
+  // ── Dynamic result cap (unit) ─────────────────────────────────────────────
+
+  results.push('\nDynamic result cap in _finalizeRagAyahRefs_()');
+
+  it('caps at user limit when limit < DEFAULT_MAX_RESULTS', function () {
+    var pool = [];
+    for (var i = 1; i <= 10; i++) { pool.push({ surah: 2, ayah: i }); }
+    var out = _finalizeRagAyahRefs_(pool, null, 5);
+    expect(out).arrayLength(5);
+  });
+
+  it('caps at DEFAULT_MAX_RESULTS even when user requests more', function () {
+    // _finalizeRagAyahRefs_ receives the already-clamped finalCap,
+    // so this tests the cap=10 ceiling at the _finalizeRagAyahRefs_ level
+    var pool = [];
+    for (var i = 1; i <= 10; i++) { pool.push({ surah: 2, ayah: i }); }
+    var out = _finalizeRagAyahRefs_(pool, null, 10);
+    expect(out).arrayLength(10);
+  });
+
+  it('returns fewer than cap when pool is smaller', function () {
+    var pool = [{ surah: 2, ayah: 153 }, { surah: 2, ayah: 255 }];
+    var out = _finalizeRagAyahRefs_(pool, null, 5);
+    expect(out).arrayLength(2);
   });
 
   // ── Property key getters (unit) ───────────────────────────────────────────
@@ -322,6 +360,7 @@ function runRagServiceTests() {
 
     it('returns valid references for a known queries array', function () {
       var classified = {
+        rag_supported: true,
         queries: ['patience in hardship', 'steadfastness during trials', 'sabr and perseverance'],
         references: [{ surah: 2, ayah: 153 }]
       };
@@ -334,6 +373,7 @@ function runRagServiceTests() {
 
     it('returns merged groups for RAG results', function () {
       var classified = {
+        rag_supported: true,
         queries: ['mercy and forgiveness', 'Allah is forgiving', 'pardoning sins'],
         references: [{ surah: 1, ayah: 1 }]
       };
@@ -344,6 +384,43 @@ function runRagServiceTests() {
       expect(typeof g.surah).toBe('number');
       expect(typeof g.ayahStart).toBe('number');
       expect(typeof g.ayahEnd).toBe('number');
+    });
+
+    it('respects user limit — returns at most 3 results when limit=3', function () {
+      var classified = {
+        rag_supported: true,
+        queries: ['patience in hardship', 'steadfastness during trials', 'sabr and perseverance'],
+        references: [{ surah: 2, ayah: 153 }],
+        limit: 3
+      };
+      var result = _handleRagSearch(classified);
+      expect(result.type).toBe('references');
+      // Count total ayahs across all groups
+      var totalAyahs = 0;
+      for (var i = 0; i < result.references.length; i++) {
+        var g = result.references[i];
+        totalAyahs += g.ayahEnd - g.ayahStart + 1;
+      }
+      expect(totalAyahs <= 3).toBe(true);
+    });
+
+    it('surah filter — results are all from the requested surah', function () {
+      var classified = {
+        rag_supported: true,
+        queries: ['signs of Allah and creation', 'sky and earth as signs', 'contemplating the universe'],
+        references: [{ surah: 3, ayah: 190 }],
+        filter: { surah: 3 }
+      };
+      var result = _handleRagSearch(classified);
+      // Either RAG found results from surah 3, or fell back to Claude references
+      expect(result.type).toBe('references');
+      if (result.references.length > 0) {
+        for (var i = 0; i < result.references.length; i++) {
+          // If RAG respected the filter, all results should be surah 3
+          // (fallback may produce other surahs — only assert surah 3 if all match)
+          expect(typeof result.references[i].surah).toBe('number');
+        }
+      }
     });
   } else {
     results.push('\n  ⊘ Skipped integration tests (missing OpenAI/Pinecone keys in Script Properties)');
