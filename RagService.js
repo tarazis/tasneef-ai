@@ -296,7 +296,7 @@ function _queryPinecone(host, apiKey, vector, surahFilter) {
  * @return {Object} { type: 'references', references: [{surah, ayahStart, ayahEnd}] } or fallback
  */
 function _handleRagSearch(classified, originalUserQueryForRerank) {
-  var DEFAULT_MAX_RESULTS = 10;
+  var DEFAULT_MAX_RESULTS = 20;
   var MIN_CANDIDATES_FOR_RERANK = 3;
 
   Logger.log('[RAG SEARCH] Entered _handleRagSearch');
