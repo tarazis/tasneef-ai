@@ -376,9 +376,20 @@ function _handleRagSearch(classified, originalUserQueryForRerank) {
     });
   }
 
+  // Append translation JSON fetch as last request so it runs in parallel with Pinecone
+  pineconeRequests.push({
+    url: TRANSLATION_JSON_URL_FOR_RAG_,
+    method: 'get',
+    muteHttpExceptions: true
+  });
+
   var pineconeT0 = Date.now();
-  var pineconeResponses = UrlFetchApp.fetchAll(pineconeRequests);
-  Logger.log('[RAG SEARCH] Pinecone parallel query: ' + (Date.now() - pineconeT0) + 'ms');
+  var allResponses = UrlFetchApp.fetchAll(pineconeRequests);
+  Logger.log('[RAG SEARCH] Pinecone + translation parallel fetch: ' + (Date.now() - pineconeT0) + 'ms');
+
+  // Split: last response is translation; rest are Pinecone
+  var translationFetchResponse = allResponses[allResponses.length - 1];
+  var pineconeResponses = allResponses.slice(0, allResponses.length - 1);
 
   var runs = [];
   var successCount = 0;
@@ -453,7 +464,18 @@ function _handleRagSearch(classified, originalUserQueryForRerank) {
     userQueryForRerank = _rerankUserQueryFallback_(classified);
   }
 
-  var translationMap = getRagEnglishTranslationMap_();
+  var translationMap = null;
+  if (translationFetchResponse.getResponseCode() === 200) {
+    try {
+      translationMap = _parseRagTranslationFlat_(JSON.parse(translationFetchResponse.getContentText()));
+    } catch (e) {
+      Logger.log('[RAG SEARCH] WARN: Failed to parse translation response: ' + e.message + ' — falling back.');
+      translationMap = getRagEnglishTranslationMap_();
+    }
+  } else {
+    Logger.log('[RAG SEARCH] WARN: Translation fetch returned HTTP ' + translationFetchResponse.getResponseCode() + ' — falling back.');
+    translationMap = getRagEnglishTranslationMap_();
+  }
   var rerankedKeys = null;
 
   // Skip rerank when too few candidates to meaningfully rank

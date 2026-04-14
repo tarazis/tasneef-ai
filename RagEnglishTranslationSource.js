@@ -68,8 +68,8 @@ function getRagEnglishTranslationMap_() {
     return _ragEnglishTranslationMapCache_;
   }
 
-  // Cache miss — init was not called or failed; fetch inline as fallback
-  Logger.log('[RAG SEARCH] WARN: Translation cache not populated at search time — fetching inline');
+  // Cache miss — fetch inline as fallback
+  Logger.log('[RAG SEARCH] Translation cache miss — fetching inline (fallback)');
   try {
     var response = UrlFetchApp.fetch(TRANSLATION_JSON_URL_FOR_RAG_, {
       muteHttpExceptions: true
