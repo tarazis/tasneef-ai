@@ -426,12 +426,12 @@ function runRagServiceTests() {
     results.push('\n  ⊘ Skipped integration tests (missing OpenAI/Pinecone keys in Script Properties)');
   }
 
-  // ── RagEnglishTranslationSource — initRagTranslationCache_ (unit) ────────
+  // ── RagEnglishTranslationSource — initRagTranslationCache (unit) ────────
 
-  results.push('\nRagEnglishTranslationSource — initRagTranslationCache_()');
+  results.push('\nRagEnglishTranslationSource — initRagTranslationCache()');
 
-  it('initRagTranslationCache_ is a function', function () {
-    expect(typeof initRagTranslationCache_).toBe('function');
+  it('initRagTranslationCache is a function', function () {
+    expect(typeof initRagTranslationCache).toBe('function');
   });
 
   it('_parseRagTranslationFlat_ converts {t: "..."} values to strings', function () {
@@ -470,20 +470,20 @@ function runRagServiceTests() {
     }
   });
 
-  it('initRagTranslationCache_ is idempotent — calling twice does not throw', function () {
+  it('initRagTranslationCache is idempotent — calling twice does not throw', function () {
     clearRagEnglishTranslationMapCacheForTests_();
     try {
-      initRagTranslationCache_();
-      initRagTranslationCache_();
+      initRagTranslationCache();
+      initRagTranslationCache();
     } catch (e) {
-      throw new Error('initRagTranslationCache_ threw on double-call: ' + e.message);
+      throw new Error('initRagTranslationCache threw on double-call: ' + e.message);
     }
   });
 
-  it('getRagEnglishTranslationMap_ returns object or null after initRagTranslationCache_', function () {
+  it('getRagEnglishTranslationMap_ returns object or null after initRagTranslationCache', function () {
     clearRagEnglishTranslationMapCacheForTests_();
     try {
-      initRagTranslationCache_();
+      initRagTranslationCache();
       var map = getRagEnglishTranslationMap_();
       expect(map === null || typeof map === 'object').toBe(true);
     } catch (e) {

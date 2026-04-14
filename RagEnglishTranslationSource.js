@@ -34,7 +34,7 @@ function _parseRagTranslationFlat_(obj) {
  * Call once at sidebar startup (via google.script.run) so the map is ready before any search.
  * No-op if the cache is already populated.
  */
-function initRagTranslationCache_() {
+function initRagTranslationCache() {
   if (_ragEnglishTranslationMapCache_) return;
 
   var t0 = Date.now();

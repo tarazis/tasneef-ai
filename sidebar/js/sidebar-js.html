@@ -98,7 +98,7 @@
     google.script.run
       .withSuccessHandler(function () {})
       .withFailureHandler(function () {})
-      .initRagTranslationCache_();
+      .initRagTranslationCache();
 
     if (typeof ensureGoogleFontsPreviewStylesheet === 'function') {
       ensureGoogleFontsPreviewStylesheet('Amiri', ['regular'], onInitDone);
