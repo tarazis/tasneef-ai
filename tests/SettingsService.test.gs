@@ -110,8 +110,8 @@ function runSettingsServiceTests() {
 
   results.push('\nAI_SEARCH_DAILY_LIMIT');
 
-  it('daily limit is 10', function () {
-    expect(AI_SEARCH_DAILY_LIMIT).toBe(50);
+  it('daily AI search limit is 200', function () {
+    expect(AI_SEARCH_DAILY_LIMIT).toBe(200);
   });
 
   results.push('\n─────────────────────────────────────────');

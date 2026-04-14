@@ -5,7 +5,7 @@
  * API keys (Claude) are in Script Properties (shared, developer-owned).
  */
 
-var AI_SEARCH_DAILY_LIMIT = 50;
+var AI_SEARCH_DAILY_LIMIT = 200;
 
 var SETTINGS_DEFAULTS = {
   showTranslation: true,
