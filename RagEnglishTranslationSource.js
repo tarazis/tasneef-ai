@@ -30,26 +30,61 @@ function _parseRagTranslationFlat_(obj) {
 }
 
 /**
- * Fetches and returns surah:ayah → English translation text map, or null on failure.
- * Result is cached for the remainder of the Apps Script execution (warm instance).
- * @return {Object<string,string>|null}
+ * Pre-fetches the English translation JSON and populates the in-memory cache.
+ * Call once at sidebar startup (via google.script.run) so the map is ready before any search.
+ * No-op if the cache is already populated.
  */
-function getRagEnglishTranslationMap_() {
-  if (_ragEnglishTranslationMapCache_) {
-    return _ragEnglishTranslationMapCache_;
-  }
+function initRagTranslationCache_() {
+  if (_ragEnglishTranslationMapCache_) return;
 
+  var t0 = Date.now();
   try {
     var response = UrlFetchApp.fetch(TRANSLATION_JSON_URL_FOR_RAG_, {
       muteHttpExceptions: true
     });
     if (response.getResponseCode() !== 200) {
+      Logger.log('[RAG INIT] WARN: Translation JSON fetch returned HTTP ' +
+        response.getResponseCode() + ' — cache not populated');
+      return;
+    }
+    var body = JSON.parse(response.getContentText());
+    _ragEnglishTranslationMapCache_ = _parseRagTranslationFlat_(body);
+    Logger.log('[RAG INIT] Translation cache populated: ' + (Date.now() - t0) + 'ms');
+  } catch (e) {
+    Logger.log('[RAG INIT] WARN: Translation JSON fetch failed: ' + e.message);
+  }
+}
+
+/**
+ * Returns the surah:ayah → English translation text map.
+ * Uses the pre-populated cache if available; falls back to an inline fetch with a warning.
+ * @return {Object<string,string>|null}
+ */
+function getRagEnglishTranslationMap_() {
+  var t0 = Date.now();
+
+  if (_ragEnglishTranslationMapCache_) {
+    Logger.log('[RAG SEARCH] Translation source: ' + (Date.now() - t0) + 'ms (cache hit)');
+    return _ragEnglishTranslationMapCache_;
+  }
+
+  // Cache miss — init was not called or failed; fetch inline as fallback
+  Logger.log('[RAG SEARCH] WARN: Translation cache not populated at search time — fetching inline');
+  try {
+    var response = UrlFetchApp.fetch(TRANSLATION_JSON_URL_FOR_RAG_, {
+      muteHttpExceptions: true
+    });
+    if (response.getResponseCode() !== 200) {
+      Logger.log('[RAG SEARCH] Translation source: ' + (Date.now() - t0) + 'ms (fetch failed HTTP ' +
+        response.getResponseCode() + ')');
       return null;
     }
     var body = JSON.parse(response.getContentText());
     _ragEnglishTranslationMapCache_ = _parseRagTranslationFlat_(body);
+    Logger.log('[RAG SEARCH] Translation source: ' + (Date.now() - t0) + 'ms (fetch — cache miss)');
     return _ragEnglishTranslationMapCache_;
   } catch (e) {
+    Logger.log('[RAG SEARCH] Translation source: ' + (Date.now() - t0) + 'ms (fetch error: ' + e.message + ')');
     return null;
   }
 }

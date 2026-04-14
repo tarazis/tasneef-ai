@@ -93,6 +93,13 @@
       })
       .getFeedbackFormUrl();
 
+    // Pre-warm the server-side translation cache so it's ready before any RAG search.
+    // Fire-and-forget: does not block sidebar startup (not counted in pendingInit).
+    google.script.run
+      .withSuccessHandler(function () {})
+      .withFailureHandler(function () {})
+      .initRagTranslationCache_();
+
     if (typeof ensureGoogleFontsPreviewStylesheet === 'function') {
       ensureGoogleFontsPreviewStylesheet('Amiri', ['regular'], onInitDone);
     } else {

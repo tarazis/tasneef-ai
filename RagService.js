@@ -357,30 +357,61 @@ function _handleRagSearch(classified, originalUserQueryForRerank) {
     return _handleSemanticSearch(classified);
   }
 
-  var runs = [];
+  // Build one request object per query vector and fire them all in parallel
+  var filterObj = surahFilter || undefined;
+  var pineconeRequests = [];
   for (var qi = 0; qi < vectors.length; qi++) {
-    var qLabel = queryStrings[qi];
+    var reqPayload = {
+      vector: vectors[qi],
+      topK: RAG_TOP_K,
+      includeMetadata: true
+    };
+    if (filterObj) reqPayload.filter = filterObj;
+    pineconeRequests.push({
+      url: pineconeHost + '/query',
+      method: 'post',
+      headers: { 'Api-Key': pineconeKey, 'Content-Type': 'application/json' },
+      payload: JSON.stringify(reqPayload),
+      muteHttpExceptions: true
+    });
+  }
+
+  var pineconeT0 = Date.now();
+  var pineconeResponses = UrlFetchApp.fetchAll(pineconeRequests);
+  Logger.log('[RAG SEARCH] Pinecone parallel query: ' + (Date.now() - pineconeT0) + 'ms');
+
+  var runs = [];
+  var successCount = 0;
+  for (var ri = 0; ri < pineconeResponses.length; ri++) {
+    var qLabel = queryStrings[ri];
     var trunc = _truncateForRagLog_(qLabel);
-    var matches;
-    try {
-      matches = _queryPinecone(pineconeHost, pineconeKey, vectors[qi], surahFilter);
-    } catch (e) {
-      Logger.log('[RAG SEARCH] FAIL: Pinecone query error (query[' + qi + ']): ' + e.message + ' — falling back to Claude.');
-      return _handleSemanticSearch(classified);
+    var resp = pineconeResponses[ri];
+    var statusCode = resp.getResponseCode();
+    if (statusCode !== 200) {
+      Logger.log('[RAG SEARCH] WARN: Pinecone query[' + ri + '] returned HTTP ' + statusCode + ' — skipping this query.');
+      continue;
     }
+    successCount++;
+    var body = JSON.parse(resp.getContentText());
+    var matches = body.matches || [];
 
     for (var j = 0; j < matches.length; j++) {
       var m = matches[j];
       var matchMeta = m.metadata || {};
-      Logger.log('[RAG SEARCH] raw match — query[' + qi + '] "' + trunc + '" — Surah ' +
+      Logger.log('[RAG SEARCH] raw match — query[' + ri + '] "' + trunc + '" — Surah ' +
         matchMeta.surah_number + ':' + matchMeta.ayah_number + ' — score: ' + m.score.toFixed(4));
     }
 
     runs.push({
-      queryIndex: qi,
+      queryIndex: ri,
       queryText: qLabel,
       matches: matches
     });
+  }
+
+  if (successCount === 0) {
+    Logger.log('[RAG SEARCH] FAIL: All Pinecone queries failed — falling back to Claude.');
+    return _handleSemanticSearch(classified);
   }
 
   var mergedRows = _mergeRagMatchesByAyah_(runs);

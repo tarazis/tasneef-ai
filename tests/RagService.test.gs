@@ -426,6 +426,71 @@ function runRagServiceTests() {
     results.push('\n  ⊘ Skipped integration tests (missing OpenAI/Pinecone keys in Script Properties)');
   }
 
+  // ── RagEnglishTranslationSource — initRagTranslationCache_ (unit) ────────
+
+  results.push('\nRagEnglishTranslationSource — initRagTranslationCache_()');
+
+  it('initRagTranslationCache_ is a function', function () {
+    expect(typeof initRagTranslationCache_).toBe('function');
+  });
+
+  it('_parseRagTranslationFlat_ converts {t: "..."} values to strings', function () {
+    var raw = {
+      '2:255': { t: 'Ayat al-Kursi' },
+      '1:1': { t: 'In the name of Allah' }
+    };
+    var map = _parseRagTranslationFlat_(raw);
+    expect(map['2:255']).toBe('Ayat al-Kursi');
+    expect(map['1:1']).toBe('In the name of Allah');
+  });
+
+  it('_parseRagTranslationFlat_ skips entries without a t field', function () {
+    var raw = {
+      '2:255': { t: 'Throne Verse' },
+      '3:0': null,
+      '4:1': {}
+    };
+    var map = _parseRagTranslationFlat_(raw);
+    expect(map['2:255']).toBe('Throne Verse');
+    expect(map['3:0'] === undefined).toBe(true);
+    expect(map['4:1'] === undefined).toBe(true);
+  });
+
+  it('_parseRagTranslationFlat_ returns empty object for null input', function () {
+    var map = _parseRagTranslationFlat_(null);
+    expect(typeof map).toBe('object');
+    expect(Object.keys(map).length).toBe(0);
+  });
+
+  it('clearRagEnglishTranslationMapCacheForTests_ does not throw', function () {
+    try {
+      clearRagEnglishTranslationMapCacheForTests_();
+    } catch (e) {
+      throw new Error('clearRagEnglishTranslationMapCacheForTests_ threw: ' + e.message);
+    }
+  });
+
+  it('initRagTranslationCache_ is idempotent — calling twice does not throw', function () {
+    clearRagEnglishTranslationMapCacheForTests_();
+    try {
+      initRagTranslationCache_();
+      initRagTranslationCache_();
+    } catch (e) {
+      throw new Error('initRagTranslationCache_ threw on double-call: ' + e.message);
+    }
+  });
+
+  it('getRagEnglishTranslationMap_ returns object or null after initRagTranslationCache_', function () {
+    clearRagEnglishTranslationMapCacheForTests_();
+    try {
+      initRagTranslationCache_();
+      var map = getRagEnglishTranslationMap_();
+      expect(map === null || typeof map === 'object').toBe(true);
+    } catch (e) {
+      throw new Error('getRagEnglishTranslationMap_ threw after init: ' + e.message);
+    }
+  });
+
   // ── Summary ─────────────────────────────────────────────────────────────
 
   results.push('\n─────────────────────────────────────────');
