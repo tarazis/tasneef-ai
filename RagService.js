@@ -307,7 +307,10 @@ function _handleRagSearch(classified, originalUserQueryForRerank) {
     return _handleSemanticSearch(classified);
   }
 
-  Logger.log('[RAG SEARCH] Using ' + queryStrings.length + ' expansion query string(s).');
+  var originalQuery = (originalUserQueryForRerank && String(originalUserQueryForRerank).trim()) || '';
+  if (originalQuery) queryStrings.push(originalQuery);
+
+  Logger.log('[RAG SEARCH] Using ' + queryStrings.length + ' expansion query string(s) (including original user query).');
 
   // Build Pinecone metadata filter for surah restriction
   var surahFilter = null;
