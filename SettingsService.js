@@ -5,7 +5,7 @@
  * API keys (Claude) are in Script Properties (shared, developer-owned).
  */
 
-var AI_SEARCH_DAILY_LIMIT = 200;
+var AI_SEARCH_DAILY_LIMIT = 10;
 
 var SETTINGS_DEFAULTS = {
   showTranslation: true,
@@ -19,6 +19,8 @@ var PROPERTY_KEYS = {
   SETTINGS_PREFIX: 'setting_',
   CLAUDE_API_KEY: 'claude_api_key',
   AI_SEARCH_COUNT: 'ai_search_count',
+  /** Comma-separated emails exempt from AI search daily limit (Script Properties). */
+  DEV_EMAILS: 'dev_emails',
   OPENAI_API_KEY: 'openai_api_key',
   PINECONE_HOST: 'pinecone_host',
   PINECONE_API_KEY: 'pinecone_api_key'
@@ -112,9 +114,12 @@ function getAiSearchCount_() {
 
 /**
  * Increments today's AI search count and persists it.
+ * Dev emails (Script Property dev_emails) do not consume quota and never hit the limit.
  * @return {number} The new count, or -1 if the daily limit has been reached.
  */
 function incrementAiSearchCount_() {
+  if (isAiSearchDevExempt_()) return 0;
+
   var current = getAiSearchCount_();
 
   if (current >= AI_SEARCH_DAILY_LIMIT) return -1;
@@ -126,6 +131,38 @@ function incrementAiSearchCount_() {
   );
 
   return newCount;
+}
+
+/**
+ * True if the active user's email appears in dev_emails (comma-separated, trimmed).
+ * @return {boolean}
+ */
+function isAiSearchDevExempt_() {
+  var raw = PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.DEV_EMAILS);
+  if (!raw) return false;
+  try {
+    var email = Session.getActiveUser().getEmail();
+    return devEmailListIncludes_(email, raw);
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * @param {string} userEmail
+ * @param {string} rawCsv - Comma-separated list from Script Properties
+ * @return {boolean}
+ */
+function devEmailListIncludes_(userEmail, rawCsv) {
+  if (userEmail == null || rawCsv == null) return false;
+  var normalized = String(userEmail).trim().toLowerCase();
+  if (!normalized) return false;
+  var parts = String(rawCsv).split(',');
+  for (var i = 0; i < parts.length; i++) {
+    var e = String(parts[i]).trim().toLowerCase();
+    if (e && e === normalized) return true;
+  }
+  return false;
 }
 
 // ─── Private helpers ─────────────────────────────────────────────────────────

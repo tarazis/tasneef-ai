@@ -110,8 +110,62 @@ function runSettingsServiceTests() {
 
   results.push('\nAI_SEARCH_DAILY_LIMIT');
 
-  it('daily AI search limit is 200', function () {
-    expect(AI_SEARCH_DAILY_LIMIT).toBe(200);
+  it('daily AI search limit is 10', function () {
+    expect(AI_SEARCH_DAILY_LIMIT).toBe(10);
+  });
+
+  // ─── devEmailListIncludes_ ───────────────────────────────────────────────
+
+  results.push('\ndevEmailListIncludes_()');
+
+  it('returns false for null/empty email or csv', function () {
+    expect(devEmailListIncludes_('', 'a@b.com')).toBe(false);
+    expect(devEmailListIncludes_('a@b.com', '')).toBe(false);
+    expect(devEmailListIncludes_(null, 'a@b.com')).toBe(false);
+  });
+
+  it('matches with spaces around emails and is case-insensitive', function () {
+    expect(devEmailListIncludes_('User@Example.com', ' other@test.com , user@example.com ')).toBe(true);
+    expect(devEmailListIncludes_('A@B.CO', 'x@y.z, a@b.co')).toBe(true);
+  });
+
+  it('ignores empty comma segments', function () {
+    expect(devEmailListIncludes_('only@here.org', 'foo@bar.com,, , only@here.org')).toBe(true);
+  });
+
+  it('does not match partial addresses', function () {
+    expect(devEmailListIncludes_('a@b.com', 'aa@b.com, x@b.com')).toBe(false);
+  });
+
+  // ─── isAiSearchDevExempt_ (Script Property dev_emails) ─────────────────────
+
+  results.push('\nisAiSearchDevExempt_()');
+
+  it('is false when dev_emails is unset', function () {
+    PropertiesService.getScriptProperties().deleteProperty(PROPERTY_KEYS.DEV_EMAILS);
+    expect(isAiSearchDevExempt_()).toBe(false);
+  });
+
+  it('is true when active user is listed in dev_emails', function () {
+    var me = Session.getActiveUser().getEmail();
+    if (!me) {
+      results.push('  (skip: no active user email in this run)');
+      return;
+    }
+    var prev = PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.DEV_EMAILS);
+    try {
+      PropertiesService.getScriptProperties().setProperty(
+        PROPERTY_KEYS.DEV_EMAILS,
+        'someone-else@example.com, ' + me + ' ,other@example.com'
+      );
+      expect(isAiSearchDevExempt_()).toBe(true);
+    } finally {
+      if (prev == null) {
+        PropertiesService.getScriptProperties().deleteProperty(PROPERTY_KEYS.DEV_EMAILS);
+      } else {
+        PropertiesService.getScriptProperties().setProperty(PROPERTY_KEYS.DEV_EMAILS, prev);
+      }
+    }
   });
 
   results.push('\n─────────────────────────────────────────');
