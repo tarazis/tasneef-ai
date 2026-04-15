@@ -67,6 +67,8 @@ function runDocumentServiceTests() {
       setHeading: function (h) { this._heading = h; },
       setSpacingBefore: function (pt) { this._spacingBefore = pt; },
       setSpacingAfter: function (pt) { this._spacingAfter = pt; },
+      getSpacingBefore: function () { return this._spacingBefore; },
+      getSpacingAfter: function () { return this._spacingAfter; },
       getType: function () { return DocumentApp.ElementType.PARAGRAPH; },
       asParagraph: function () { return this; },
       getParent: function () { return null; },
@@ -389,8 +391,8 @@ function runDocumentServiceTests() {
     var body = createMockBody(['']);
     var doc = createMockDoc(body, body._children[0]);
     insertParagraphsAtPosition_(body, doc, arabicOnlyAyahInsert(), {});
-    expect(body._children[0]._spacingBefore).toBe(null);
-    expect(body._children[0]._spacingAfter).toBe(null);
+    expect(body._children[0]._spacingBefore).toBe(TARGET_SPACING_PT);
+    expect(body._children[0]._spacingAfter).toBe(TARGET_SPACING_PT);
     expect(body._children.length).toBe(1);
   });
 
@@ -398,13 +400,85 @@ function runDocumentServiceTests() {
     var body = createMockBody(['']);
     var doc = createMockDoc(body, body._children[0]);
     insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), {});
-    expect(body._children[0]._spacingBefore).toBe(null);
+    expect(body._children[0]._spacingBefore).toBe(TARGET_SPACING_PT);
     expect(body._children[0]._spacingAfter).toBe(INSERT_SPACING_INNER_PT);
     expect(body._children[1]._spacingBefore).toBe(null);
     expect(body._children[1]._spacingAfter).toBe(INSERT_SPACING_INNER_PT);
     expect(body._children[2]._spacingBefore).toBe(null);
-    expect(body._children[2]._spacingAfter).toBe(null);
+    expect(body._children[2]._spacingAfter).toBe(TARGET_SPACING_PT);
     expect(body._children.length).toBe(3);
+  });
+
+  it('single insert subtracts previous paragraph spacingAfter from target', function () {
+    var body = createMockBody(['above']);
+    body._children[0].setSpacingAfter(4);
+    var doc = createMockDoc(body, body._children[0]);
+    insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
+    expect(body._children[1]._spacingBefore).toBe(TARGET_SPACING_PT);
+    expect(body._children[1]._spacingAfter).toBe(TARGET_SPACING_PT);
+  });
+
+  it('cursor at paragraph start subtracts next paragraph spacingBefore from target', function () {
+    var body = createMockBody(['current']);
+    body._children[0].setSpacingBefore(5);
+    var doc = createMockDoc(body, body._children[0], null, 0);
+    insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
+    expect(body._children[0]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
+    expect(body._children[0]._spacingBefore).toBe(TARGET_SPACING_PT);
+    expect(body._children[0]._spacingAfter).toBe(TARGET_SPACING_PT);
+  });
+
+  it('selection insertion keeps behavior and normalizes spacing from neighbors', function () {
+    var body = createMockBody(['first', 'selected', 'after']);
+    body._children[1].setSpacingAfter(3);
+    body._children[2].setSpacingBefore(2);
+    var doc = createMockDoc(body, null, [mockRangeEl_(body._children[1])]);
+    insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
+    expect(body._children[2]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
+    expect(body._children[2]._spacingBefore).toBe(TARGET_SPACING_PT);
+    expect(body._children[2]._spacingAfter).toBe(TARGET_SPACING_PT);
+  });
+
+  it('multi-paragraph insert keeps inner spacing and adjusts outer boundaries', function () {
+    var body = createMockBody(['before', 'after']);
+    body._children[0].setSpacingAfter(2);
+    body._children[1].setSpacingBefore(9);
+    var doc = createMockDoc(body, body._children[0]);
+    insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), {});
+    expect(body._children[1]._spacingBefore).toBe(TARGET_SPACING_PT);
+    expect(body._children[1]._spacingAfter).toBe(INSERT_SPACING_INNER_PT);
+    expect(body._children[2]._spacingAfter).toBe(INSERT_SPACING_INNER_PT);
+    expect(body._children[3]._spacingAfter).toBe(TARGET_SPACING_PT);
+  });
+
+  it('when previous spacing is greater than target, inserted spacing remains fixed', function () {
+    var body = createMockBody(['before', 'after']);
+    body._children[0].setSpacingAfter(18);
+    body._children[1].setSpacingBefore(4);
+    var doc = createMockDoc(body, body._children[0]);
+    insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
+    expect(body._children[1]._spacingBefore).toBe(TARGET_SPACING_PT);
+    expect(body._children[1]._spacingAfter).toBe(TARGET_SPACING_PT);
+  });
+
+  it('when next spacing is greater than target, inserted spacing remains fixed', function () {
+    var body = createMockBody(['before', 'after']);
+    body._children[0].setSpacingAfter(3);
+    body._children[1].setSpacingBefore(16);
+    var doc = createMockDoc(body, body._children[0]);
+    insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
+    expect(body._children[1]._spacingBefore).toBe(TARGET_SPACING_PT);
+    expect(body._children[1]._spacingAfter).toBe(TARGET_SPACING_PT);
+  });
+
+  it('when both neighbors exceed target, inserted spacing remains fixed', function () {
+    var body = createMockBody(['before', 'after']);
+    body._children[0].setSpacingAfter(15);
+    body._children[1].setSpacingBefore(13);
+    var doc = createMockDoc(body, body._children[0]);
+    insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
+    expect(body._children[1]._spacingBefore).toBe(TARGET_SPACING_PT);
+    expect(body._children[1]._spacingAfter).toBe(TARGET_SPACING_PT);
   });
 
   results.push('\ninsertParagraphsAtPosition_() — multi-paragraph & font warning');

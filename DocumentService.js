@@ -5,6 +5,8 @@
 
 /** Paragraph spacing (points) for beautified insert blocks: gap between inner paragraphs. */
 var INSERT_SPACING_INNER_PT = 6;
+/** Paragraph spacing (points) for outer gap around non-quote inserts. */
+var TARGET_SPACING_PT = 8;
 
 /** Blockquote table: left accent (pt); accent color (fixed, not tied to body text color). */
 var BLOCKQUOTE_BORDER_LEFT_PT = 3;
@@ -400,6 +402,8 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
   var removeTarget = anchor.removeTarget;
 
   var contentStart = idx;
+  var effectiveSpacingBefore = TARGET_SPACING_PT;
+  var effectiveSpacingAfter = TARGET_SPACING_PT;
   var fontWarning = null;
   var i;
   var item;
@@ -412,6 +416,12 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
       p.setText(item.text);
     } else {
       p = body.insertParagraph(contentStart + i, item.text);
+    }
+    if (i === 0) {
+      p.setSpacingBefore(effectiveSpacingBefore);
+    }
+    if (i === paragraphsToInsert.length - 1) {
+      p.setSpacingAfter(effectiveSpacingAfter);
     }
     fontWarning = applyBeautifiedInsertToParagraph_(p, item, formatState) || fontWarning;
   }
