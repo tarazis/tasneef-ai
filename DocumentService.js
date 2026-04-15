@@ -234,11 +234,15 @@ function resolveTableStartIndexForDocsApi_(docId, tableOrdinal) {
  */
 function applyBlockquoteCellBordersViaDocsApi_(docId, tableOrdinal) {
   if (typeof Docs === 'undefined' || !Docs.Documents || !Docs.Documents.batchUpdate) {
-    return;
+    return {
+      success: false,
+      message: 'Docs API unavailable for blockquote styling.'
+    };
   }
   var tableStart = null;
+  var maxAttempts = 10;
   var attempt;
-  for (attempt = 0; attempt < 5; attempt++) {
+  for (attempt = 0; attempt < maxAttempts; attempt++) {
     tableStart = resolveTableStartIndexForDocsApi_(docId, tableOrdinal);
     if (tableStart != null) {
       break;
@@ -247,7 +251,11 @@ function applyBlockquoteCellBordersViaDocsApi_(docId, tableOrdinal) {
   }
   if (tableStart == null) {
     Logger.log('blockquote borders: could not resolve table start index');
-    return;
+    return {
+      success: false,
+      message: 'Ayah inserted but styling could not be applied after retries.',
+      attempts: maxAttempts
+    };
   }
 
   var rgb = hexToDocsRgb01_(BLOCKQUOTE_BORDER_LEFT_COLOR);
@@ -285,8 +293,14 @@ function applyBlockquoteCellBordersViaDocsApi_(docId, tableOrdinal) {
 
   try {
     Docs.Documents.batchUpdate({ requests: requests }, docId);
+    return { success: true };
   } catch (e) {
     Logger.log('blockquote borders batchUpdate: ' + e);
+    return {
+      success: false,
+      message: 'Ayah inserted but styling could not be applied.',
+      error: String(e)
+    };
   }
 }
 
@@ -456,7 +470,7 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
  * @param {number} tableOrdinal - 1-based ordinal position of the target table
  */
 function applyBlockquoteBorders(docId, tableOrdinal) {
-  applyBlockquoteCellBordersViaDocsApi_(docId, tableOrdinal);
+  return applyBlockquoteCellBordersViaDocsApi_(docId, tableOrdinal);
 }
 
 /**
