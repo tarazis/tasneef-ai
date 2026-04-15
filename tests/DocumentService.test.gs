@@ -737,6 +737,14 @@ function runDocumentServiceTests() {
     }
   }
 
+  function makeTableContent(startIndex) {
+    return [
+      { sectionBreak: {} },
+      { paragraph: {}, startIndex: 0 },
+      { table: {}, startIndex: startIndex }
+    ];
+  }
+
   it('ordinal 1 returns startIndex of the only table', function () {
     stubDocsGet([
       { sectionBreak: {} },
@@ -789,6 +797,87 @@ function runDocumentServiceTests() {
     var result = resolveTableStartIndexForDocsApi_('fake-id', 1);
     expect(result).toBe(null);
     restoreDocs();
+  });
+
+  // ── applyBlockquoteCellBordersViaDocsApi_ ───────────────────
+
+  results.push('\napplyBlockquoteCellBordersViaDocsApi_()');
+
+  it('retries up to 10 times with 200ms sleeps when table is not visible yet', function () {
+    var gets = 0;
+    var sleeps = 0;
+    var origUtilities = Utilities;
+    var origDocsLocal = Docs;
+    Utilities = { sleep: function (ms) { if (ms === 200) sleeps++; } };
+    Docs = {
+      Documents: {
+        get: function () {
+          gets++;
+          return { body: { content: [] } };
+        },
+        batchUpdate: function () {}
+      }
+    };
+    var result = applyBlockquoteCellBordersViaDocsApi_('fake-id', 1);
+    expect(gets).toBe(10);
+    expect(sleeps).toBe(10);
+    expect(result.success).toBe(false);
+    expect(result.attempts).toBe(10);
+    Utilities = origUtilities;
+    Docs = origDocsLocal;
+  });
+
+  it('returns success true when Docs batchUpdate succeeds', function () {
+    var batchCalls = 0;
+    var origUtilities = Utilities;
+    var origDocsLocal = Docs;
+    Utilities = { sleep: function () {} };
+    Docs = {
+      Documents: {
+        get: function () {
+          return { body: { content: makeTableContent(42) } };
+        },
+        batchUpdate: function () {
+          batchCalls++;
+        }
+      }
+    };
+    var result = applyBlockquoteCellBordersViaDocsApi_('fake-id', 1);
+    expect(batchCalls).toBe(1);
+    expect(result.success).toBe(true);
+    Utilities = origUtilities;
+    Docs = origDocsLocal;
+  });
+
+  it('returns failure object when Docs batchUpdate throws', function () {
+    var origUtilities = Utilities;
+    var origDocsLocal = Docs;
+    Utilities = { sleep: function () {} };
+    Docs = {
+      Documents: {
+        get: function () {
+          return { body: { content: makeTableContent(42) } };
+        },
+        batchUpdate: function () {
+          throw new Error('batch failed');
+        }
+      }
+    };
+    var result = applyBlockquoteCellBordersViaDocsApi_('fake-id', 1);
+    expect(result.success).toBe(false);
+    expect(typeof result.message).toBe('string');
+    Utilities = origUtilities;
+    Docs = origDocsLocal;
+  });
+
+  it('applyBlockquoteBorders returns underlying success result', function () {
+    var origFn = applyBlockquoteCellBordersViaDocsApi_;
+    applyBlockquoteCellBordersViaDocsApi_ = function () {
+      return { success: true, message: 'ok' };
+    };
+    var result = applyBlockquoteBorders('d', 1);
+    expect(result.success).toBe(true);
+    applyBlockquoteCellBordersViaDocsApi_ = origFn;
   });
 
   // ── tableOrdinal computation in insertBlockquoteTableAtPosition_ ──
