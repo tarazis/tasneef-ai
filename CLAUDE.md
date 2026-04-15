@@ -1,119 +1,124 @@
 # Tasneef AI — Google Docs Add-on
 
-## What This Is
-A Google Docs sidebar add-on for Islamic scholars to search and insert Quranic ayat into documents. MVP is Quran-only (Hadith is post-MVP).
+A Google Docs sidebar add-on for Islamic scholars to search and insert Quranic ayat. MVP is Quran-only (Hadith is post-MVP).
 
-## Stack
-- Google Apps Script (server-side `.js` files — clasp pushes them as `.gs`)
-- HTML/CSS/JS via HtmlService (client-side, no npm/bundler)
-- Client ↔ server communication via `google.script.run`
+> **Deep architecture reference:** see `ARCHITECTURE.md` for file structure, include order, data flows, and test commands.
 
-## Data Architecture (Critical)
+---
 
-### Quran data — client-only, loaded from GitHub Pages into browser memory
+## Stack & Constraints
+
+- **Server:** Google Apps Script. All server files are `.js` — clasp pushes them as `.gs`. Never create `.gs` files directly.
+- **Client:** HTML/CSS/JS via HtmlService. No npm, no bundler, no import/require, no ES modules.
+- **Communication:** Client ↔ server via `google.script.run`.
+- **Project size limit:** ~2MB (code only; all data is external).
+
+---
+
+## Data Architecture
+
+### Quran text — client-side only
+
 All Quran text, metadata, and translations are fetched **client-side** via `makeClientCache` (browser `fetch()`). The server never loads or caches Quran data.
 
-**Canonical URL constants** live in `sidebar/js/quran-caches.html`:
-```
-IMLAEI_SCRIPT: https://tarazis.github.io/tasneef-data/quran/imlaei-script.json
-SIMPLE:        https://tarazis.github.io/tasneef-data/quran/imlaei-simple.json
-SURAH META:    https://tarazis.github.io/tasneef-data/quran/quran-metadata-surah-name.json
-TRANSLATION:   https://tarazis.github.io/tasneef-data/quran/en-sahih-international-simple.json
-```
-**Naming note:** The primary Arabic feed above is **imlaei-script**. Legacy identifiers in code still say “uthmani” (`UTHMANI_URL`, `ensureUthmaniCache`, `lookupUthmaniAyah`, settings `arabicStyle: 'uthmani'`, payload `textUthmani`) but they all refer to this imlaei-script source, not traditional Uthmani rasm.
+Canonical URLs live in `sidebar/js/quran-caches.html`:
 
-### Quran typography (inserts + sidebar preview)
-- **Arabic ayah text** in Google Docs is always **Amiri**, regular weight, not bold (`FormatService.js` enforces this regardless of client payload).
-- The sidebar loads **Amiri** once via public Google Fonts CSS (`fonts.googleapis.com/css2`) for accurate card preview.
+| Feed | URL |
+|------|-----|
+| Arabic display (imlaei-script) | `tarazis.github.io/tasneef-data/quran/imlaei-script.json` |
+| Search index (imlaei-simple) | `tarazis.github.io/tasneef-data/quran/imlaei-simple.json` |
+| Surah metadata | `tarazis.github.io/tasneef-data/quran/quran-metadata-surah-name.json` |
+| English translation | `tarazis.github.io/tasneef-data/quran/en-sahih-international-simple.json` |
 
-For the JSON feeds above: **inspect** the actual structure before writing code against them. Translation JSON is a flat object keyed by `"surah:ayah"` with `{t: "text"}` values.
+**Legacy naming:** Code uses "uthmani" identifiers (`UTHMANI_URL`, `ensureUthmaniCache`, `lookupUthmaniAyah`, `arabicStyle: 'uthmani'`, `textUthmani`) — these all reference the **imlaei-script** source, not traditional Uthmani rasm.
 
-### Arabic normalization — `NormalizeArabic.js` (server) + `client/normalizeArabic.html` (client)
-- Both files MUST stay in sync — parity enforced by `tests/normalizeArabic.test.js`
-- Strips tashkeel/diacritics, normalizes alef variants (آ أ إ ٱ → ا)
-- Server copy exists solely for parity testing; all production search runs client-side
+**Translation JSON structure:** Flat object keyed by `"surah:ayah"` with `{t: "text"}` values. Inspect actual structure before writing code against it.
 
-### Claude API — intent classification only
-- Model: claude-haiku-4-5-20251001, temperature: 0
-- Claude classifies user intent and returns JSON actions — NEVER Quranic text
-- For Arabic corpus search: Claude extracts the query text, client runs the search locally
-- For English/semantic search: Claude returns {surah, ayah} references, client resolves text
-- Every reference from Claude MUST be validated against local data before display
-- API key stored in User Properties
+### Arabic normalization
+
+`NormalizeArabic.js` (server) and `client/normalizeArabic.html` (client) **must stay in sync** — parity enforced by `tests/normalizeArabic.test.js`. Strips tashkeel/diacritics, normalizes alef variants (آ أ إ ٱ → ا). Server copy exists solely for parity testing; all production search runs client-side.
+
+### Typography
+
+Arabic ayah text in Google Docs is always **Amiri**, regular weight, not bold — `FormatService.js` enforces this regardless of client payload. The sidebar loads Amiri via Google Fonts CSS for card preview. If a selected font fails, fall back to Amiri and show a toast.
+
+---
+
+## AI Search Pipeline
+
+### Claude — intent classifier only
+
+- Model: `claude-haiku-4-5-20251001`, temperature 0.
+- Claude classifies user intent and returns JSON actions (`fetch_ayah`, `exact_search`, `semantic_search`, `clarify`) — **never Quranic text**.
+- Every reference from Claude must be validated against local data before display.
+
+### RAG semantic search flow
+
+1. **Classification:** `performAISearch` sends user query to Claude. Claude returns action JSON with `queries` array, optional `filter.surah`, and `rag_supported` flag.
+2. **Routing:** If `rag_supported === false`, uses Claude references directly. Otherwise tries RAG with fallback to Claude references on error/empty result.
+3. **Retrieval:** Embeds queries via OpenAI (`text-embedding-3-small`), queries Pinecone in parallel (`topK=20`, optional surah filter). Translation JSON fetched in same `fetchAll`.
+4. **Merge & filter:** Deduplicate across query expansions (keep highest score per ayah), apply `RAG_SCORE_THRESHOLD = 0.35`. If nothing passes threshold, fall back to Claude references.
+5. **Rerank:** If ≥3 candidates and Claude key available, Claude reranks the candidate pool (max 20).
+6. **Finalize:** `_finalizeRagAyahRefs_` validates numeric ranges (surah 1–114, ayah ≥ 1), deduplicates, caps results. Merges consecutive ayahs into range groups.
+7. **Client validation (hallucination guard):** Sidebar resolves references against local caches — drops any ref where surah doesn't exist, ayah exceeds surah count, or Arabic text missing from cache.
+
+### Daily AI quota
+
+- `AI_SEARCH_DAILY_LIMIT = 10` per user per UTC day, enforced in `SettingsService.js` / `ClaudeAPI.js`.
+- Counter stored in User Properties as JSON (`{count, date}`). Resets on first query of new UTC day.
+- Dev emails listed in Script Property `dev_emails` (comma-separated) bypass the quota.
+
+### API keys
+
+All API keys (Claude, OpenAI, Pinecone) stored in **Script Properties** via `PropertiesService.getScriptProperties()`. Never exposed in source code.
+
+---
 
 ## Hard Rules
+
 1. **All Quranic Arabic text and English translations come from GitHub Pages JSON. Never from Claude. Never generated.**
-3. **Claude is an intent classifier only.** It returns {surah, ayah} pairs or Arabic search queries. We look up/search the real text ourselves client-side.
-5. **Arabic search must normalize.** Strip tashkeel/diacritics for comparison. Normalize alef variants.
-6. **Font fallback is Amiri.** If selected font fails, use Amiri and show a toast.
-7. **Apps Script constraints:** No npm. No import/require. No ES modules. All server-side files are `.js` (clasp pushes them as `.gs`); they share global scope. HTML files served via HtmlService. Max project size ~2MB (code only, data is external).
-8. **File extension:** Always use `.js` for server-side scripts. Never create `.gs` files. Clasp handles the conversion on push.
+2. **Claude is an intent classifier only.** It returns `{surah, ayah}` pairs, Arabic search queries, or RAG search framing. We resolve real text client-side.
+3. **Arabic search must normalize.** Strip tashkeel/diacritics. Normalize alef variants.
+4. **Server files are always `.js`.** Clasp handles `.gs` conversion on push.
 
-## IMPORTANT:
-1. Before starting any new feature, bugfix, hotfix, or refactor — or any substantial/independent change — create and checkout a branch following this naming convention:
+---
 
-   - `feature/<issue-number>-kebab-case-description`
-   - `bugfix/<issue-number>-kebab-case-description`
-   - `hotfix/<issue-number>-kebab-case-description`
-   - `refactor/<issue-number>-kebab-case-description`
+## Workflow Rules
 
-   Always confirm the GitHub issue number before creating the branch. If no issue exists, create one first.
+### Branching
 
-   **Exception — Issue #26:** Do not create a branch or PR for this issue. It is a tracking issue only, used to log future bug fixes and features.
+Before starting any feature, bugfix, hotfix, or refactor — create and checkout a branch:
 
-   Immediately after creating the branch, open a **draft pull request** with:
-   - A title matching the issue title
-   - `Closes #<issue-number>` on its own line in the body
+```
+feature/<issue-number>-kebab-case-description
+bugfix/<issue-number>-kebab-case-description
+hotfix/<issue-number>-kebab-case-description
+refactor/<issue-number>-kebab-case-description
+```
 
-   This triggers GitHub Projects automation to move the issue to **In Progress** automatically.
+Confirm the GitHub issue number first. If no issue exists, create one. **Exception:** Issue #26 is a tracking issue only — no branch or PR.
 
-2. You must write unit and integration tests for all code.
+Immediately after creating the branch, open a **draft PR** with the issue title and `Closes #<issue-number>` in the body.
 
-3. You must compile the code and pass ALL tests before committing.
+### Commits
 
-4. **After every commit that passes tests, run `clasp push`** to deploy the code to the Apps Script project. **Do not open a PR unless explicitly instructed.**
-   Reference the issue number in every commit message:
-   - `feat(#42): add Arabic text tokenization`
-   - `fix(#17): correct sidebar overflow on mobile`
-   - `refactor(#8): simplify hadith search handler`
+- **Imperative mood**, capitalize first word, under 72 chars.
+- Reference the issue: `feat(#42): Add Arabic text tokenization`
+- After every commit that passes tests, run `clasp push`.
+- Do not convert draft PR to ready-for-review unless explicitly instructed.
 
-5. When explicitly instructed to open a PR, convert the existing draft PR to **ready for review.**
+### Testing
 
-### Commit Message Style
+- Write unit and integration tests for all code.
+- All tests must pass before committing.
+- Node tests: `npm test` (see `ARCHITECTURE.md` for individual targets).
+- Apps Script tests: run via editor (see `ARCHITECTURE.md` for runners).
 
-**Use imperative mood** for all commit messages, for example:
-- `Add expense summary feature`
-- `Fix login validation bug`
-- `Refactor database queries for performance`
-- `Update dependencies to latest versions`
-- `Remove deprecated API endpoints`
+---
 
-**Commit Message Guidelines:**
-- Start with a capital letter
-- Use imperative mood (as if giving a command)
-- Keep the subject line under 72 characters
-- Provide additional context in the body if needed
+## Working Style
 
-## How Claude Should Approach Tasks
-
-1. **Read this file first** before starting any development work
-2. **Ask clarifying questions** if requirements are ambiguous
-3. **Follow all guidelines** specified in this document
-4. **Create complete, production-ready code** - not just examples
-7. **Use proper error handling** in all code
-8. **Write clean, self-documenting code** with appropriate comments
-9. **Create proper git commits** following the imperative mood style
-10. **Explain trade-offs** when making architectural decisions
-
-## Additional Notes
-
-- **Prioritize code quality** over speed of delivery
-- **Write code that's easy to understand** - future you will thank you
-- **Don't repeat yourself** (DRY principle)
-- **Keep it simple** (KISS principle)
-- **You aren't gonna need it** (YAGNI principle - don't over-engineer)
-- **Fail fast** - validate input early and throw clear errors
-- **Make it work, make it right, make it fast** - in that order
-
-## Questions?
-If Claude is unsure about any requirement or needs clarification, **always ask** before making assumptions.
+- Read this file and `ARCHITECTURE.md` before starting work.
+- Ask clarifying questions if requirements are ambiguous — don't assume.
+- Write complete, production-ready code with proper error handling.
+- Explain trade-offs when making architectural decisions.

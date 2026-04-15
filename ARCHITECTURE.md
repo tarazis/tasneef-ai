@@ -1,264 +1,215 @@
 # Tasneef AI — Architecture Reference
 
-> Optimized for Claude Code. Read before starting any task.
+Reference for current implementation in this repository.
 
 ---
 
-## Directory Structure
+## High-Level Architecture
+
+- Runtime is Google Apps Script with HtmlService-rendered sidebar UI.
+- Quran Arabic text, metadata, and translations are fetched client-side from GitHub Pages JSON via `makeClientCache`.
+- Three-tab sidebar: Direct Insert, Exact Search, AI Search.
+- Claude is used for intent classification and RAG reranking only; final Quran/translation content is always resolved from local client caches.
+- AI semantic search uses a RAG pipeline: OpenAI embeddings → Pinecone retrieval → Claude rerank → client-side validation.
+- Insert actions flow from browser (`google.script.run`) to server services that format and write into the active Google Doc.
+- Per-user daily AI search quota (10/day, UTC reset) enforced server-side. Dev emails exempted via Script Property.
+
+---
+
+## Current File Structure
 
 ```
 tasneef-ai/
-├── Code.js                        Entry point: exposes doGet(), include()
-├── ClaudeAPI.js                   Claude API wrapper — intent classification only
-├── DocumentService.js             Inserts ayah/range into the active Doc
-├── FormatService.js               Typography for inserted text (Quran Arabic: Amiri regular; translation/citation: Figtree)
-├── NormalizeArabic.js             Server-side Arabic normalization (parity with client)
-├── SettingsService.js             User Properties: showTranslation, blockquoteInsertion, arabicStyle, AI search count, etc.
-├── appsscript.json                Apps Script manifest
+├── ARCHITECTURE.md
+├── CLAUDE.md
+├── Code.js
+├── ClaudeAPI.js
+├── DocumentService.js
+├── FormatService.js
+├── NormalizeArabic.js
+├── RagEnglishTranslationSource.js
+├── RagService.js
+├── SettingsService.js
+├── appsscript.json
+├── package.json
+├── .gitignore
+├── .claspignore
 │
 ├── client/
-│   ├── makeClientCache.html       makeClientCache() factory — fetch-once cache with callbacks
-│   └── normalizeArabic.html       normalizeArabic(), _mapNormalizedToOriginal() — client globals
+│   ├── makeClientCache.html
+│   └── normalizeArabic.html
 │
 ├── sidebar/
-│   ├── sidebar.html               Root template: HTML shell + ordered script includes
-│   ├── sidebar-css.html           All CSS
+│   ├── sidebar.html
+│   ├── sidebar-css.html
+│   ├── assets/
+│   │   └── logo.png
 │   ├── components/
-│   │   ├── logo-img.html          Logo <img> snippet
-│   │   ├── settings-panel.html    Settings overlay HTML
-│   │   ├── tab-ai-search.html     AI Search tab HTML
-│   │   ├── tab-direct-insert.html Direct Insert tab HTML
-│   │   └── tab-exact-search.html  Exact Search tab HTML
+│   │   ├── bottom-bar.html
+│   │   ├── logo-img.html
+│   │   ├── settings-panel.html
+│   │   ├── tab-ai-search.html
+│   │   ├── tab-direct-insert.html
+│   │   └── tab-exact-search.html
 │   └── js/
-│       ├── shared-state.html      Global vars: formatState, _settings, _surahList, constants, window.getFormatState
-│       ├── quran-caches.html      4 makeClientCache instances + public accessor functions
-│       ├── search-utils.html      searchImlaeiClient(), _buildResultsFromReferences(), _buildAyahDataForInsert()
-│       ├── card-builder.html      buildCardHtml(), buildRangeData(), isConsecutiveRange(), escapeHtml(), toArabicIndicClient()
-│       ├── pagination.html        pagReset(), pagRenderPage(), pagClear(), PAGE_SIZE, refreshAllResultCardPreviews
-│       ├── render-helpers.html    renderPreview(), onInsertClick(), makeSkeleton()
-│       ├── font-variant-utils.html parseGoogleFontVariantClient(), ensureGoogleFontsPreviewStylesheet(), arabicPreviewFontStyle()
-│       ├── settings-panel-js.html initSettings(), refreshSettings(), loadSettingsIntoPanel(), initSettingsPanelHandlers(), onSettingsLoaded()
-│       ├── tab-direct-insert-js.html  initDirectInsertTab()
-│       ├── tab-exact-search-js.html   initExactSearchTab()
-│       ├── tab-ai-search-js.html      _conversationMessages, initAISearchTab(), clearAISearch()
-│       └── sidebar-js.html        IIFE: tab nav, setupTextarea, init() bootstrap
+│       ├── card-builder.html
+│       ├── font-variant-utils.html
+│       ├── pagination.html
+│       ├── quran-caches.html
+│       ├── render-helpers.html
+│       ├── search-utils.html
+│       ├── settings-panel-js.html
+│       ├── shared-state.html
+│       ├── sidebar-js.html
+│       ├── tab-ai-search-js.html
+│       ├── tab-direct-insert-js.html
+│       └── tab-exact-search-js.html
 │
 └── tests/
-    ├── makeClientCache.test.js    Node tests for cache factory
-    ├── normalizeArabic.test.js    Node tests for normalization + search
-    ├── buildResultCardHtml.test.js Node tests for card builder + pagination
-    ├── ClaudeAPI.test.gs          Apps Script tests
-    ├── FormatService.test.gs      Apps Script tests
-    ├── NormalizeArabic.test.gs    Apps Script tests
-    └── SettingsService.test.gs    Apps Script tests
+    ├── ClaudeAPI.test.gs
+    ├── DocumentService.test.gs
+    ├── FormatService.test.gs
+    ├── NormalizeArabic.test.gs
+    ├── RagService.test.gs
+    ├── SettingsService.test.gs
+    ├── buildResultCardHtml.test.js
+    ├── fontVariant.test.js
+    ├── makeClientCache.test.js
+    ├── normalizeArabic.test.js
+    └── renderHelpers.test.js
 ```
 
 ---
 
-## Include Order in `sidebar/sidebar.html`
+## Core Server Modules
 
-The browser evaluates `<script>` tags in DOM order. Each file depends on globals defined by earlier files.
-
-```
-client/makeClientCache          — defines makeClientCache()
-client/normalizeArabic          — defines normalizeArabic(), _mapNormalizedToOriginal()
-sidebar/js/quran-caches         — calls makeClientCache(); defines cache APIs + accessor fns
-sidebar/js/search-utils         — calls normalizeArabic, _mapNormalizedToOriginal, cache accessors
-sidebar/js/shared-state         — defines formatState, _settings, _surahList, constants, window.getFormatState
-sidebar/js/font-variant-utils   — Amiri preview stylesheet + arabicPreviewFontStyle (used by card-builder)
-sidebar/js/card-builder         — pure rendering utils; no runtime deps on earlier globals
-sidebar/js/pagination           — calls buildCardHtml (card-builder), window.getFormatState (shared-state)
-sidebar/js/render-helpers       — calls buildCardHtml, buildRangeData (card-builder); _buildAyahDataForInsert (search-utils)
-sidebar/js/settings-panel-js    — reads/writes _settings; onSettingsLoaded refreshes card previews; header New chat → clearAISearch
-sidebar/js/tab-direct-insert-js — reads _surahList, MAX_RESULTS; calls cache accessors, renderPreview, onInsertClick; sets window._refreshDirectInsert
-sidebar/js/tab-exact-search-js  — calls pagClear/Reset/RenderPage, searchImlaeiClient, onInsertClick
-sidebar/js/tab-ai-search-js     — calls all of the above; reads/writes _conversationMessages; calls window.setupTextarea
-sidebar/js/sidebar-js           — IIFE: exposes window.setupTextarea; calls init() on DOMContentLoaded
-```
-
-**Key ordering constraints:**
-- `quran-caches` must follow `makeClientCache` (calls the factory at parse time)
-- `shared-state` must precede `font-variant-utils`, `card-builder`, and all tab modules (they read or write `formatState`, `_settings`, `_surahList`)
-- `font-variant-utils` must precede `card-builder` (`arabicPreviewFontStyle`, `ensureGoogleFontsPreviewStylesheet`)
-- `card-builder` must precede `pagination` and `render-helpers` (both call `buildCardHtml`)
-- `search-utils` must precede `render-helpers` (calls `_buildAyahDataForInsert`)
-- `sidebar-js` must be last — its IIFE calls `init()` which calls all `init*()` functions
+- `Code.js`: Entry points (`onOpen`, `showSidebar`, `include_`).
+- `ClaudeAPI.js`: AI search orchestration — classification via Claude, RAG routing, fallback logic, response shaping. Enforces daily quota via `SettingsService`.
+- `RagService.js`: RAG semantic retrieval — query expansion, OpenAI embedding, Pinecone vector search, score filtering/merging, Claude reranking, reference finalization.
+- `RagEnglishTranslationSource.js`: Server-side translation map source/cache for RAG rerank candidate text. Loaded in parallel with Pinecone queries.
+- `DocumentService.js`: Insertion orchestration for single/range ayat and post-insert behavior.
+- `FormatService.js`: Typography and formatting logic for inserted document content. Enforces Amiri font, regular weight.
+- `SettingsService.js`: User/script property persistence, settings helpers, daily AI quota management, dev exemption checks.
+- `NormalizeArabic.js`: Server-side normalization (parity testing only — production search runs client-side).
 
 ---
 
-## Shared Globals
+## Sidebar Script Include Order
 
-### State variables (`sidebar/js/shared-state.html`)
-| Variable | Type | Initial value | Writers | Readers |
-|---|---|---|---|---|
-| `formatState` | object | `{fontName:'Amiri', fontVariant:'regular', bold:false}` (fixed for Quran preview; server forces same for inserts) | — | `renderPreview`, `window.getFormatState`, insert payloads |
-| `_settings` | object | `{}` | `onSettingsLoaded`, `refreshSettings` | `onInsertClick`, `_buildResultsFromReferences`, `_buildAyahDataForInsert` |
-| `_surahList` | array | `[]` | `initDirectInsertTab` (via `ensureSurahMetaCache` callback) | `searchImlaeiClient`, `_buildResultsFromReferences`, `_buildAyahDataForInsert`, `initDirectInsertTab` |
-| `MAX_RESULTS` | number | `50` | — | `searchImlaeiClient`, `initDirectInsertTab` |
-| `EXACT_DEBOUNCE_MS` | number | `200` | — | `initExactSearchTab` |
-| `EXACT_MIN_CHARS` | number | `2` | — | `initExactSearchTab` |
-### Window-bridge properties (set by IIFE, read by global scripts)
-| Property | Set by | Read by |
-|---|---|---|
-| `window._activeTab` | `sidebar-js` IIFE (`switchTab`) | (tab visibility helpers) |
-| `window._refreshDirectInsert` | `tab-direct-insert-js` (`initDirectInsertTab`) | `pagination` (`refreshAllResultCardPreviews`) |
-| `clearAISearch()` | `tab-ai-search-js` (global fn) | `settings-panel-js` (`initSettings` header New chat button) |
-| `window.setupTextarea` | `sidebar-js` IIFE | `tab-ai-search-js` (`initAISearchTab`) |
-| `window.getFormatState` | `shared-state` | `render-helpers` (`onInsertClick`), `pagination` (`pagRenderPage`) |
+`sidebar/sidebar.html` includes scripts in this order:
 
-### Cache APIs (`sidebar/js/quran-caches.html`)
-All four are module-private `_*CacheApi` objects. Public access is only through the wrapper functions:
+1. `client/makeClientCache`
+2. `client/normalizeArabic`
+3. `sidebar/js/quran-caches`
+4. `sidebar/js/search-utils`
+5. `sidebar/js/shared-state`
+6. `sidebar/js/font-variant-utils`
+7. `sidebar/js/card-builder`
+8. `sidebar/js/pagination`
+9. `sidebar/js/render-helpers`
+10. `sidebar/js/settings-panel-js`
+11. `sidebar/js/tab-direct-insert-js`
+12. `sidebar/js/tab-exact-search-js`
+13. `sidebar/js/tab-ai-search-js`
+14. `sidebar/js/sidebar-js`
 
-| Function | Cache | Used by |
-|---|---|---|
-| `ensureUthmaniCache(onReady, onError)` | **imlaei-script** JSON (see CLAUDE.md naming note; legacy “Uthmani” names) | `initDirectInsertTab`, `switchTab`, `init` |
-| `lookupUthmaniAyah(surah, ayah)` | **imlaei-script** JSON (same) | `initDirectInsertTab`, `_buildResultsFromReferences`, `_buildAyahDataForInsert` |
-| `ensureTranslationCache(onReady, onError)` | Translation JSON | `switchTab`, `init` |
-| `loadTranslationEdition(url, onReady, onError)` | Translation JSON | (settings, future use) |
-| `lookupTranslation(surah, ayah)` | Translation JSON | `initDirectInsertTab`, `_buildResultsFromReferences`, `_buildAyahDataForInsert` |
-| `ensureImlaeiCache(onReady, onError)` | Imlaei JSON (normalized index) | `switchTab`, `init`, `_buildResultsFromReferences`, `_buildAyahDataForInsert` |
-| `ensureSurahMetaCache(onReady, onError)` | Surah metadata JSON | `initDirectInsertTab`, `init` |
+This order is required because modules share globals and call previously declared functions at parse/runtime.
 
 ---
 
-## Rendering Pipeline
+## Data and Search Flow
 
-### Preview mode (Direct Insert tab, AI Search consecutive range)
-```
-User selects surah/ayah  OR  AI returns consecutive references
-    │
-    ▼
-lookupUthmaniAyah() + lookupTranslation()  →  results[] array
-    │
-    ▼
-renderPreview(containerEl, results)          [render-helpers.html]
-    │
-    ├── results.length === 1  →  buildCardHtml(result, font)
-    └── results.length > 1   →  buildRangeData(results) → buildCardHtml(rangeData, font)
-                                                            [card-builder.html]
-    │
-    ▼
-Single <div class="result-card"> injected into containerEl
-```
+### Exact Arabic Search (client-side only)
 
-### Paginated mode (Exact Search, AI Search non-consecutive)
-```
-searchImlaeiClient(query)  OR  _buildResultsFromReferences(refs)  →  results[]
-    │
-    ▼
-pagReset(tabId, results)        stores results + resets page counter   [pagination.html]
-    │
-    ▼
-pagRenderPage(tabId, containerEl, emptyEl, emptyMsg)
-    │
-    ├── slices results[0..PAGE_SIZE]
-    ├── calls buildCardHtml(result, window.getFormatState()) for each
-    ├── appends cards to containerEl
-    └── appends "Show more" button if items remain  →  clicking calls pagRenderPage again
-```
+1. User types Arabic text in Exact Search tab.
+2. Query is normalized via `normalizeArabic` (strip tashkeel, normalize alef variants).
+3. Normalized query is matched against the `imlaei-simple` search index in browser memory.
+4. Matched ayahs are resolved from the `imlaei-script` display cache and rendered as cards.
 
----
+### AI Semantic Search
 
-## Insert Pipeline
+1. **Classification:** `performAISearch` sends user query + conversation context to Claude (`claude-haiku-4-5-20251001`, temp 0). Claude returns action JSON:
+   - `fetch_ayah` — direct surah:ayah lookup
+   - `exact_search` — Arabic corpus search (Claude extracts query, client searches locally)
+   - `semantic_search` — RAG pipeline or Claude references
+   - `clarify` — ask user for more detail
 
-```
-User clicks .btn-insert-result button
-    │
-    ▼
-onInsertClick(e)                             [render-helpers.html]
-    │
-    ├── reads data-surah, data-ayah (single) OR data-surah, data-ayah-start, data-ayah-end (range)
-    ├── reads window.getFormatState() → fs  (passed to server; Arabic typography enforced in FormatService)
-    ├── reads _settings.arabicStyle → 'uthmani' | 'simple' (`'uthmani'` = imlaei-script display; see CLAUDE.md)
-    │
-    ├── SINGLE:  _buildAyahDataForInsert(surah, ayah, style)
-    │               └── google.script.run.insertAyah(ayahData, fs, _settings)
-    │
-    └── RANGE:   _buildAyahDataForInsert() × N  →  buildRangeData(items)
-                    └── google.script.run.insertAyahRange(rangeData, fs, _settings)
+2. **RAG routing** (`_handleSemanticSearchRouted_`):
+   - If `classified.rag_supported === false` → skip RAG, use Claude references directly.
+   - Otherwise → try RAG pipeline, fall back to Claude references on error or empty results.
 
-Translation checkbox (_settings.showTranslation):
-    Stored in User Properties via SettingsService.
-    Passed as part of _settings to insertAyah / insertAyahRange.
-    DocumentService reads it server-side to decide whether to append translation text.
-```
+3. **RAG retrieval** (`_handleRagSearch` in `RagService.js`):
+   - Build query strings from `classified.queries` (max 3), with legacy fallback to `classified.query`.
+   - Embed all queries in one OpenAI batch (`text-embedding-3-small`).
+   - Query Pinecone in parallel (`topK=20`, optional surah metadata filter).
+   - Fetch translation JSON in same `fetchAll` for rerank context.
+
+4. **Merge and score filtering:**
+   - Merge Pinecone hits across query expansions by `surah:ayah`, keep highest score per ayah.
+   - Sort descending by score.
+   - Apply `RAG_SCORE_THRESHOLD = 0.35`. If nothing passes → fall back to Claude references.
+
+5. **Reranking:**
+   - Take top candidate pool (`RAG_CANDIDATE_POOL = 20`).
+   - If ≥3 candidates and Claude key available → Claude reranks using translation text as context.
+   - Reranker output parsed/validated as JSON array of `"surah:ayah"` keys.
+
+6. **Finalization** (`_finalizeRagAyahRefs_`):
+   - Keep only keys that exist in Pinecone pool.
+   - Deduplicate, validate numeric range (surah 1–114, ayah ≥ 1), apply final cap.
+   - Use reranked order first, fill remaining from Pinecone score order.
+   - `_mergeConsecutiveReferencesInInputOrder_` groups adjacent ayahs into `{surah, ayahStart, ayahEnd}` ranges.
+   - Server returns `{ type: 'references', references: [...] }`.
+
+7. **Client-side validation (hallucination guard):**
+   - Sidebar resolves references in `_buildResultsFromReferences` against local caches.
+   - Drops any ref where: surah doesn't exist in metadata, ayah exceeds surah count, or Arabic text missing from Quran cache.
+   - Only validated references are rendered/inserted.
+
+### Insert Flow
+
+1. User clicks insert on a result card.
+2. Client calls server via `google.script.run` with ayah reference and settings payload.
+3. `DocumentService.js` resolves insert anchor in the active Google Doc.
+4. `FormatService.js` applies typography (Amiri, regular weight, Arabic numerals).
+5. Content is written to the document.
 
 ---
 
-## Per-Tab Flow
+## Test Architecture
 
-### Direct Insert
-```
-User selects Surah (dropdown)
-    → ensureSurahMetaCache populates _surahList on first load
-    → populateAyahSelect() fills ayah-start dropdown
-    → ayah-end disabled until ayah-start chosen
+### Node tests (`npm test`)
 
-User selects ayah-start / ayah-end
-    → autoRenderPreview()
-        → lookupUthmaniAyah() + lookupTranslation() for each ayah in range
-        → renderPreview()  →  one card (single or range)
+- `tests/makeClientCache.test.js` — Cache factory: fetch/parse, lookup, callback flow, error handling.
+- `tests/normalizeArabic.test.js` — Client normalization primitives and normalized-to-original index mapping.
+- `tests/buildResultCardHtml.test.js` — Card/range rendering and pagination logic (non-DOM harness).
+- `tests/fontVariant.test.js` — Google Fonts variant token parsing and preview URL generation.
+- `tests/renderHelpers.test.js` — Insert button lifecycle logic (loading/finalization/pending-border flows).
 
-Insert click  →  onInsertClick()  →  insertAyah / insertAyahRange
-```
+### Apps Script tests (run in Apps Script editor)
 
-### Exact Search
-```
-User types in search box
-    → debounced 200ms → doExactSearch()
-        → searchImlaeiClient(query)
-            → normalizeArabic(query)
-            → scans pre-normalized imlaei index (loaded once at startup)
-            → _mapNormalizedToOriginal() maps match position back to offsets in the imlaei-simple verse string (preview Arabic for exact search)
-            → returns up to MAX_RESULTS results
-        → pagReset() + pagRenderPage()  →  paginated cards
-
-Insert click  →  onInsertClick()
-```
-
-### AI Search
-```
-User types query + Enter / Send
-    → _conversationMessages.push({role:'user', content:query})
-    → google.script.run.performAISearch(last 3 messages)
-        [server: ClaudeAPI classifies intent → returns typed JSON response]
-    │
-    ├── type:'clarify'     → show clarification message; keep conversation alive
-    │
-    ├── type:'arabic_search'  → response.query extracted by Claude
-    │       → _conversationMessages = []  (chain broken)
-    │       → searchImlaeiClient(response.query)  →  paginated results
-    │
-    ├── type:'references'  → response.references [{surah,ayah}, ...]
-    │       → _conversationMessages = []  (chain broken)
-    │       → _buildResultsFromReferences()  (validates against local caches)
-    │       → isConsecutiveRange()?
-    │           yes  →  renderPreview()   (one combined card)
-    │           no   →  pagReset() + pagRenderPage()  (paginated)
-    │
-    └── type:'error'
-            NO_API_KEY  →  show "configure API key" banner
-            other       →  show error message
-
-Conversation chain: maintained across clarify responses only.
-Any non-clarify response resets _conversationMessages = [].
-```
+- `tests/ClaudeAPI.test.gs` — Classification parsing, RAG routing, response handling, integration paths.
+- `tests/DocumentService.test.gs` — Insert anchor resolution and document/body/table insertion with mocks.
+- `tests/FormatService.test.gs` — Arabic numeral conversion and insert-format policy assertions.
+- `tests/NormalizeArabic.test.gs` — Server normalization behavior and edge cases.
+- `tests/RagService.test.gs` — RAG constants, query expansion/merge/finalization helpers, mocked network paths.
+- `tests/SettingsService.test.gs` — Settings defaults, persistence, limits, quota, dev exemption, property interactions.
 
 ---
 
-## State Management
+## Test Commands
 
-| State | Lives in | Reset by |
-|---|---|---|
-| `formatState` | `shared-state.html` global | Fixed Amiri/regular for Quran preview (server mirrors for inserts) |
-| `_settings` | `shared-state.html` global | `onSettingsLoaded` (page load), `refreshSettings` (settings panel close) |
-| `_surahList` | `shared-state.html` global | `initDirectInsertTab` → `ensureSurahMetaCache` callback (once) |
-| `window._activeTab` | IIFE (`sidebar-js`) | `switchTab()` on every tab click |
-| `window._refreshDirectInsert` | IIFE (`sidebar-js`) initial `null` | Set to `autoRenderPreview` by `initDirectInsertTab` |
-| `_conversationMessages` | `tab-ai-search-js.html` global | `clearAISearch()`, any non-clarify AI response |
-| Pagination state `_pagState` | `pagination.html` module-private | `pagReset()` (new search), `pagClear()` (tab clear) |
-| Direct Insert DOM state | DOM only | User changes surah/ayah selects; tab switch does not clear |
-| Exact Search DOM state | DOM only | User clears query or edits search; tab switch does not clear |
-| AI Search DOM state | DOM only | `clearAISearch()` — clears input, results, clarify, conversation; invoked by header **New chat** (sparkle) button |
-
-**What triggers AI reset:** The header **New chat** control calls `clearAISearch()` only. Browse and Search tabs are not cleared from the header. Tab switches do **not** clear state — switching back restores previous results for Browse/Search.
+- Run full Node suite: `npm test`
+- Run individual Node targets:
+  - `npm run test:client`
+  - `npm run test:normalize`
+  - `npm run test:card`
+  - `npm run test:font`
+  - `npm run test:render-helpers`
+- Run Apps Script tests from editor via runner functions:
+  - `runClaudeAPITests`
+  - `runDocumentServiceTests`
+  - `runFormatServiceTests`
+  - `runNormalizeArabicTests`
+  - `runRagServiceTests`
+  - `runSettingsServiceTests`
