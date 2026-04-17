@@ -14,15 +14,15 @@ Tasneef uses AI-powered semantic search to find verses by meaning, topic, or the
 
 <p align="center"><img src="sidebar/assets/browse.png" alt="Browse tab" width="300"></p>
 
-**Exact Arabic Search** — Search the Quran by Arabic text with full diacritics normalization. Finds matches regardless of tashkeel or alef variants.
+**Exact Arabic Search** — Search the Quran by Arabic text with full diacritics normalization.
 
 <p align="center"><img src="sidebar/assets/exact-search.png" alt="Exact search" width="300"></p>
 
-**AI Semantic Search** — Ask a question in natural language (English or Arabic) and get relevant ayat ranked by meaning. Powered by a RAG pipeline with vector search and reranking.
+**AI Semantic Search** — Ask a question in natural language and get relevant ayahs ranked by meaning. Powered by a RAG pipeline with vector search and reranking.
 
 <p align="center"><img src="sidebar/assets/ai-search.png" alt="AI search" width="300"></p>
 
-**Configurable Settings** — Choose your preferred Arabic font, translation display, and insertion format.
+**Configurable Settings** — Toggle translation display, and choose your insertion format.
 
 <p align="center"><img src="sidebar/assets/settings.png" alt="Settings" width="300"></p>
 
@@ -30,7 +30,7 @@ Tasneef uses AI-powered semantic search to find verses by meaning, topic, or the
 
 ## How It Works
 
-1. **Quran data is loaded client-side** from hosted JSON feeds — Arabic text and translations never pass through external APIs.
+1. **Quran data is loaded client-side** from hosted JSON data.
 2. **AI search uses Claude as an intent classifier** — it determines what you're looking for, but never generates Quranic text.
 3. **Semantic retrieval** uses OpenAI embeddings and Pinecone vector search, with Claude reranking for relevance.
 4. **Every ayah reference is validated** against the local Quran dataset before display — hallucinated or invalid references are dropped silently.
@@ -41,7 +41,7 @@ Tasneef uses AI-powered semantic search to find verses by meaning, topic, or the
 
 - Google Apps Script (server)
 - HTML / CSS / JavaScript (sidebar UI via HtmlService)
-- Claude Haiku (intent classification + reranking)
+- Claude Haiku 4.5 (intent classification + reranking)
 - OpenAI Embeddings (`text-embedding-3-small`)
 - Pinecone (vector search)
 - Quran data served from GitHub Pages (client-side caching)
