@@ -10,4 +10,3 @@ README.md
 sidebar/assets/**
 package.json
 tests/*.test.js
-tests/*.test.gs

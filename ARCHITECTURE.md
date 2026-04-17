@@ -18,60 +18,67 @@ Reference for current implementation in this repository.
 
 ## Current File Structure
 
+Clasp deploys the **`src/`** directory (`rootDir` in `.clasp.json`). Repository config, docs, and Node tests stay at the repo root.
+
 ```
 tasneef-ai/
 ├── ARCHITECTURE.md
 ├── CLAUDE.md
-├── Code.js
-├── ClaudeAPI.js
-├── DocumentService.js
-├── FormatService.js
-├── NormalizeArabic.js
-├── RagEnglishTranslationSource.js
-├── RagService.js
-├── SettingsService.js
-├── appsscript.json
 ├── package.json
 ├── .gitignore
 ├── .claspignore
+├── .clasp.json
 │
-├── client/
-│   ├── makeClientCache.html
-│   └── normalizeArabic.html
+├── src/                          # Google Apps Script project root (clasp push)
+│   ├── appsscript.json
+│   ├── Code.js
+│   ├── ClaudeAPI.js
+│   ├── DocumentService.js
+│   ├── FormatService.js
+│   ├── NormalizeArabic.js
+│   ├── RagEnglishTranslationSource.js
+│   ├── RagService.js
+│   ├── SettingsService.js
+│   │
+│   ├── client/
+│   │   ├── makeClientCache.html
+│   │   └── normalizeArabic.html
+│   │
+│   ├── sidebar/
+│   │   ├── sidebar.html
+│   │   ├── sidebar-css.html
+│   │   ├── assets/
+│   │   │   └── logo.png
+│   │   ├── components/
+│   │   │   ├── bottom-bar.html
+│   │   │   ├── logo-img.html
+│   │   │   ├── settings-panel.html
+│   │   │   ├── tab-ai-search.html
+│   │   │   ├── tab-direct-insert.html
+│   │   │   └── tab-exact-search.html
+│   │   └── js/
+│   │       ├── card-builder.html
+│   │       ├── font-variant-utils.html
+│   │       ├── pagination.html
+│   │       ├── quran-caches.html
+│   │       ├── render-helpers.html
+│   │       ├── search-utils.html
+│   │       ├── settings-panel-js.html
+│   │       ├── shared-state.html
+│   │       ├── sidebar-js.html
+│   │       ├── tab-ai-search-js.html
+│   │       ├── tab-direct-insert-js.html
+│   │       └── tab-exact-search-js.html
+│   │
+│   └── tests/                    # Apps Script tests (*.test.gs); pushed to the editor
+│       ├── ClaudeAPI.test.gs
+│       ├── DocumentService.test.gs
+│       ├── FormatService.test.gs
+│       ├── NormalizeArabic.test.gs
+│       ├── RagService.test.gs
+│       └── SettingsService.test.gs
 │
-├── sidebar/
-│   ├── sidebar.html
-│   ├── sidebar-css.html
-│   ├── assets/
-│   │   └── logo.png
-│   ├── components/
-│   │   ├── bottom-bar.html
-│   │   ├── logo-img.html
-│   │   ├── settings-panel.html
-│   │   ├── tab-ai-search.html
-│   │   ├── tab-direct-insert.html
-│   │   └── tab-exact-search.html
-│   └── js/
-│       ├── card-builder.html
-│       ├── font-variant-utils.html
-│       ├── pagination.html
-│       ├── quran-caches.html
-│       ├── render-helpers.html
-│       ├── search-utils.html
-│       ├── settings-panel-js.html
-│       ├── shared-state.html
-│       ├── sidebar-js.html
-│       ├── tab-ai-search-js.html
-│       ├── tab-direct-insert-js.html
-│       └── tab-exact-search-js.html
-│
-└── tests/
-    ├── ClaudeAPI.test.gs
-    ├── DocumentService.test.gs
-    ├── FormatService.test.gs
-    ├── NormalizeArabic.test.gs
-    ├── RagService.test.gs
-    ├── SettingsService.test.gs
+└── tests/                        # Node.js tests only (*.test.js); npm test
     ├── buildResultCardHtml.test.js
     ├── fontVariant.test.js
     ├── makeClientCache.test.js
@@ -83,20 +90,22 @@ tasneef-ai/
 
 ## Core Server Modules
 
-- `Code.js`: Entry points (`onOpen`, `showSidebar`, `include_`).
-- `ClaudeAPI.js`: AI search orchestration — classification via Claude, RAG routing, fallback logic, response shaping. Enforces daily quota via `SettingsService`.
-- `RagService.js`: RAG semantic retrieval — query expansion, OpenAI embedding, Pinecone vector search, score filtering/merging, Claude reranking, reference finalization.
-- `RagEnglishTranslationSource.js`: Server-side translation map source/cache for RAG rerank candidate text. Loaded in parallel with Pinecone queries.
-- `DocumentService.js`: Insertion orchestration for single/range ayat and post-insert behavior.
-- `FormatService.js`: Typography and formatting logic for inserted document content. Enforces Amiri font, regular weight.
-- `SettingsService.js`: User/script property persistence, settings helpers, daily AI quota management, dev exemption checks.
-- `NormalizeArabic.js`: Server-side normalization (parity testing only — production search runs client-side).
+All live under **`src/`** (the clasp project root).
+
+- `src/Code.js`: Entry points (`onOpen`, `showSidebar`, `include_`).
+- `src/ClaudeAPI.js`: AI search orchestration — classification via Claude, RAG routing, fallback logic, response shaping. Enforces daily quota via `SettingsService`.
+- `src/RagService.js`: RAG semantic retrieval — query expansion, OpenAI embedding, Pinecone vector search, score filtering/merging, Claude reranking, reference finalization.
+- `src/RagEnglishTranslationSource.js`: Server-side translation map source/cache for RAG rerank candidate text. Loaded in parallel with Pinecone queries.
+- `src/DocumentService.js`: Insertion orchestration for single/range ayat and post-insert behavior.
+- `src/FormatService.js`: Typography and formatting logic for inserted document content. Enforces Amiri font, regular weight.
+- `src/SettingsService.js`: User/script property persistence, settings helpers, daily AI quota management, dev exemption checks.
+- `src/NormalizeArabic.js`: Server-side normalization (parity testing only — production search runs client-side).
 
 ---
 
 ## Sidebar Script Include Order
 
-`sidebar/sidebar.html` includes scripts in this order:
+`src/sidebar/sidebar.html` includes scripts in this order:
 
 1. `client/makeClientCache`
 2. `client/normalizeArabic`
@@ -138,7 +147,7 @@ This order is required because modules share globals and call previously declare
    - If `classified.rag_supported === false` → skip RAG, use Claude references directly.
    - Otherwise → try RAG pipeline, fall back to Claude references on error or empty results.
 
-3. **RAG retrieval** (`_handleRagSearch` in `RagService.js`):
+3. **RAG retrieval** (`_handleRagSearch` in `src/RagService.js`):
    - Build query strings from `classified.queries` (max 3), with legacy fallback to `classified.query`.
    - Embed all queries in one OpenAI batch (`text-embedding-3-small`).
    - Query Pinecone in parallel (`topK=20`, optional surah metadata filter).
@@ -170,8 +179,8 @@ This order is required because modules share globals and call previously declare
 
 1. User clicks insert on a result card.
 2. Client calls server via `google.script.run` with ayah reference and settings payload.
-3. `DocumentService.js` resolves insert anchor in the active Google Doc.
-4. `FormatService.js` applies typography (Amiri, regular weight, Arabic numerals).
+3. `src/DocumentService.js` resolves insert anchor in the active Google Doc.
+4. `src/FormatService.js` applies typography (Amiri, regular weight, Arabic numerals).
 5. Content is written to the document.
 
 ---
@@ -188,12 +197,14 @@ This order is required because modules share globals and call previously declare
 
 ### Apps Script tests (run in Apps Script editor)
 
-- `tests/ClaudeAPI.test.gs` — Classification parsing, RAG routing, response handling, integration paths.
-- `tests/DocumentService.test.gs` — Insert anchor resolution and document/body/table insertion with mocks.
-- `tests/FormatService.test.gs` — Arabic numeral conversion and insert-format policy assertions.
-- `tests/NormalizeArabic.test.gs` — Server normalization behavior and edge cases.
-- `tests/RagService.test.gs` — RAG constants, query expansion/merge/finalization helpers, mocked network paths.
-- `tests/SettingsService.test.gs` — Settings defaults, persistence, limits, quota, dev exemption, property interactions.
+These files live in **`src/tests/`** so clasp pushes them with the script project.
+
+- `src/tests/ClaudeAPI.test.gs` — Classification parsing, RAG routing, response handling, integration paths.
+- `src/tests/DocumentService.test.gs` — Insert anchor resolution and document/body/table insertion with mocks.
+- `src/tests/FormatService.test.gs` — Arabic numeral conversion and insert-format policy assertions.
+- `src/tests/NormalizeArabic.test.gs` — Server normalization behavior and edge cases.
+- `src/tests/RagService.test.gs` — RAG constants, query expansion/merge/finalization helpers, mocked network paths.
+- `src/tests/SettingsService.test.gs` — Settings defaults, persistence, limits, quota, dev exemption, property interactions.
 
 ---
 
