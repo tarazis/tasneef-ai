@@ -343,8 +343,8 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
   }
 
   var cell = table.getRow(0).getCell(0);
-  cell.setPaddingLeft(21);
-  cell.setPaddingTop(18);
+  cell.setPaddingLeft(21); // to account for the 3px thick border
+  cell.setPaddingTop(21); // to account for Amiri's font harakat (vowels) at the top
   cell.setPaddingRight(18);
   cell.setPaddingBottom(18);
 
