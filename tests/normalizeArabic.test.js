@@ -11,7 +11,7 @@ const path = require('path');
 const vm = require('vm');
 
 const NORMALIZE_SRC = fs.readFileSync(
-  path.join(__dirname, '..', 'client', 'normalizeArabic.html'),
+  path.join(__dirname, '..', 'src', 'client', 'normalizeArabic.html'),
   'utf8'
 ).replace(/<script[^>]*>/gi, '').replace(/<\/script>/gi, '');
 
@@ -243,7 +243,7 @@ function runTests() {
     const m = loadModule();
 
     const SERVER_SRC = fs.readFileSync(
-      path.join(__dirname, '..', 'NormalizeArabic.js'),
+      path.join(__dirname, '..', 'src', 'NormalizeArabic.js'),
       'utf8'
     );
     const serverSandbox = { console };
