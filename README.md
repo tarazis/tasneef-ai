@@ -148,5 +148,5 @@ Contributions are welcome. Please open an issue first to discuss what you'd like
 
 If you find Tasneef useful, consider supporting development:
 
-[![Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/tarazis)
+[Support on Buy Me a Coffee](https://buymeacoffee.com/tarazis)
 
