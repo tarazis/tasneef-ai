@@ -292,12 +292,15 @@ function _handleSemanticSearchRouted_(classified, originalUserMessageForRerank) 
  * Converts a fetch_ayah classification into merged range groups for client-side resolution.
  * Expands references to flat pairs, then merges consecutive same-surah ayahs into groups.
  * @param {Object} classified - { references?, surah?, ayah?, ayahStart?, ayahEnd? }
- * @return {Object} { type: 'references', references: [{surah, ayahStart, ayahEnd}] } or error
+ * @return {Object} { type: 'references', references: [...] } or { type: 'error'|'clarify', ... }
  */
 function _handleFetchAyahAsReferences(classified) {
+  if (Array.isArray(classified.references) && classified.references.length === 0) {
+    return { type: 'error', error: 'No ayah references in response.' };
+  }
   if (Array.isArray(classified.references) && classified.references.length > 0) {
     var expanded = _expandMultiReferences(classified.references);
-    if (expanded.type === 'error') return expanded;
+    if (expanded.type === 'error' || expanded.type === 'clarify') return expanded;
     return { type: 'references', references: _mergeConsecutiveReferences(expanded.references) };
   }
 
