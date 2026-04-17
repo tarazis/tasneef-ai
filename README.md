@@ -1,6 +1,6 @@
 # Tasneef AI
 
-A Google Docs sidebar add-on that lets you search and insert Quranic verses directly into Google Docs. Built for Islamic scholars, students, and writers who work with Quran references regularly.
+A Google Docs sidebar add-on that lets you search and insert Quranic verses directly into Google Docs.
 
 Tasneef uses AI-powered semantic search to find verses by meaning, topic, or theme.
 
@@ -135,7 +135,7 @@ See `ARCHITECTURE.md` for the full file tree, include order, and data flow docum
 
 ## Contributing
 
-Contributions are welcome. Please open an issue first to discuss what you'd like to change.
+Contributions are welcome.
 
 1. Fork the repository
 2. Create a feature branch (`feature/<issue-number>-description`)
