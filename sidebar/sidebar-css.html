@@ -479,13 +479,14 @@
     border: none;
     background: none;
     font: inherit;
-    font-size: 10px;
+    font-size: 11px;
     color: var(--color-text-secondary);
     text-decoration: none;
     white-space: nowrap;
     cursor: pointer;
     transition: color var(--transition-fast);
   }
+  .bottom-bar-cta--support { font-weight: 700; }
   .bottom-bar-cta:hover,
   .bottom-bar-cta:focus { color: var(--color-primary); outline: none; }
   .bottom-bar-cta:focus-visible { text-decoration: underline; }
@@ -494,6 +495,22 @@
     height: 14px;
     flex-shrink: 0;
     display: block;
+  }
+  /* Material Symbols (fonts.googleapis.com); axes match static request opsz,wght,FILL,GRAD@24,400,1,0 */
+  .material-symbols-outlined {
+    font-variation-settings:
+      'FILL' 1,
+      'wght' 400,
+      'GRAD' 0,
+      'opsz' 24;
+    color: currentColor;
+  }
+  .bottom-bar-cta .material-symbols-outlined {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1;
+    flex-shrink: 0;
+    user-select: none;
   }
   .bottom-bar-right {
     display: flex;
@@ -504,7 +521,7 @@
   }
   .bottom-bar-wordmark svg {
     display: block;
-    height: 28px;
+    height: 30px;
     width: auto;
     max-width: 200px;
   }
