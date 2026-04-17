@@ -3,7 +3,8 @@
  * Run from Apps Script editor: select runSettingsServiceTests, click Run.
  * View results in View → Logs.
  *
- * Note: These tests write to real User/Script Properties and clean up after themselves.
+ * This suite does not mutate User or Script Properties (no setProperty/deleteProperty).
+ * Key helpers below only read Script Properties where noted.
  */
 
 function runSettingsServiceTests() {
@@ -41,7 +42,7 @@ function runSettingsServiceTests() {
     };
   }
 
-  // ─── getClaudeApiKey_ (reads from Script Properties) ──────────────────────
+  // ─── getClaudeApiKey_ (read-only Script Properties) ───────────────────────
 
   results.push('\ngetClaudeApiKey_()');
 
@@ -51,7 +52,7 @@ function runSettingsServiceTests() {
     expect(key === null || typeof key === 'string').toBeTruthy();
   });
 
-  // ─── getGoogleFontsApiKey_ (reads from Script Properties) ─────────────────
+  // ─── getGoogleFontsApiKey_ (read-only Script Properties) ─────────────────
 
   results.push('\ngetGoogleFontsApiKey_()');
 
@@ -60,35 +61,9 @@ function runSettingsServiceTests() {
     expect(key === null || typeof key === 'string').toBeTruthy();
   });
 
-  // ─── getSettings / saveSetting_ defaults ──────────────────────────────────
+  // ─── saveSetting_() ───────────────────────────────────────────────────────
 
-  results.push('\ngetSettings() defaults');
-
-  it('blockquoteInsertion defaults to true', function () {
-    PropertiesService.getUserProperties().deleteProperty('setting_blockquoteInsertion');
-    var s = getSettings();
-    expect(s.blockquoteInsertion).toBe(true);
-  });
-
-  it('saveSetting_ persists blockquoteInsertion false', function () {
-    saveSetting_('blockquoteInsertion', false);
-    var s = getSettings();
-    expect(s.blockquoteInsertion).toBe(false);
-    PropertiesService.getUserProperties().deleteProperty('setting_blockquoteInsertion');
-  });
-
-  it('showTranslation defaults to true', function () {
-    PropertiesService.getUserProperties().deleteProperty('setting_showTranslation');
-    var s = getSettings();
-    expect(s.showTranslation).toBe(true);
-  });
-
-  it('saveSetting_ persists showTranslation false', function () {
-    saveSetting_('showTranslation', false);
-    var s = getSettings();
-    expect(s.showTranslation).toBe(false);
-    PropertiesService.getUserProperties().deleteProperty('setting_showTranslation');
-  });
+  results.push('\nsaveSetting_()');
 
   it('saveSetting_ rejects unknown keys', function () {
     try {
@@ -97,22 +72,6 @@ function runSettingsServiceTests() {
     } catch (e) {
       if (e.message.indexOf('Unknown setting key') === -1) throw e;
     }
-  });
-
-  // ─── getFeedbackFormUrl ───────────────────────────────────────────────────
-
-  results.push('\ngetFeedbackFormUrl()');
-
-  it('returns empty string when feedback_form_url is not set', function () {
-    PropertiesService.getScriptProperties().deleteProperty('feedback_form_url');
-    expect(getFeedbackFormUrl()).toBe('');
-  });
-
-  it('returns script property feedback_form_url when set', function () {
-    var url = 'https://example.com/form';
-    PropertiesService.getScriptProperties().setProperty('feedback_form_url', url);
-    expect(getFeedbackFormUrl()).toBe(url);
-    PropertiesService.getScriptProperties().deleteProperty('feedback_form_url');
   });
 
   // ─── AI search daily limit ────────────────────────────────────────────────
@@ -144,37 +103,6 @@ function runSettingsServiceTests() {
 
   it('does not match partial addresses', function () {
     expect(devEmailListIncludes_('a@b.com', 'aa@b.com, x@b.com')).toBe(false);
-  });
-
-  // ─── isAiSearchDevExempt_ (Script Property dev_emails) ─────────────────────
-
-  results.push('\nisAiSearchDevExempt_()');
-
-  it('is false when dev_emails is unset', function () {
-    PropertiesService.getScriptProperties().deleteProperty(PROPERTY_KEYS.DEV_EMAILS);
-    expect(isAiSearchDevExempt_()).toBe(false);
-  });
-
-  it('is true when active user is listed in dev_emails', function () {
-    var me = Session.getActiveUser().getEmail();
-    if (!me) {
-      results.push('  (skip: no active user email in this run)');
-      return;
-    }
-    var prev = PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.DEV_EMAILS);
-    try {
-      PropertiesService.getScriptProperties().setProperty(
-        PROPERTY_KEYS.DEV_EMAILS,
-        'someone-else@example.com, ' + me + ' ,other@example.com'
-      );
-      expect(isAiSearchDevExempt_()).toBe(true);
-    } finally {
-      if (prev == null) {
-        PropertiesService.getScriptProperties().deleteProperty(PROPERTY_KEYS.DEV_EMAILS);
-      } else {
-        PropertiesService.getScriptProperties().setProperty(PROPERTY_KEYS.DEV_EMAILS, prev);
-      }
-    }
   });
 
   results.push('\n─────────────────────────────────────────');

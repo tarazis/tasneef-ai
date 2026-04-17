@@ -149,7 +149,9 @@ function incrementAiSearchCount_() {
 }
 
 /**
- * True if the active user's email appears in dev_emails (comma-separated, trimmed).
+ * True if the current user's email appears in dev_emails (comma-separated, trimmed).
+ * Uses Session.getActiveUser().getEmail() first; if blank (e.g. Run from the script editor),
+ * falls back to Session.getEffectiveUser().getEmail().
  * @return {boolean}
  */
 function isAiSearchDevExempt_() {
@@ -157,6 +159,11 @@ function isAiSearchDevExempt_() {
   if (!raw) return false;
   try {
     var email = Session.getActiveUser().getEmail();
+    email = email ? String(email).trim() : '';
+    if (!email) {
+      email = Session.getEffectiveUser().getEmail();
+      email = email ? String(email).trim() : '';
+    }
     return devEmailListIncludes_(email, raw);
   } catch (e) {
     return false;
