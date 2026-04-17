@@ -150,8 +150,3 @@ If you find Tasneef useful, consider supporting development:
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/tarazis)
 
----
-
-## License
-
-[MIT](LICENSE)
