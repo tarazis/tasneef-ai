@@ -1,8 +1,8 @@
 # Tasneef AI
 
-A Google Docs sidebar add-on that lets you search and insert Quranic ayat directly into your documents. Built for Islamic scholars, students, and writers who work with Quran references regularly.
+A Google Docs sidebar add-on that lets you search and insert Quranic verses directly into Google Docs. Built for Islamic scholars, students, and writers who work with Quran references regularly.
 
-Tasneef uses AI-powered semantic search to find ayat by meaning — not just exact text — and inserts them with proper Arabic typography.
+Tasneef uses AI-powered semantic search to find verses by meaning, topic, or theme.
 
 ![Tasneef AI — Insert ayat into Google Docs](sidebar/assets/insertion.png)
 
@@ -12,19 +12,19 @@ Tasneef uses AI-powered semantic search to find ayat by meaning — not just exa
 
 **Browse & Insert** — Select any surah and ayah range, preview the Arabic text and English translation, and insert directly into your document with one click.
 
-![Browse tab](sidebar/assets/browse.png)
+<img src="sidebar/assets/browse.png" alt="Browse tab" width="450">
 
 **Exact Arabic Search** — Search the Quran by Arabic text with full diacritics normalization. Finds matches regardless of tashkeel or alef variants.
 
-![Exact search](sidebar/assets/exact-search.png)
+<img src="sidebar/assets/exact-search.png" alt="Exact search" width="450">
 
 **AI Semantic Search** — Ask a question in natural language (English or Arabic) and get relevant ayat ranked by meaning. Powered by a RAG pipeline with vector search and reranking.
 
-![AI search](sidebar/assets/ai-search.png)
+<img src="sidebar/assets/ai-search.png" alt="AI search" width="450">
 
 **Configurable Settings** — Choose your preferred Arabic font, translation display, and insertion format.
 
-![Settings](sidebar/assets/settings.png)
+<img src="sidebar/assets/settings.png" alt="Settings" width="450">
 
 ---
 
@@ -148,7 +148,7 @@ Contributions are welcome. Please open an issue first to discuss what you'd like
 
 If you find Tasneef useful, consider supporting development:
 
-[![Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/tasneef)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/tarazis)
 
 ---
 
