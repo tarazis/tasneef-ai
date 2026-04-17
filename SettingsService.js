@@ -23,7 +23,9 @@ var PROPERTY_KEYS = {
   DEV_EMAILS: 'dev_emails',
   OPENAI_API_KEY: 'openai_api_key',
   PINECONE_HOST: 'pinecone_host',
-  PINECONE_API_KEY: 'pinecone_api_key'
+  PINECONE_API_KEY: 'pinecone_api_key',
+  /** Optional; enables Google Fonts CSS API key on preview and icon stylesheet URLs. */
+  GOOGLE_FONTS_API_KEY: 'google_fonts_api_key'
 };
 
 /**
@@ -81,6 +83,19 @@ function saveSettings(settingsObj) {
 function getClaudeApiKey_() {
   return PropertiesService.getScriptProperties()
     .getProperty(PROPERTY_KEYS.CLAUDE_API_KEY) || null;
+}
+
+/**
+ * Google Fonts Web API key from Script Properties (optional).
+ * Used as the `key` query parameter on fonts.googleapis.com CSS requests.
+ * @return {string|null}
+ */
+function getGoogleFontsApiKey_() {
+  var v = PropertiesService.getScriptProperties()
+    .getProperty(PROPERTY_KEYS.GOOGLE_FONTS_API_KEY);
+  if (!v) return null;
+  v = String(v).trim();
+  return v ? v : null;
 }
 
 /**

@@ -84,6 +84,7 @@ Tasneef uses AI-powered semantic search to find verses by meaning, topic, or the
    - `claude_api_key` — Anthropic API key
    - `openai_api_key` — OpenAI API key
    - `pinecone_api_key` — Pinecone API key
+   - `google_fonts_api_key` — Google Fonts Web API key for sidebar CSS requests (optional)
    - `dev_emails` — comma-separated emails to exempt from daily quota (optional)
 
 6. Push and test:

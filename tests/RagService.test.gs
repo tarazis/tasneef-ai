@@ -304,6 +304,10 @@ function runRagServiceTests() {
     expect(PROPERTY_KEYS.PINECONE_API_KEY).toBe('pinecone_api_key');
   });
 
+  it('PROPERTY_KEYS includes GOOGLE_FONTS_API_KEY', function () {
+    expect(PROPERTY_KEYS.GOOGLE_FONTS_API_KEY).toBe('google_fonts_api_key');
+  });
+
   it('getOpenAiApiKey_ returns string or null', function () {
     var key = getOpenAiApiKey_();
     expect(key === null || typeof key === 'string').toBe(true);

@@ -18,6 +18,20 @@ function parseGoogleFontVariantClient(token) {
 }
 
 /**
+ * Appends Google Fonts CSS API `key` when set at sidebar render (Script Property).
+ * @param {string} url
+ * @return {string}
+ */
+function appendGoogleFontsApiKeyClient_(url) {
+  if (!url) return url;
+  var k = typeof window !== 'undefined' && window.__GOOGLE_FONTS_API_KEY__
+    ? String(window.__GOOGLE_FONTS_API_KEY__).trim()
+    : '';
+  if (!k) return url;
+  return url + '&key=' + encodeURIComponent(k);
+}
+
+/**
  * Builds Google Fonts CSS2 href for sidebar Arabic preview.
  * @param {string} family
  * @param {Array<string>} variantTokens
@@ -46,16 +60,16 @@ function buildGoogleFontsPreviewHref(family, variantTokens) {
     for (var j = 0; j < pairs.length; j++) {
       wOnly.push(pairs[j].split(',')[1]);
     }
-    return 'https://fonts.googleapis.com/css2?family=' + famEnc + ':wght@' +
-      wOnly.join(';') + '&display=swap';
+    return appendGoogleFontsApiKeyClient_('https://fonts.googleapis.com/css2?family=' + famEnc + ':wght@' +
+      wOnly.join(';') + '&display=swap');
   }
   if (!hasRom) {
     var italOnly = pairs.map(function (pr) { return '1,' + pr.split(',')[1]; });
-    return 'https://fonts.googleapis.com/css2?family=' + famEnc + ':ital,wght@' +
-      italOnly.join(';') + '&display=swap';
+    return appendGoogleFontsApiKeyClient_('https://fonts.googleapis.com/css2?family=' + famEnc + ':ital,wght@' +
+      italOnly.join(';') + '&display=swap');
   }
-  return 'https://fonts.googleapis.com/css2?family=' + famEnc + ':ital,wght@' +
-    pairs.join(';') + '&display=swap';
+  return appendGoogleFontsApiKeyClient_('https://fonts.googleapis.com/css2?family=' + famEnc + ':ital,wght@' +
+    pairs.join(';') + '&display=swap');
 }
 
 /**

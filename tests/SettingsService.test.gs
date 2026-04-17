@@ -51,6 +51,15 @@ function runSettingsServiceTests() {
     expect(key === null || typeof key === 'string').toBeTruthy();
   });
 
+  // ─── getGoogleFontsApiKey_ (reads from Script Properties) ─────────────────
+
+  results.push('\ngetGoogleFontsApiKey_()');
+
+  it('returns the Google Fonts key from Script Properties or null', function () {
+    var key = getGoogleFontsApiKey_();
+    expect(key === null || typeof key === 'string').toBeTruthy();
+  });
+
   // ─── getSettings / saveSetting_ defaults ──────────────────────────────────
 
   results.push('\ngetSettings() defaults');

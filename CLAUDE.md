@@ -70,7 +70,7 @@ Arabic ayah text in Google Docs is always **Amiri**, regular weight, not bold â€
 
 ### API keys
 
-All API keys (Claude, OpenAI, Pinecone) stored in **Script Properties** via `PropertiesService.getScriptProperties()`. Never exposed in source code.
+All API keys (Claude, OpenAI, Pinecone, optional Google Fonts Web API) stored in **Script Properties** via `PropertiesService.getScriptProperties()`. Never exposed in source code (`google_fonts_api_key` is injected into the sidebar HTML at render time only when set).
 
 ---
 
