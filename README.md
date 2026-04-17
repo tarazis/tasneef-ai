@@ -12,19 +12,19 @@ Tasneef uses AI-powered semantic search to find verses by meaning, topic, or the
 
 **Browse & Insert** — Select any surah and ayah range, preview the Arabic text and English translation, and insert directly into your document with one click.
 
-<img src="sidebar/assets/browse.png" alt="Browse tab" width="225">
+<p align="center"><img src="sidebar/assets/browse.png" alt="Browse tab" width="300"></p>
 
 **Exact Arabic Search** — Search the Quran by Arabic text with full diacritics normalization. Finds matches regardless of tashkeel or alef variants.
 
-<img src="sidebar/assets/exact-search.png" alt="Exact search" width="225">
+<p align="center"><img src="sidebar/assets/exact-search.png" alt="Exact search" width="300"></p>
 
 **AI Semantic Search** — Ask a question in natural language (English or Arabic) and get relevant ayat ranked by meaning. Powered by a RAG pipeline with vector search and reranking.
 
-<img src="sidebar/assets/ai-search.png" alt="AI search" width="225">
+<p align="center"><img src="sidebar/assets/ai-search.png" alt="AI search" width="300"></p>
 
 **Configurable Settings** — Choose your preferred Arabic font, translation display, and insertion format.
 
-<img src="sidebar/assets/settings.png" alt="Settings" width="225">
+<p align="center"><img src="sidebar/assets/settings.png" alt="Settings" width="300"></p>
 
 ---
 
