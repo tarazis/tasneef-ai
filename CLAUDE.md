@@ -8,8 +8,8 @@ A Google Docs sidebar add-on for Islamic scholars to search and insert Quranic a
 
 ## Stack & Constraints
 
-- **Server:** Google Apps Script. All server files are `.js` — clasp pushes them as `.gs`. Never create `.gs` files directly.
-- **Client:** HTML/CSS/JS via HtmlService. No npm, no bundler, no import/require, no ES modules.
+- **Server:** Google Apps Script. All server files are `.js` under **`src/`** (clasp `rootDir`) — clasp pushes them as `.gs`. Never create `.gs` files directly.
+- **Client:** HTML/CSS/JS via HtmlService under **`src/`** (e.g. `src/client/`, `src/sidebar/`). No npm, no bundler, no import/require, no ES modules.
 - **Communication:** Client ↔ server via `google.script.run`.
 - **Project size limit:** ~2MB (code only; all data is external).
 
@@ -21,7 +21,7 @@ A Google Docs sidebar add-on for Islamic scholars to search and insert Quranic a
 
 All Quran text, metadata, and translations are fetched **client-side** via `makeClientCache` (browser `fetch()`). The server never loads or caches Quran data.
 
-Canonical URLs live in `sidebar/js/quran-caches.html`:
+Canonical URLs live in `src/sidebar/js/quran-caches.html`:
 
 | Feed | URL |
 |------|-----|
@@ -36,11 +36,11 @@ Canonical URLs live in `sidebar/js/quran-caches.html`:
 
 ### Arabic normalization
 
-`NormalizeArabic.js` (server) and `client/normalizeArabic.html` (client) **must stay in sync** — parity enforced by `tests/normalizeArabic.test.js`. Strips tashkeel/diacritics, normalizes alef variants (آ أ إ ٱ → ا). Server copy exists solely for parity testing; all production search runs client-side.
+`src/NormalizeArabic.js` (server) and `src/client/normalizeArabic.html` (client) **must stay in sync** — parity enforced by `tests/normalizeArabic.test.js`. Strips tashkeel/diacritics, normalizes alef variants (آ أ إ ٱ → ا). Server copy exists solely for parity testing; all production search runs client-side.
 
 ### Typography
 
-Arabic ayah text in Google Docs is always **Amiri**, regular weight, not bold — `FormatService.js` enforces this regardless of client payload. The sidebar loads Amiri via Google Fonts CSS for card preview. If a selected font fails, fall back to Amiri and show a toast.
+Arabic ayah text in Google Docs is always **Amiri**, regular weight, not bold — `src/FormatService.js` enforces this regardless of client payload. The sidebar loads Amiri via Google Fonts CSS for card preview. If a selected font fails, fall back to Amiri and show a toast.
 
 ---
 
@@ -64,7 +64,7 @@ Arabic ayah text in Google Docs is always **Amiri**, regular weight, not bold �
 
 ### Daily AI quota
 
-- `AI_SEARCH_DAILY_LIMIT = 10` per user per UTC day, enforced in `SettingsService.js` / `ClaudeAPI.js`.
+- `AI_SEARCH_DAILY_LIMIT = 10` per user per UTC day, enforced in `src/SettingsService.js` / `src/ClaudeAPI.js`.
 - Counter stored in User Properties as JSON (`{count, date}`). Resets on first query of new UTC day.
 - Dev emails listed in Script Property `dev_emails` (comma-separated) bypass the quota.
 
@@ -112,7 +112,7 @@ Immediately after creating the branch, open a **draft PR** with the issue title 
 - Write unit and integration tests for all code.
 - All tests must pass before committing.
 - Node tests: `npm test` (see `ARCHITECTURE.md` for individual targets).
-- Apps Script tests: run via editor (see `ARCHITECTURE.md` for runners).
+- Apps Script tests: in **`src/tests/`**, run via editor (see `ARCHITECTURE.md` for runners).
 
 ---
 
