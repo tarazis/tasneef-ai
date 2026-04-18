@@ -226,8 +226,9 @@ function resolveTableStartIndexForDocsApi_(docId, tableOrdinal) {
 
 /**
  * Per-side cell borders (left accent only) via Docs API; DocumentApp cannot set per side.
- * Advanced Docs (get/batchUpdate) needs https://www.googleapis.com/auth/documents in appsscript.json;
- * drive.file can yield 404 on documents.get for the active editor doc.
+ * Advanced Docs get/batchUpdate use https://www.googleapis.com/auth/drive.file (per-file); inserts use
+ * https://www.googleapis.com/auth/documents.currentonly via @OnlyCurrentDoc. If Documents.get fails
+ * (e.g. 404), the host file may not be authorized for this app under drive.file yet.
  * Call only after the document has been flushed (auto-flush on function return, or saveAndClose).
  * @param {string} docId
  * @param {number} tableOrdinal - 1-based ordinal position of the target table among all body tables

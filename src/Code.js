@@ -1,4 +1,8 @@
 /**
+ * @OnlyCurrentDoc
+ */
+
+/**
  * Adds the Tasneef AI menu to the Google Docs UI when the document opens.
  * @param {Object} e - The onOpen event object.
  */
