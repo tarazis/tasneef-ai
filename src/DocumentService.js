@@ -8,10 +8,11 @@ var INSERT_SPACING_INNER_PT = 6;
 /** Paragraph spacing (points) for outer gap around non-quote inserts. */
 var TARGET_SPACING_PT = 8;
 
-/** Blockquote table: left accent (pt); accent color (fixed, not tied to body text color). */
-var BLOCKQUOTE_BORDER_LEFT_PT = 3;
-var BLOCKQUOTE_BORDER_LEFT_COLOR = '#3A8F7A';
-var BLOCKQUOTE_CELL_BACKGROUND = '#F7F7F7';
+/** Blockquote 2×1 table (DocumentApp; matches app primary and documents.currentonly). */
+var BLOCKQUOTE_ACCENT_WIDTH_PT = 3;
+var BLOCKQUOTE_ACCENT_COLOR = '#0d6e4f';
+var BLOCKQUOTE_CONTENT_BACKGROUND = '#F7F5F0';
+var BLOCKQUOTE_CONTENT_PADDING_PT = 18;
 
 /**
  * Walks an element up to its nearest body-level ancestor (direct child of body).
@@ -159,170 +160,21 @@ function applyBeautifiedInsertToParagraph_(p, item, formatState) {
 }
 
 /**
- * @param {string|null|undefined} hex
- * @return {{ red: number, green: number, blue: number }} RGB in 0–1 for Docs API
- */
-function hexToDocsRgb01_(hex) {
-  var h = normalizeHex6ForSettings_(hex);
-  if (!h) {
-    h = '#000000';
-  }
-  var r = parseInt(h.slice(1, 3), 16) / 255;
-  var g = parseInt(h.slice(3, 5), 16) / 255;
-  var b = parseInt(h.slice(5, 7), 16) / 255;
-  function q(x) {
-    return Math.round(x * 1e6) / 1e6;
-  }
-  return { red: q(r), green: q(g), blue: q(b) };
-}
-
-/**
- * @param {number} pt
- * @param {{ red: number, green: number, blue: number }} rgb01
- * @return {Object} Docs API TableCellBorder (OptionalColor nested per docs OptionalColor schema)
- */
-function docsTableBorderPt_(pt, rgb01) {
-  return {
-    dashStyle: 'SOLID',
-    width: { magnitude: pt, unit: 'PT' },
-    color: { color: { rgbColor: rgb01 } }
-  };
-}
-
-/**
- * Resolves structural startIndex of a table for Docs API batchUpdate using
- * ordinal position (Nth table in the document) rather than array-index heuristics.
- * Returns null when the expected table is not yet visible (triggers caller retry).
- * @param {string} docId
- * @param {number} tableOrdinal - 1-based ordinal: "this is the Nth table in the body"
- * @return {number|null}
- */
-function resolveTableStartIndexForDocsApi_(docId, tableOrdinal) {
-  if (typeof Docs === 'undefined' || !Docs.Documents || !Docs.Documents.get) {
-    return null;
-  }
-  var docJson;
-  try {
-    docJson = Docs.Documents.get(docId);
-  } catch (e) {
-    Logger.log('resolveTableStartIndexForDocsApi_: Documents.get failed: ' + e);
-    return null;
-  }
-  var content = docJson.body && docJson.body.content;
-  if (!content || tableOrdinal < 1) {
-    return null;
-  }
-  var tablesFound = 0;
-  for (var i = 0; i < content.length; i++) {
-    if (content[i].table != null && content[i].startIndex != null) {
-      tablesFound++;
-      if (tablesFound === tableOrdinal) {
-        return content[i].startIndex;
-      }
-    }
-  }
-  return null;
-}
-
-/**
- * Per-side cell borders (left accent only) via Docs API; DocumentApp cannot set per side.
- * Advanced Docs (get/batchUpdate) needs https://www.googleapis.com/auth/documents in appsscript.json;
- * drive.file can yield 404 on documents.get for the active editor doc.
- * Call only after the document has been flushed (auto-flush on function return, or saveAndClose).
- * @param {string} docId
- * @param {number} tableOrdinal - 1-based ordinal position of the target table among all body tables
- */
-function applyBlockquoteCellBordersViaDocsApi_(docId, tableOrdinal) {
-  if (typeof Docs === 'undefined' || !Docs.Documents || !Docs.Documents.batchUpdate) {
-    return {
-      success: false,
-      message: 'Docs API unavailable for blockquote styling.'
-    };
-  }
-  var tableStart = null;
-  var maxAttempts = 10;
-  var attempt;
-  for (attempt = 0; attempt < maxAttempts; attempt++) {
-    tableStart = resolveTableStartIndexForDocsApi_(docId, tableOrdinal);
-    if (tableStart != null) {
-      break;
-    }
-    Utilities.sleep(200);
-  }
-  if (tableStart == null) {
-    Logger.log('blockquote borders: could not resolve table start index');
-    return {
-      success: false,
-      message: 'Ayah inserted but styling could not be applied after retries.',
-      attempts: maxAttempts
-    };
-  }
-
-  var rgb = hexToDocsRgb01_(BLOCKQUOTE_BORDER_LEFT_COLOR);
-  var black01 = { red: 0, green: 0, blue: 0 };
-  var zero = docsTableBorderPt_(0, black01);
-  var leftRgb = docsTableBorderPt_(BLOCKQUOTE_BORDER_LEFT_PT, rgb);
-
-  var tableRange = {
-    tableCellLocation: {
-      tableStartLocation: { index: tableStart },
-      rowIndex: 0,
-      columnIndex: 0
-    },
-    rowSpan: 1,
-    columnSpan: 1
-  };
-
-  var bgRgb = hexToDocsRgb01_(BLOCKQUOTE_CELL_BACKGROUND);
-
-  var requests = [
-    {
-      updateTableCellStyle: {
-        tableRange: tableRange,
-        tableCellStyle: {
-          borderTop: zero,
-          borderRight: zero,
-          borderBottom: zero,
-          borderLeft: leftRgb,
-          backgroundColor: { color: { rgbColor: bgRgb } }
-        },
-        fields: 'borderTop,borderRight,borderBottom,borderLeft,backgroundColor'
-      }
-    }
-  ];
-
-  try {
-    Docs.Documents.batchUpdate({ requests: requests }, docId);
-    return { success: true };
-  } catch (e) {
-    Logger.log('blockquote borders batchUpdate: ' + e);
-    return {
-      success: false,
-      message: 'Ayah inserted but styling could not be applied.',
-      error: String(e)
-    };
-  }
-}
-
-/**
- * Inserts a 1×1 table at the anchor, places beautified paragraphs in the cell, styles the shell.
- * Border styling is NOT applied here — the caller receives pendingBorders and must invoke
- * applyBlockquoteBorders() in a separate server call so that the auto-flush between calls
- * makes the table visible to the Docs REST API without needing saveAndClose().
+ * Inserts a 2×1 table at the anchor: accent column (app primary) + content column.
+ * Styling uses DocumentApp only (compatible with https://www.googleapis.com/auth/documents.currentonly).
  * @param {Body} body
  * @param {Document} doc
  * @param {Array<Object>} paragraphsToInsert
  * @param {Object} formatState
- * @return {Object} { fontWarning: string|null, pendingBorders: {docId: string, tableOrdinal: number}|null }
+ * @return {Object} { fontWarning: string|null }
  */
 function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatState) {
   var anchor = resolveNativeInsertAnchor_(body, doc);
   var insertIndex = anchor.baseIndex;
   var removeTarget = anchor.removeTarget;
 
-  var table = body.insertTable(insertIndex, [['']]);
+  var table = body.insertTable(insertIndex, [['', '']]);
 
-  // Hide default table chrome immediately to minimize unstyled flash.
   try {
     if (typeof table.setBorderWidth === 'function') {
       table.setBorderWidth(0);
@@ -342,12 +194,26 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
     }
   }
 
-  var cell = table.getRow(0).getCell(0);
-  cell.setPaddingLeft(21); // to account for the 3px thick border
-  cell.setPaddingTop(18);
-  cell.setPaddingRight(18);
-  cell.setPaddingBottom(18);
+  var row = table.getRow(0);
+  var accentCell = row.getCell(0);
+  var contentCell = row.getCell(1);
 
+  accentCell.setBackgroundColor(BLOCKQUOTE_ACCENT_COLOR);
+  if (typeof accentCell.setWidth === 'function') {
+    accentCell.setWidth(BLOCKQUOTE_ACCENT_WIDTH_PT);
+  }
+  accentCell.setPaddingLeft(0);
+  accentCell.setPaddingTop(0);
+  accentCell.setPaddingRight(0);
+  accentCell.setPaddingBottom(0);
+
+  contentCell.setBackgroundColor(BLOCKQUOTE_CONTENT_BACKGROUND);
+  contentCell.setPaddingLeft(BLOCKQUOTE_CONTENT_PADDING_PT);
+  contentCell.setPaddingTop(BLOCKQUOTE_CONTENT_PADDING_PT);
+  contentCell.setPaddingRight(BLOCKQUOTE_CONTENT_PADDING_PT);
+  contentCell.setPaddingBottom(BLOCKQUOTE_CONTENT_PADDING_PT);
+
+  var cell = contentCell;
   var fontWarning = null;
   for (var i = 0; i < paragraphsToInsert.length; i++) {
     var item = paragraphsToInsert[i];
@@ -375,25 +241,14 @@ function insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatS
     if (cursorParagraph) {
       doc.setCursor(doc.newPosition(cursorParagraph, 0));
     } else {
-      // No following paragraph exists: keep cursor in the inserted block.
       doc.setCursor(doc.newPosition(cell.getChild(cell.getNumChildren() - 1).asParagraph(), 0));
     }
   } catch (e) {
     // setCursor is unavailable in non-UI contexts (e.g. triggers); fail silently
   }
 
-  var docId = doc.getId();
-  var bodyChildIndex = body.getChildIndex(table);
-  var tableOrdinal = 0;
-  for (var ci = 0; ci <= bodyChildIndex; ci++) {
-    if (body.getChild(ci).getType() === DocumentApp.ElementType.TABLE) {
-      tableOrdinal++;
-    }
-  }
-
   return {
-    fontWarning: fontWarning,
-    pendingBorders: { docId: docId, tableOrdinal: tableOrdinal }
+    fontWarning: fontWarning
   };
 }
 
@@ -463,17 +318,6 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
 }
 
 /**
- * Public entry point for the client to apply blockquote cell borders via a second RPC.
- * Called after insertAyah/insertAyahRange returns pendingBorders; the auto-flush between
- * the two server calls ensures the Docs REST API can see the newly inserted table.
- * @param {string} docId
- * @param {number} tableOrdinal - 1-based ordinal position of the target table
- */
-function applyBlockquoteBorders(docId, tableOrdinal) {
-  return applyBlockquoteCellBordersViaDocsApi_(docId, tableOrdinal);
-}
-
-/**
  * Inserts an ayah into the document using resolveNativeInsertAnchor_
  * (block-boundary cursor insertion, selection-end insertion, doc-end fallback).
  * @param {Object} ayahData - { surah, ayah, surahNameArabic, surahNameEnglish, textUthmani, textSimple, translationText }
@@ -534,11 +378,7 @@ function insertAyah(ayahData, formatState, settings) {
     ? insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatState)
     : insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState);
   var message = result.fontWarning ? 'Ayah inserted. ' + result.fontWarning : 'Ayah inserted.';
-  var out = { success: true, message: message };
-  if (result.pendingBorders) {
-    out.pendingBorders = result.pendingBorders;
-  }
-  return out;
+  return { success: true, message: message };
 }
 
 /**
@@ -596,9 +436,5 @@ function insertAyahRange(rangeData, formatState, settings) {
   var result = useBlockquote
     ? insertBlockquoteTableAtPosition_(body, doc, paragraphsToInsert, formatState)
     : insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState);
-  var out = { success: true, message: result.fontWarning ? 'Range inserted. ' + result.fontWarning : 'Range inserted.' };
-  if (result.pendingBorders) {
-    out.pendingBorders = result.pendingBorders;
-  }
-  return out;
+  return { success: true, message: result.fontWarning ? 'Range inserted. ' + result.fontWarning : 'Range inserted.' };
 }

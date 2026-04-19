@@ -50,7 +50,7 @@ function parseGoogleFontVariantClient(token) {
 }
 
 var INSERT_PREVIEW_ARABIC_PT = 16;
-var INSERT_PREVIEW_ARABIC_COLOR = '#202124';
+var INSERT_PREVIEW_ARABIC_COLOR = '#1A1A1A';
 
 function arabicPreviewFontStyle(fs) {
   var fam = (fs && fs.fontName) || 'Amiri';
@@ -568,7 +568,7 @@ function runTests() {
     };
     var html = buildCardHtml(r, fs);
     assert.ok(html.indexOf('font-size:16pt') >= 0, 'fixed 16pt preview');
-    assert.ok(html.indexOf('color:#202124') >= 0, 'fixed insert text color');
+    assert.ok(html.indexOf('color:#1A1A1A') >= 0, 'fixed insert text color');
   });
 
   it('single: legacy bold flag does not change Arabic preview weight', function () {
@@ -602,7 +602,7 @@ function runTests() {
       textColor: 'not-a-color'
     };
     var html = buildCardHtml(r, fs);
-    assert.ok(html.indexOf('color:#202124') >= 0, 'fixed insert color');
+    assert.ok(html.indexOf('color:#1A1A1A') >= 0, 'fixed insert color');
   });
 
   it('single: falls back to "Surah" when surahNameEnglish is empty', function () {

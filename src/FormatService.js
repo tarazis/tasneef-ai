@@ -12,7 +12,7 @@ var ENGLISH_TRANSLATION_INSERT_FONT = 'Figtree';
 
 /** Fixed typography for inserted Quran Arabic (Amiri only; client formatState is ignored for family/variant/bold). */
 var INSERT_QURAN_FONT_SIZE_PT = 16;
-var INSERT_QURAN_TEXT_COLOR = '#202124';
+var INSERT_QURAN_TEXT_COLOR = '#1A1A1A';
 
 /** Fixed typography for inserted translation and English citation (same color as Quran body). */
 var INSERT_TRANSLATION_FONT_SIZE_PT = 12;

@@ -69,7 +69,7 @@ function runFormatServiceTests() {
     expect(a.fontVariant).toBe('regular');
     expect(a.fontSize).toBe(12);
     expect(a.bold).toBe(false);
-    expect(a.textColor).toBe('#202124');
+    expect(a.textColor).toBe('#1A1A1A');
   });
   it('citation role yields Figtree 11pt same color as Quran', function () {
     var item = { insertTextRole: 'citation' };
@@ -78,7 +78,7 @@ function runFormatServiceTests() {
     expect(a.fontVariant).toBe('regular');
     expect(a.fontSize).toBe(11);
     expect(a.bold).toBe(false);
-    expect(a.textColor).toBe('#202124');
+    expect(a.textColor).toBe('#1A1A1A');
   });
   it('quran role forces Amiri regular non-bold and 16pt primary color', function () {
     var fs = { fontName: 'Scheherazade New', fontVariant: '700', bold: true };
@@ -87,7 +87,7 @@ function runFormatServiceTests() {
     expect(a.fontName).toBe('Amiri');
     expect(a.fontVariant).toBe('regular');
     expect(a.fontSize).toBe(16);
-    expect(a.textColor).toBe('#202124');
+    expect(a.textColor).toBe('#1A1A1A');
     expect(a.bold).toBe(false);
   });
   it('quran role does not mutate original formatState', function () {

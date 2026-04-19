@@ -1,6 +1,6 @@
 /**
  * GAS-native tests for DocumentService.gs — resolveNativeInsertAnchor_(),
- * insertParagraphsAtPosition_(), insertBlockquoteTableAtPosition_(), and helpers.
+ * insertParagraphsAtPosition_(), insertBlockquoteTableAtPosition_(), and helpers (no Docs API).
  * Run from Apps Script editor: select runDocumentServiceTests, click Run.
  */
 
@@ -105,7 +105,9 @@ function runDocumentServiceTests() {
       _padT: null,
       _padR: null,
       _padB: null,
+      _width: null,
       setBackgroundColor: function (c) { this._bg = c; },
+      setWidth: function (w) { this._width = w; },
       setPaddingLeft: function (x) { this._padL = x; },
       setPaddingTop: function (x) { this._padT = x; },
       setPaddingRight: function (x) { this._padR = x; },
@@ -121,17 +123,23 @@ function runDocumentServiceTests() {
   }
 
   function createMockTable() {
-    var cell = createMockTableCell();
+    var accentCell = createMockTableCell();
+    var contentCell = createMockTableCell();
     return {
-      _cell: cell,
+      _cell: contentCell,
+      _accentCell: accentCell,
+      _contentCell: contentCell,
       getType: function () { return DocumentApp.ElementType.TABLE; },
       getRow: function () {
+        var ac = accentCell;
+        var cc = contentCell;
         return {
-          getCell: function () {
-            return cell;
+          getCell: function (i) {
+            return i === 0 ? ac : cc;
           }
         };
-      }
+      },
+      setBorderWidth: function () {}
     };
   }
 
@@ -521,17 +529,17 @@ function runDocumentServiceTests() {
     expect(applyFormatCalls[0].fontVariant).toBe('regular');
     expect(applyFormatCalls[0].fontSize).toBe(16);
     expect(applyFormatCalls[0].bold).toBe(false);
-    expect(applyFormatCalls[0].textColor).toBe('#202124');
+    expect(applyFormatCalls[0].textColor).toBe('#1A1A1A');
     expect(applyFormatCalls[1].fontName).toBe('Figtree');
     expect(applyFormatCalls[1].fontVariant).toBe('regular');
     expect(applyFormatCalls[1].fontSize).toBe(12);
     expect(applyFormatCalls[1].bold).toBe(false);
-    expect(applyFormatCalls[1].textColor).toBe('#202124');
+    expect(applyFormatCalls[1].textColor).toBe('#1A1A1A');
     expect(applyFormatCalls[2].fontName).toBe('Figtree');
     expect(applyFormatCalls[2].fontVariant).toBe('regular');
     expect(applyFormatCalls[2].fontSize).toBe(11);
     expect(applyFormatCalls[2].bold).toBe(false);
-    expect(applyFormatCalls[2].textColor).toBe('#202124');
+    expect(applyFormatCalls[2].textColor).toBe('#1A1A1A');
   });
 
   it('Arabic-only insert applies single Quran format call', function () {
@@ -549,7 +557,7 @@ function runDocumentServiceTests() {
     insertParagraphsAtPosition_(body, doc, arabicOnlyAyahInsert(), fs);
     expect(applyFormatCalls.length).toBe(1);
     expect(applyFormatCalls[0].fontSize).toBe(16);
-    expect(applyFormatCalls[0].textColor).toBe('#202124');
+    expect(applyFormatCalls[0].textColor).toBe('#1A1A1A');
     expect(applyFormatCalls[0].bold).toBe(false);
   });
 
@@ -637,9 +645,17 @@ function runDocumentServiceTests() {
     expect(body._children.length).toBe(1);
     expect(body._children[0].getType()).toBe(DocumentApp.ElementType.TABLE);
 
-    var cell = body._children[0]._cell;
-    expect(cell._bg).toBe(null);
-    expect(cell._padL).toBe(21);
+    var tbl = body._children[0];
+    var accent = tbl._accentCell;
+    var cell = tbl._contentCell;
+    expect(accent._bg).toBe('#0d6e4f');
+    expect(accent._width).toBe(3);
+    expect(accent._padL).toBe(0);
+    expect(accent._padT).toBe(0);
+    expect(accent._padR).toBe(0);
+    expect(accent._padB).toBe(0);
+    expect(cell._bg).toBe('#F7F5F0');
+    expect(cell._padL).toBe(18);
     expect(cell._padT).toBe(18);
     expect(cell._padR).toBe(18);
     expect(cell._padB).toBe(18);
@@ -709,224 +725,6 @@ function runDocumentServiceTests() {
     expect(body._children[0].getType()).toBe(DocumentApp.ElementType.TABLE);
     expect(body._children[1]).toBe(origPara);
     body.removeChild = origRemoveChild;
-  });
-
-  it('hexToDocsRgb01_ parses normalized hex for Docs border color', function () {
-    var rgb = hexToDocsRgb01_('#3A8F7A');
-    expect(rgb.red > 0.2 && rgb.red < 0.25).toBe(true);
-    expect(rgb.green > 0.55 && rgb.green < 0.58).toBe(true);
-    expect(rgb.blue > 0.46 && rgb.blue < 0.49).toBe(true);
-  });
-
-  // ── resolveTableStartIndexForDocsApi_ ──────────────────────
-
-  results.push('\nresolveTableStartIndexForDocsApi_()');
-
-  var originalDocs = typeof Docs !== 'undefined' ? Docs : undefined;
-
-  function stubDocsGet(contentArray) {
-    Docs = {
-      Documents: {
-        get: function () {
-          return { body: { content: contentArray } };
-        },
-        batchUpdate: function () {}
-      }
-    };
-  }
-
-  function restoreDocs() {
-    if (originalDocs !== undefined) {
-      Docs = originalDocs;
-    }
-  }
-
-  function makeTableContent(startIndex) {
-    return [
-      { sectionBreak: {} },
-      { paragraph: {}, startIndex: 0 },
-      { table: {}, startIndex: startIndex }
-    ];
-  }
-
-  it('ordinal 1 returns startIndex of the only table', function () {
-    stubDocsGet([
-      { sectionBreak: {} },
-      { paragraph: {}, startIndex: 0 },
-      { table: {}, startIndex: 42 }
-    ]);
-    var result = resolveTableStartIndexForDocsApi_('fake-id', 1);
-    expect(result).toBe(42);
-    restoreDocs();
-  });
-
-  it('ordinal 3 returns startIndex of the third table (skips paragraphs)', function () {
-    stubDocsGet([
-      { sectionBreak: {} },
-      { paragraph: {}, startIndex: 0 },
-      { table: {}, startIndex: 10 },
-      { paragraph: {}, startIndex: 20 },
-      { table: {}, startIndex: 30 },
-      { paragraph: {}, startIndex: 50 },
-      { table: {}, startIndex: 70 }
-    ]);
-    var result = resolveTableStartIndexForDocsApi_('fake-id', 3);
-    expect(result).toBe(70);
-    restoreDocs();
-  });
-
-  it('ordinal 2 with only 1 table returns null (propagation delay)', function () {
-    stubDocsGet([
-      { sectionBreak: {} },
-      { table: {}, startIndex: 10 },
-      { paragraph: {}, startIndex: 30 }
-    ]);
-    var result = resolveTableStartIndexForDocsApi_('fake-id', 2);
-    expect(result).toBe(null);
-    restoreDocs();
-  });
-
-  it('ordinal 0 returns null (invalid)', function () {
-    stubDocsGet([
-      { sectionBreak: {} },
-      { table: {}, startIndex: 10 }
-    ]);
-    var result = resolveTableStartIndexForDocsApi_('fake-id', 0);
-    expect(result).toBe(null);
-    restoreDocs();
-  });
-
-  it('empty content array returns null', function () {
-    stubDocsGet([]);
-    var result = resolveTableStartIndexForDocsApi_('fake-id', 1);
-    expect(result).toBe(null);
-    restoreDocs();
-  });
-
-  // ── applyBlockquoteCellBordersViaDocsApi_ ───────────────────
-
-  results.push('\napplyBlockquoteCellBordersViaDocsApi_()');
-
-  it('retries up to 10 times with 200ms sleeps when table is not visible yet', function () {
-    var gets = 0;
-    var sleeps = 0;
-    var origUtilities = Utilities;
-    var origDocsLocal = Docs;
-    Utilities = { sleep: function (ms) { if (ms === 200) sleeps++; } };
-    Docs = {
-      Documents: {
-        get: function () {
-          gets++;
-          return { body: { content: [] } };
-        },
-        batchUpdate: function () {}
-      }
-    };
-    var result = applyBlockquoteCellBordersViaDocsApi_('fake-id', 1);
-    expect(gets).toBe(10);
-    expect(sleeps).toBe(10);
-    expect(result.success).toBe(false);
-    expect(result.attempts).toBe(10);
-    Utilities = origUtilities;
-    Docs = origDocsLocal;
-  });
-
-  it('returns success true when Docs batchUpdate succeeds', function () {
-    var batchCalls = 0;
-    var origUtilities = Utilities;
-    var origDocsLocal = Docs;
-    Utilities = { sleep: function () {} };
-    Docs = {
-      Documents: {
-        get: function () {
-          return { body: { content: makeTableContent(42) } };
-        },
-        batchUpdate: function () {
-          batchCalls++;
-        }
-      }
-    };
-    var result = applyBlockquoteCellBordersViaDocsApi_('fake-id', 1);
-    expect(batchCalls).toBe(1);
-    expect(result.success).toBe(true);
-    Utilities = origUtilities;
-    Docs = origDocsLocal;
-  });
-
-  it('returns failure object when Docs batchUpdate throws', function () {
-    var origUtilities = Utilities;
-    var origDocsLocal = Docs;
-    Utilities = { sleep: function () {} };
-    Docs = {
-      Documents: {
-        get: function () {
-          return { body: { content: makeTableContent(42) } };
-        },
-        batchUpdate: function () {
-          throw new Error('batch failed');
-        }
-      }
-    };
-    var result = applyBlockquoteCellBordersViaDocsApi_('fake-id', 1);
-    expect(result.success).toBe(false);
-    expect(typeof result.message).toBe('string');
-    Utilities = origUtilities;
-    Docs = origDocsLocal;
-  });
-
-  it('applyBlockquoteBorders returns underlying success result', function () {
-    var origFn = applyBlockquoteCellBordersViaDocsApi_;
-    applyBlockquoteCellBordersViaDocsApi_ = function () {
-      return { success: true, message: 'ok' };
-    };
-    var result = applyBlockquoteBorders('d', 1);
-    expect(result.success).toBe(true);
-    applyBlockquoteCellBordersViaDocsApi_ = origFn;
-  });
-
-  // ── tableOrdinal computation in insertBlockquoteTableAtPosition_ ──
-
-  results.push('\ninsertBlockquoteTableAtPosition_() — ordinal targeting (pendingBorders)');
-
-  it('single table in empty doc returns pendingBorders with tableOrdinal 1', function () {
-    var body = createMockBody(['']);
-    var doc = createMockDoc(body, body._children[0]);
-    var result = insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
-    expect(result.pendingBorders.docId).toBe('mock-doc-id');
-    expect(result.pendingBorders.tableOrdinal).toBe(1);
-  });
-
-  it('new table after one pre-existing table returns tableOrdinal 2', function () {
-    var body = createMockBody(['text before', 'cursor here']);
-    var existingTable = createMockTable();
-    body._children.splice(1, 0, existingTable);
-    var cursorPara = body._children[2];
-    var doc = createMockDoc(body, cursorPara);
-    var result = insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
-    expect(result.pendingBorders.tableOrdinal).toBe(2);
-  });
-
-  it('new table between two pre-existing tables returns tableOrdinal 2', function () {
-    var body = createMockBody(['before', 'middle', 'after']);
-    var table1 = createMockTable();
-    body._children.splice(1, 0, table1);
-    var table2 = createMockTable();
-    body._children.splice(3, 0, table2);
-    var cursorPara = body._children[2];
-    var doc = createMockDoc(body, cursorPara);
-    var result = insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
-    expect(result.pendingBorders.tableOrdinal).toBe(2);
-  });
-
-  it('blockquote does NOT call applyBlockquoteCellBordersViaDocsApi_ inline', function () {
-    var called = false;
-    var origBorders = applyBlockquoteCellBordersViaDocsApi_;
-    applyBlockquoteCellBordersViaDocsApi_ = function () { called = true; };
-    var body = createMockBody(['']);
-    var doc = createMockDoc(body, body._children[0]);
-    insertBlockquoteTableAtPosition_(body, doc, singleArabicParagraph(), {});
-    expect(called).toBe(false);
-    applyBlockquoteCellBordersViaDocsApi_ = origBorders;
   });
 
   // ── resolveNativeInsertAnchor_ — selection end + cursor split ──

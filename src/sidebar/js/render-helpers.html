@@ -3,58 +3,6 @@
 //   buildCardHtml, buildRangeData (card-builder.html),
 //   _buildAyahDataForInsert (search-utils.html)
 
-/**
- * Fire-and-forget: applies blockquote cell borders via a deferred second RPC.
- * The auto-flush between the insert call and this call ensures the Docs REST API
- * can see the newly inserted table without needing saveAndClose().
- */
-function showTransientToast(message) {
-  if (!message) return;
-  var host = document.getElementById('sidebar-toast-host');
-  if (!host) {
-    host = document.createElement('div');
-    host.id = 'sidebar-toast-host';
-    host.className = 'sidebar-toast-host';
-    document.body.appendChild(host);
-  }
-  var toast = document.createElement('div');
-  toast.className = 'sidebar-toast';
-  toast.setAttribute('role', 'status');
-  toast.textContent = message;
-  host.appendChild(toast);
-
-  setTimeout(function() {
-    toast.classList.add('sidebar-toast-hide');
-    setTimeout(function() {
-      if (toast.parentNode) {
-        toast.parentNode.removeChild(toast);
-      }
-    }, 220);
-  }, 3800);
-}
-
-function _applyPendingBorders(result, done) {
-  if (!result || !result.pendingBorders) {
-    if (done) done();
-    return;
-  }
-  var pb = result.pendingBorders;
-  google.script.run
-    .withSuccessHandler(function(borderResult) {
-      if (!borderResult || borderResult.success !== true) {
-        showTransientToast("Ayah inserted but styling couldn't be applied — try re-inserting.");
-        console.error('Blockquote border styling failed:', borderResult && borderResult.message);
-      }
-      if (done) done();
-    })
-    .withFailureHandler(function(err) {
-      showTransientToast("Ayah inserted but styling couldn't be applied — try re-inserting.");
-      console.error('Blockquote border styling failed:', err);
-      if (done) done();
-    })
-    .applyBlockquoteBorders(pb.docId, pb.tableOrdinal);
-}
-
 function makeSkeleton(count) {
   var html = '';
   for (var i = 0; i < count; i++) {
@@ -141,10 +89,8 @@ function onInsertClick(e) {
         if (result && !result.success) {
           console.warn('Range insert warning:', result.message);
         }
-        _applyPendingBorders(result, function() {
-          btn.disabled = false;
-          btn.classList.remove('btn-loading');
-        });
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
       })
       .withFailureHandler(function(err) {
         btn.disabled = false;
@@ -176,10 +122,8 @@ function onInsertClick(e) {
       if (result && !result.success) {
         console.warn('Insert warning:', result.message);
       }
-      _applyPendingBorders(result, function() {
-        btn.disabled = false;
-        btn.classList.remove('btn-loading');
-      });
+      btn.disabled = false;
+      btn.classList.remove('btn-loading');
     })
     .withFailureHandler(function(err) {
       btn.disabled = false;
