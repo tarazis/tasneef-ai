@@ -3,11 +3,6 @@
 //   buildCardHtml, buildRangeData (card-builder.html),
 //   _buildAyahDataForInsert (search-utils.html)
 
-/**
- * Fire-and-forget: applies blockquote cell borders via a deferred second RPC.
- * The auto-flush between the insert call and this call ensures the Docs REST API
- * can see the newly inserted table without needing saveAndClose().
- */
 function showTransientToast(message) {
   if (!message) return;
   var host = document.getElementById('sidebar-toast-host');
@@ -33,6 +28,7 @@ function showTransientToast(message) {
   }, 3800);
 }
 
+/** No-op unless the server returns legacy pendingBorders (older deployments). */
 function _applyPendingBorders(result, done) {
   if (!result || !result.pendingBorders) {
     if (done) done();
