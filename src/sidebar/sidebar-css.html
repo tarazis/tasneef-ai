@@ -81,7 +81,12 @@
   .tab-btn:active { background: transparent; }
   .tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); background: var(--color-primary-light); }
 
-  /* AI tab: sparkles left of label */
+  /* AI tab: sparkle icon; quick scale “twinkle” on hover (not rotate / Gemini-style flip) */
+  @keyframes tab-ai-sparkle-twinkle {
+    0% { transform: scale(1); }
+    45% { transform: scale(1.14); }
+    100% { transform: scale(1); }
+  }
   .tab-btn--ai {
     display: flex;
     flex-direction: row;
@@ -98,11 +103,9 @@
     line-height: 0;
     color: inherit;
     transform-origin: center center;
-    transform: rotate(0deg);
-    transition: transform 0.6s ease;
   }
   .tab-btn--ai:hover .tab-btn-ai-icon {
-    transform: rotate(180deg);
+    animation: tab-ai-sparkle-twinkle 1s ease-in-out infinite;
   }
   .tab-btn--ai .tab-btn-ai-icon svg {
     width: 1em;
@@ -118,12 +121,8 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .tab-btn--ai .tab-btn-ai-icon {
-      transition: none;
-      transform: none;
-    }
     .tab-btn--ai:hover .tab-btn-ai-icon {
-      transform: none;
+      animation: none;
     }
   }
 
