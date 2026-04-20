@@ -108,6 +108,15 @@ function getFeedbackFormUrl() {
 }
 
 /**
+ * Support / donate link URL from Script Properties (e.g. Buy Me a Coffee).
+ * @return {string} URL or empty string if unset
+ */
+function getSupportUrl() {
+  var url = PropertiesService.getScriptProperties().getProperty('support_url');
+  return url && String(url).trim() ? String(url).trim() : '';
+}
+
+/**
  * Returns today's AI search count (UTC date).
  * If the stored date is not today, the count is treated as 0.
  * @return {number} The current count for today.

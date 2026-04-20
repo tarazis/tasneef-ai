@@ -47,3 +47,13 @@ function include_(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
+/**
+ * Bottom bar fragment needs template variables; plain include_() does not evaluate <?= ?>.
+ * @return {string}
+ */
+function includeBottomBar_() {
+  var t = HtmlService.createTemplateFromFile('sidebar/components/bottom-bar');
+  t.supportUrl = getSupportUrl();
+  return t.evaluate().getContent();
+}
+
