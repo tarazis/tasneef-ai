@@ -71,11 +71,11 @@ function runFormatServiceTests() {
     expect(a.bold).toBe(false);
     expect(a.textColor).toBe('#1A1A1A');
   });
-  it('citation role yields Figtree 11pt same color as Quran', function () {
+  it('citation role yields Figtree 11pt italic same color as Quran', function () {
     var item = { insertTextRole: 'citation' };
     var a = formatStateForBeautifiedInsertParagraph(item, { fontName: 'Amiri', bold: true });
     expect(a.fontName).toBe('Figtree');
-    expect(a.fontVariant).toBe('regular');
+    expect(a.fontVariant).toBe('italic');
     expect(a.fontSize).toBe(11);
     expect(a.bold).toBe(false);
     expect(a.textColor).toBe('#1A1A1A');

@@ -265,7 +265,7 @@ function runDocumentServiceTests() {
         spacingAfter: INSERT_SPACING_INNER_PT
       },
       {
-        text: '(Al-Fatiha\u00A01:1)',
+        text: 'Al-Fatiha\u00A01:1',
         align: DocumentApp.HorizontalAlignment.CENTER,
         insertTextRole: 'citation'
       }
@@ -536,7 +536,7 @@ function runDocumentServiceTests() {
     expect(applyFormatCalls[1].bold).toBe(false);
     expect(applyFormatCalls[1].textColor).toBe('#1A1A1A');
     expect(applyFormatCalls[2].fontName).toBe('Figtree');
-    expect(applyFormatCalls[2].fontVariant).toBe('regular');
+    expect(applyFormatCalls[2].fontVariant).toBe('italic');
     expect(applyFormatCalls[2].fontSize).toBe(11);
     expect(applyFormatCalls[2].bold).toBe(false);
     expect(applyFormatCalls[2].textColor).toBe('#1A1A1A');
@@ -573,7 +573,7 @@ function runDocumentServiceTests() {
     expect(body._children[1]._ltr).toBe(false);
     expect(body._children[2]._text).toBe('"translation"');
     expect(body._children[2]._ltr).toBe(true);
-    expect(body._children[3]._text).toBe('(Al-Fatiha\u00A01:1)');
+    expect(body._children[3]._text).toBe('Al-Fatiha\u00A01:1');
     expect(body._children[3]._ltr).toBe(true);
   });
 
@@ -587,7 +587,7 @@ function runDocumentServiceTests() {
     expect(body._children.length).toBe(5);
     expect(body._children[1]._text).toBe('\uFD3F\u00A0arabic\u00A0\uFD3E');
     expect(body._children[2]._text).toBe('"translation"');
-    expect(body._children[3]._text).toBe('(Al-Fatiha\u00A01:1)');
+    expect(body._children[3]._text).toBe('Al-Fatiha\u00A01:1');
     expect(body._children[4]._text).toBe('after');
   });
 
@@ -604,7 +604,7 @@ function runDocumentServiceTests() {
     expect(body._children.length).toBe(3);
     expect(body._children[0]._text).toBe('\uFD3F\u00A0arabic\u00A0\uFD3E');
     expect(body._children[1]._text).toBe('"translation"');
-    expect(body._children[2]._text).toBe('(Al-Fatiha\u00A01:1)');
+    expect(body._children[2]._text).toBe('Al-Fatiha\u00A01:1');
 
     var doc2 = createMockDoc(body, body._children[2]);
     insertParagraphsAtPosition_(body, doc2, singleArabicParagraph(), {});
@@ -613,7 +613,7 @@ function runDocumentServiceTests() {
     expect(body._children.length).toBe(4);
     expect(body._children[0]._text).toBe('\uFD3F\u00A0arabic\u00A0\uFD3E');
     expect(body._children[1]._text).toBe('"translation"');
-    expect(body._children[2]._text).toBe('(Al-Fatiha\u00A01:1)');
+    expect(body._children[2]._text).toBe('Al-Fatiha\u00A01:1');
     expect(body._children[3]._text).toBe('\uFD3F\u00A0test\u00A0\uFD3E');
   });
 

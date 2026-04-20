@@ -14,7 +14,7 @@ var ENGLISH_TRANSLATION_INSERT_FONT = 'Figtree';
 var INSERT_QURAN_FONT_SIZE_PT = 16;
 var INSERT_QURAN_TEXT_COLOR = '#1A1A1A';
 
-/** Fixed typography for inserted translation and English citation (same color as Quran body). */
+/** Fixed typography for inserted translation; English citation is italic Figtree (same text color as Quran body). */
 var INSERT_TRANSLATION_FONT_SIZE_PT = 12;
 var INSERT_CITATION_FONT_SIZE_PT = 11;
 
@@ -79,7 +79,7 @@ function formatStateForInsertTranslationEnglish_() {
 function formatStateForInsertCitationEnglish_() {
   return {
     fontName: ENGLISH_TRANSLATION_INSERT_FONT,
-    fontVariant: 'regular',
+    fontVariant: 'italic',
     bold: false,
     fontSize: INSERT_CITATION_FONT_SIZE_PT,
     textColor: INSERT_QURAN_TEXT_COLOR

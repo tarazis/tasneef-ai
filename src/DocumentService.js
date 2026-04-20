@@ -360,7 +360,7 @@ function insertAyah(ayahData, formatState, settings) {
       spacingAfter: INSERT_SPACING_INNER_PT
     });
     paragraphsToInsert.push({
-      text: '(' + surahNameEn + qNbsp + ayahData.surah + ':' + ayahData.ayah + ')',
+      text: surahNameEn + qNbsp + ayahData.surah + ':' + ayahData.ayah,
       align: DocumentApp.HorizontalAlignment.CENTER,
       insertTextRole: 'citation'
     });
@@ -418,8 +418,8 @@ function insertAyahRange(rangeData, formatState, settings) {
       spacingAfter: INSERT_SPACING_INNER_PT
     });
     paragraphsToInsert.push({
-      text: '(' + surahNameEn + qNbsp + rangeData.surah + ':' +
-            rangeData.ayahStart + '-' + rangeData.ayahEnd + ')',
+      text: surahNameEn + qNbsp + rangeData.surah + ':' +
+            rangeData.ayahStart + '-' + rangeData.ayahEnd,
       align: DocumentApp.HorizontalAlignment.CENTER,
       insertTextRole: 'citation'
     });
