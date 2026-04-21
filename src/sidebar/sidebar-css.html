@@ -183,24 +183,38 @@
   /* ─── Loading & Empty States ──────────────────────────────────────────────── */
   @keyframes spin { to { transform: rotate(360deg); } }
   .empty-state { color: var(--color-text-secondary); font-size: 13px; padding: 24px var(--sidebar-inline); text-align: center; }
-  .ai-search-empty-limit-row {
-    display: inline-flex;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 6px;
-    max-width: 100%;
-    text-align: left;
+  .empty-state.ai-search-empty--limit {
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--color-text-secondary);
   }
-  .ai-search-empty-limit-text { flex: 1; min-width: 0; }
+  .ai-search-empty-limit-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 4px 6px;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--color-text-secondary);
+  }
+  .ai-search-empty-limit-text {
+    flex: 0 1 auto;
+    min-width: 0;
+    text-align: center;
+  }
   .ai-limit-info-wrap {
-    position: relative;
-    flex-shrink: 0;
+    flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
-    margin-top: -1px;
+    justify-content: center;
     color: var(--color-text-muted);
     cursor: default;
-    padding: 0;
+    padding: 5px;
+    margin: -2px -3px;
     border: none;
     background: none;
     border-radius: var(--radius-sm);
@@ -210,30 +224,25 @@
   .ai-limit-info-wrap:focus-visible {
     box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-primary);
   }
-  .ai-limit-info-wrap .ai-limit-info-svg { display: block; width: 22px; height: 22px; }
+  .ai-limit-info-wrap .ai-limit-info-svg { display: block; width: 11px; height: 11px; }
   .ai-limit-info-tooltip {
     display: none;
-    position: absolute;
-    z-index: 50;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    margin-bottom: 6px;
+    flex: 1 1 100%;
+    order: 3;
+    box-sizing: border-box;
+    width: 100%;
+    margin-top: 6px;
     padding: 8px 10px;
-    min-width: 200px;
-    max-width: 260px;
     background: #2b2b2b;
     color: #fff;
     font-size: 11px;
-    line-height: 1.4;
+    line-height: 1.45;
     border-radius: var(--radius-sm);
     box-shadow: var(--shadow-md);
     text-align: center;
-    pointer-events: none;
   }
-  .ai-limit-info-wrap:hover .ai-limit-info-tooltip,
-  .ai-limit-info-wrap:focus .ai-limit-info-tooltip,
-  .ai-limit-info-wrap:focus-within .ai-limit-info-tooltip { display: block; }
+  .ai-search-empty-limit-row:hover .ai-limit-info-tooltip,
+  .ai-search-empty-limit-row:focus-within .ai-limit-info-tooltip { display: block; }
   .cache-status { display: flex; align-items: center; gap: var(--space-sm); padding: 6px var(--sidebar-inline); font-size: 12px; }
   .cache-status-text { color: var(--color-text-muted); }
   .cache-status-error { color: var(--color-error); }
@@ -513,29 +522,29 @@
   .bottom-bar {
     flex-shrink: 0;
     border-top: 1px solid var(--color-border);
-    padding: var(--space-sm) var(--sidebar-inline);
+    padding: var(--space-md) var(--sidebar-inline);
     background: var(--color-bg-secondary);
   }
   .bottom-bar-inner {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    column-gap: var(--space-sm);
-  }
-  .bottom-bar-wordmark {
     display: flex;
     align-items: center;
-    flex-shrink: 0;
-    justify-self: start;
+    justify-content: space-between;
+    gap: var(--space-md);
+    min-height: 32px;
+  }
+  .bottom-bar-wordmark {
+    flex: 1 1 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
     min-width: 0;
-    padding: 2px 0;
   }
   .bottom-bar-center {
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: var(--space-md);
-    justify-self: center;
     min-width: 0;
     flex-wrap: wrap;
   }
@@ -581,16 +590,16 @@
     user-select: none;
   }
   .bottom-bar-right {
+    flex: 1 1 0;
     display: flex;
     align-items: center;
-    justify-self: end;
+    justify-content: flex-end;
     gap: 0;
     min-width: 0;
-    padding: 2px 0;
   }
   .bottom-bar-wordmark svg {
     display: block;
-    height: 30px;
+    height: 28px;
     width: auto;
     max-width: 200px;
   }
