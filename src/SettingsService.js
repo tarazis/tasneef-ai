@@ -8,6 +8,12 @@
 /** Fallback when Script Property ai_search_daily_limit is missing or invalid. */
 var AI_SEARCH_DAILY_LIMIT_DEFAULT = 20;
 
+/**
+ * User Property (per-user): when true, AI search always returns daily-limit error (for UI testing).
+ * Checked before super-user exemption. Remove when no longer needed.
+ */
+var AI_QUOTA_TEST_FORCE_LIMIT_USER_KEY = 'ai_quota_test_force_limit';
+
 var SETTINGS_DEFAULTS = {
   showTranslation: true,
   /** When true, ayah/range inserts are wrapped in a styled 2×1 table (blockquote look). */
@@ -48,6 +54,8 @@ function getSettings() {
       settings[key] = SETTINGS_DEFAULTS[key];
     }
   }
+
+  settings.aiQuotaTestSimulateLimit = getAiQuotaTestSimulateLimit_();
 
   return settings;
 }
@@ -153,11 +161,31 @@ function getAiSearchDailyLimit_() {
 }
 
 /**
+ * @return {boolean}
+ */
+function getAiQuotaTestSimulateLimit_() {
+  return PropertiesService.getUserProperties().getProperty(AI_QUOTA_TEST_FORCE_LIMIT_USER_KEY) === 'true';
+}
+
+/**
+ * Persist dev-only flag: simulate AI daily limit reached (super users included).
+ * @param {boolean} enabled
+ */
+function setAiQuotaTestSimulateLimit(enabled) {
+  PropertiesService.getUserProperties().setProperty(
+    AI_QUOTA_TEST_FORCE_LIMIT_USER_KEY,
+    enabled ? 'true' : 'false'
+  );
+}
+
+/**
  * Increments today's AI search count and persists it.
  * Super users (Script Property super_users; legacy dev_emails fallback) do not consume quota.
  * @return {number} The new count, or -1 if the daily limit has been reached.
  */
 function incrementAiSearchCount_() {
+  if (getAiQuotaTestSimulateLimit_()) return -1;
+
   if (isAiSearchSuperUserExempt_()) return 0;
 
   var current = getAiSearchCount_();

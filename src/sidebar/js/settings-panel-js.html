@@ -35,6 +35,18 @@ function applyBlockquoteCheckboxFromPayload(s) {
   bq.checked = on;
 }
 
+function applyAiQuotaTestSimulateFromPayload(s) {
+  var el = document.getElementById('ai-quota-test-simulate');
+  if (!el) return;
+  var on = false;
+  if (s && typeof s.aiQuotaTestSimulateLimit !== 'undefined') {
+    on = s.aiQuotaTestSimulateLimit === true;
+  } else if (typeof _settings !== 'undefined' && _settings && typeof _settings.aiQuotaTestSimulateLimit !== 'undefined') {
+    on = _settings.aiQuotaTestSimulateLimit === true;
+  }
+  el.checked = on;
+}
+
 // ─── Settings Page (replaces overlay) ──────────────────────────────────────
 
 function showSettingsPage() {
@@ -49,6 +61,7 @@ function showSettingsPage() {
   setSettingsPanelLoading(false);
   applyTranslationCheckboxFromPayload(_settings);
   applyBlockquoteCheckboxFromPayload(_settings);
+  applyAiQuotaTestSimulateFromPayload(_settings);
 }
 
 function hideSettingsPage() {
@@ -145,6 +158,23 @@ function initSettingsPanelHandlers() {
         .saveSettings({ blockquoteInsertion: blockquoteInsertion });
     });
   }
+
+  var quotaTest = document.getElementById('ai-quota-test-simulate');
+  if (quotaTest) {
+    quotaTest.addEventListener('change', function () {
+      var simulate = quotaTest.checked;
+      if (typeof _settings !== 'object' || !_settings) {
+        _settings = {};
+      }
+      _settings.aiQuotaTestSimulateLimit = simulate;
+      google.script.run
+        .withFailureHandler(function () {
+          _settings.aiQuotaTestSimulateLimit = !simulate;
+          quotaTest.checked = !simulate;
+        })
+        .setAiQuotaTestSimulateLimit(simulate);
+    });
+  }
 }
 
 function onSettingsLoaded(settings) {
@@ -156,6 +186,7 @@ function onSettingsLoaded(settings) {
   if (page && !page.classList.contains('hidden')) {
     applyTranslationCheckboxFromPayload(_settings);
     applyBlockquoteCheckboxFromPayload(_settings);
+    applyAiQuotaTestSimulateFromPayload(_settings);
   }
 }
 </script>
