@@ -73,6 +73,9 @@ function hideSettingsPage() {
     if (el) el.classList.remove('hidden');
   }
   refreshSettings();
+  if (typeof window.refreshAiSearchComposerEnabled === 'function') {
+    window.refreshAiSearchComposerEnabled();
+  }
 }
 
 // ─── Bottom bar (feedback link, settings gear) ────────────────────────────
@@ -168,6 +171,11 @@ function initSettingsPanelHandlers() {
       }
       _settings.aiQuotaTestSimulateLimit = simulate;
       google.script.run
+        .withSuccessHandler(function () {
+          if (typeof window.refreshAiSearchComposerEnabled === 'function') {
+            window.refreshAiSearchComposerEnabled();
+          }
+        })
         .withFailureHandler(function () {
           _settings.aiQuotaTestSimulateLimit = !simulate;
           quotaTest.checked = !simulate;
@@ -181,6 +189,9 @@ function onSettingsLoaded(settings) {
   _settings = settings;
   if (typeof window.refreshAllResultCardPreviews === 'function') {
     window.refreshAllResultCardPreviews();
+  }
+  if (typeof window.refreshAiSearchComposerEnabled === 'function') {
+    window.refreshAiSearchComposerEnabled();
   }
   var page = document.getElementById('settings-page');
   if (page && !page.classList.contains('hidden')) {

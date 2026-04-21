@@ -38,6 +38,9 @@
     if (tabId === 'exact-search') {
       ensureImlaeiCache();       // no-op if already loading or loaded
     }
+    if (tabId === 'ai-search' && typeof window.refreshAiSearchComposerEnabled === 'function') {
+      window.refreshAiSearchComposerEnabled();
+    }
 
     // Show/hide new-chat button based on active tab + conversation state
     if (typeof updateNewChatVisibility === 'function') {

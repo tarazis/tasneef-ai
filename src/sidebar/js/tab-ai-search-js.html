@@ -5,6 +5,8 @@
 //   window.setupTextarea (sidebar-js.html IIFE)
 
 var _conversationMessages = [];
+/** True only while an AI search RPC is in flight (not when blocked by daily quota). */
+var _aiSearchAwaitingResponse = false;
 
 var AI_DAILY_LIMIT_ERROR_RE = /^Daily AI limit reached\. Try again tomorrow\.$/;
 var AI_LIMIT_TOOLTIP_TEXT =
@@ -91,9 +93,35 @@ function updateNewChatVisibility() {
     btn.disabled = false;
     return;
   }
-  var loading = queryEl && queryEl.disabled;
-  btn.disabled = loading || !aiSearchPanelIsDirty();
+  var busy = _aiSearchAwaitingResponse;
+  btn.disabled = busy || !aiSearchPanelIsDirty();
 }
+
+/**
+ * Re-sync AI composer enabled state with server quota (new day, limit property, super user, test toggle).
+ */
+function refreshAiSearchComposerEnabled() {
+  var queryEl = document.getElementById('ai-search-query');
+  var btnSend = document.getElementById('btn-ai-search');
+  if (!queryEl || !btnSend) return;
+  google.script.run
+    .withSuccessHandler(function (allowed) {
+      _aiSearchAwaitingResponse = false;
+      if (window._activeTab !== 'ai-search') return;
+      btnSend.disabled = !allowed;
+      queryEl.disabled = !allowed;
+      updateNewChatVisibility();
+    })
+    .withFailureHandler(function () {
+      _aiSearchAwaitingResponse = false;
+      if (window._activeTab !== 'ai-search') return;
+      btnSend.disabled = false;
+      queryEl.disabled = false;
+      updateNewChatVisibility();
+    })
+    .getAiSearchQuotaAllowsMore();
+}
+window.refreshAiSearchComposerEnabled = refreshAiSearchComposerEnabled;
 
 function showAIWelcome() {
   var el = document.getElementById('ai-welcome');
@@ -113,6 +141,7 @@ function initAISearchTab() {
   var clarifyEl = document.getElementById('ai-search-clarify');
   var emptyEl = document.getElementById('ai-search-empty');
   function setEnabled(enabled) {
+    _aiSearchAwaitingResponse = !enabled;
     if (btnSend) btnSend.disabled = !enabled;
     if (queryEl) queryEl.disabled = !enabled;
     updateNewChatVisibility();
@@ -194,6 +223,11 @@ function initAISearchTab() {
 
     if (response.type === 'error') {
       showAiSearchEmptyError(emptyEl, response.error);
+      if (isAiDailyLimitErrorMessage(response.error)) {
+        _aiSearchAwaitingResponse = false;
+        if (btnSend) btnSend.disabled = true;
+        if (queryEl) queryEl.disabled = true;
+      }
       updateNewChatVisibility();
       return;
     }
@@ -274,6 +308,7 @@ function initAISearchTab() {
 
 function clearAISearch() {
   _conversationMessages = [];
+  _aiSearchAwaitingResponse = false;
   pagClear('ai-search');
   var queryEl = document.getElementById('ai-search-query');
   var resultsEl = document.getElementById('ai-search-results');
@@ -289,6 +324,6 @@ function clearAISearch() {
   }
   hideAIQueryBar();
   showAIWelcome();
-  updateNewChatVisibility();
+  refreshAiSearchComposerEnabled();
 }
 </script>

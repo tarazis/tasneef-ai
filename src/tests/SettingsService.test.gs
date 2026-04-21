@@ -84,6 +84,13 @@ function runSettingsServiceTests() {
     expect(cap >= 1).toBeTruthy();
   });
 
+  results.push('\ngetAiSearchQuotaAllowsMore()');
+
+  it('returns a boolean (read-only quota check)', function () {
+    var ok = getAiSearchQuotaAllowsMore();
+    expect(ok === true || ok === false).toBeTruthy();
+  });
+
   // ─── superUserEmailListIncludes_ ─────────────────────────────────────────
 
   results.push('\nsuperUserEmailListIncludes_()');
