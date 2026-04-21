@@ -1,5 +1,7 @@
 # Clasp config (contains scriptId and parentId)
 .clasp.json
+# Local backup when migrating away from container-bound clasp
+.clasp.container-bound.json
 
 # Claude Code worktrees and settings
 .claude/
