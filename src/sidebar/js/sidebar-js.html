@@ -67,7 +67,7 @@
 
   function init() {
     window._feedbackFormUrl = '';
-    var pendingInit = 7;
+    var pendingInit = 8;
     function onInitDone() {
       if (--pendingInit <= 0) {
         var overlay = document.getElementById('startup-overlay');
@@ -84,6 +84,26 @@
         onInitDone();
       })
       .getSettings();
+
+    google.script.run
+      .withSuccessHandler(function (state) {
+        if (typeof applyAiSearchQuotaFromSnapshot === 'function') {
+          applyAiSearchQuotaFromSnapshot(state);
+        }
+        onInitDone();
+      })
+      .withFailureHandler(function () {
+        if (typeof applyAiSearchQuotaFromSnapshot === 'function') {
+          applyAiSearchQuotaFromSnapshot({
+            allowed: true,
+            isSuperUser: false,
+            dailyLimit: 20,
+            dailyLimitIncreased: false
+          });
+        }
+        onInitDone();
+      })
+      .getAiSearchQuotaStateForClient();
 
     google.script.run
       .withSuccessHandler(function (url) {

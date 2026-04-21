@@ -187,11 +187,13 @@
     font-size: 11px;
     line-height: 1.45;
     color: var(--color-text-secondary);
-    padding: 0;
+    padding: 0 var(--sidebar-inline);
+    box-sizing: border-box;
   }
   .ai-search-empty-limit-row {
+    position: relative;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     justify-content: center;
     gap: 2px;
@@ -228,11 +230,15 @@
   .ai-limit-info-wrap .ai-limit-info-svg { display: block; width: 11px; height: 11px; }
   .ai-limit-info-tooltip {
     display: none;
-    flex: 1 1 100%;
-    order: 3;
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    left: auto;
+    z-index: 30;
     box-sizing: border-box;
-    width: 100%;
-    margin-top: 6px;
+    width: max-content;
+    max-width: 100%;
+    margin-bottom: 6px;
     padding: 8px 10px;
     background: #2b2b2b;
     color: #fff;
@@ -241,8 +247,9 @@
     border-radius: var(--radius-sm);
     box-shadow: var(--shadow-md);
     text-align: center;
+    pointer-events: none;
   }
-  .ai-search-empty-limit-row:hover .ai-limit-info-tooltip,
+  .ai-search-empty-limit-row:has(.ai-limit-info-wrap:hover) .ai-limit-info-tooltip,
   .ai-search-empty-limit-row:focus-within .ai-limit-info-tooltip { display: block; }
   .cache-status { display: flex; align-items: center; gap: var(--space-sm); padding: 6px var(--sidebar-inline); font-size: 12px; }
   .cache-status-text { color: var(--color-text-muted); }
@@ -341,6 +348,9 @@
     background: transparent;
     resize: none;
   }
+  #panel-ai-search .tab-input-wrap--composer textarea::placeholder {
+    font-size: 12px;
+  }
   #panel-ai-search .tab-input-wrap--composer textarea:focus { outline: none; border-color: transparent; }
   #panel-ai-search .tab-input-wrap--composer .btn-send {
     position: absolute;
@@ -384,17 +394,6 @@
   .settings-panel-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-md); min-height: 120px; padding: var(--space-sm) 0 var(--space-lg); }
   .settings-panel-loading .startup-spinner { flex-shrink: 0; }
   .settings-section { margin-bottom: var(--space-xl); }
-  .settings-section--dev-test {
-    padding-top: var(--space-md);
-    border-top: 1px dashed var(--color-border);
-  }
-  .settings-dev-hint {
-    margin: 0 0 var(--space-md);
-    font-size: 11px;
-    line-height: 1.4;
-    color: var(--color-text-muted);
-  }
-  .settings-dev-hint--after { margin: var(--space-sm) 0 0; }
   .settings-section-title { margin: 0 0 var(--space-lg); font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
   .settings-row {
     display: flex;
@@ -523,22 +522,26 @@
   .bottom-bar {
     flex-shrink: 0;
     border-top: 1px solid var(--color-border);
-    padding: var(--space-md) var(--sidebar-inline);
+    padding: var(--space-xs);
     background: var(--color-bg-secondary);
   }
   .bottom-bar-inner {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--space-md);
     min-height: 32px;
   }
-  .bottom-bar-wordmark {
+  /* Equal flex spacers: leftover width splits 50/50 so space logo→links matches links→gear. */
+  .bottom-bar-spacer {
     flex: 1 1 0;
+    min-width: 0;
+    align-self: stretch;
+  }
+  .bottom-bar-wordmark {
+    flex: 0 0 auto;
+    min-width: 0;
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    min-width: 0;
   }
   .bottom-bar-center {
     flex: 0 0 auto;
@@ -591,7 +594,7 @@
     user-select: none;
   }
   .bottom-bar-right {
-    flex: 1 1 0;
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -616,15 +619,6 @@
   #btn-bottom-settings { color: var(--color-text-secondary); }
   #btn-bottom-settings:hover { color: var(--color-text-primary); }
   #btn-bottom-settings svg { width: 16px; height: 16px; display: block; }
-  .bottom-bar-divider {
-    width: 2px;
-    height: 20px;
-    background: var(--color-text-muted);
-    opacity: 0.45;
-    margin: 0 var(--space-xs);
-    border-radius: 1px;
-    flex-shrink: 0;
-  }
   .sidebar-toast-host {
     position: fixed;
     left: 50%;

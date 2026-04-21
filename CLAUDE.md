@@ -67,7 +67,6 @@ Arabic ayah text in Google Docs is always **Amiri**, regular weight, not bold �
 - Per-user cap is read from Script Property `ai_search_daily_limit` (positive integer; defaults to 20 if unset or invalid), enforced in `src/SettingsService.js` / `src/ClaudeAPI.js`.
 - Counter stored in User Properties as JSON (`{count, date}`). Resets on first query of new UTC day.
 - Super users listed in Script Property `super_users` (comma-separated emails) bypass the quota. Legacy `dev_emails` is still read if `super_users` is empty.
-- **Temporary:** User Property `ai_quota_test_force_limit` (`true` / absent) or the Settings toggle “Simulate AI daily limit reached” forces the limit error for that user (including super users) so the UI can be tested without burning quota.
 
 ### API keys
 

@@ -11,8 +11,8 @@ var _aiSearchAwaitingResponse = false;
 var AI_DAILY_LIMIT_MESSAGE = 'Daily AI limit reached. Try again tomorrow.';
 var AI_DAILY_LIMIT_ERROR_RE = /^Daily AI limit reached\. Try again tomorrow\.$/;
 var AI_LIMIT_TOOLTIP_TEXT =
-  'This temporary limit ensures service sustainability during our beta phase and will be increased in future updates';
-/** True when daily quota is exhausted (or test simulate on); textarea stays usable, send/new chat off. */
+  'To maintain service stability, daily AI requests are temporarily limited. We plan to increase this capacity in upcoming updates.';
+/** True when daily quota is exhausted; textarea stays usable, send/new chat off. */
 var _aiSearchQuotaBlocked = false;
 
 function isAiDailyLimitErrorMessage(msg) {
@@ -104,6 +104,29 @@ function updateNewChatVisibility() {
 }
 
 /**
+ * Normalizes server quota payload, stores on window, applies composer + AI tab UI.
+ * @param {*} state
+ */
+function applyAiSearchQuotaFromSnapshot(state) {
+  var snap = {
+    allowed: true,
+    isSuperUser: false,
+    dailyLimit: 20,
+    dailyLimitIncreased: false
+  };
+  if (state && typeof state === 'object') {
+    if (typeof state.allowed === 'boolean') snap.allowed = state.allowed;
+    if (typeof state.isSuperUser === 'boolean') snap.isSuperUser = state.isSuperUser;
+    if (typeof state.dailyLimit === 'number' && isFinite(state.dailyLimit) && state.dailyLimit >= 1) {
+      snap.dailyLimit = state.dailyLimit;
+    }
+    if (typeof state.dailyLimitIncreased === 'boolean') snap.dailyLimitIncreased = state.dailyLimitIncreased;
+  }
+  window._aiSearchQuotaSnapshot = snap;
+  applyAiSearchQuotaFromServer(snap.allowed);
+}
+
+/**
  * Apply quota state for the AI tab: limit warning + chrome (server is source of truth).
  * @param {boolean} allowed
  */
@@ -158,20 +181,37 @@ function applyAiSearchQuotaFromServer(allowed) {
 }
 
 /**
- * Re-sync AI composer with server quota (new day, limit property, super user, test toggle).
+ * Re-sync AI composer with quota state. Pass true to force a server round-trip (e.g. after settings).
+ * When false and startup snapshot exists, applies cached state immediately (no RPC).
+ * @param {boolean=} optForceServer
  */
-function refreshAiSearchComposerEnabled() {
+function refreshAiSearchComposerEnabled(optForceServer) {
   var queryEl = document.getElementById('ai-search-query');
   var btnSend = document.getElementById('btn-ai-search');
   if (!queryEl || !btnSend) return;
+  var force = optForceServer === true;
+  if (
+    !force &&
+    typeof window._aiSearchQuotaSnapshot === 'object' &&
+    window._aiSearchQuotaSnapshot !== null &&
+    typeof window._aiSearchQuotaSnapshot.allowed === 'boolean'
+  ) {
+    applyAiSearchQuotaFromServer(window._aiSearchQuotaSnapshot.allowed);
+    return;
+  }
   google.script.run
-    .withSuccessHandler(function (allowed) {
-      applyAiSearchQuotaFromServer(!!allowed);
+    .withSuccessHandler(function (state) {
+      applyAiSearchQuotaFromSnapshot(state);
     })
     .withFailureHandler(function () {
-      applyAiSearchQuotaFromServer(true);
+      applyAiSearchQuotaFromSnapshot({
+        allowed: true,
+        isSuperUser: false,
+        dailyLimit: 20,
+        dailyLimitIncreased: false
+      });
     })
-    .getAiSearchQuotaAllowsMore();
+    .getAiSearchQuotaStateForClient();
 }
 window.refreshAiSearchComposerEnabled = refreshAiSearchComposerEnabled;
 
@@ -380,6 +420,6 @@ function clearAISearch() {
     emptyEl.textContent = '';
   }
   hideAIQueryBar();
-  refreshAiSearchComposerEnabled();
+  refreshAiSearchComposerEnabled(true);
 }
 </script>

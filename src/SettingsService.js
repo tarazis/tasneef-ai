@@ -8,12 +8,6 @@
 /** Fallback when Script Property ai_search_daily_limit is missing or invalid. */
 var AI_SEARCH_DAILY_LIMIT_DEFAULT = 20;
 
-/**
- * User Property (per-user): when true, AI search always returns daily-limit error (for UI testing).
- * Checked before super-user exemption. Remove when no longer needed.
- */
-var AI_QUOTA_TEST_FORCE_LIMIT_USER_KEY = 'ai_quota_test_force_limit';
-
 var SETTINGS_DEFAULTS = {
   showTranslation: true,
   /** When true, ayah/range inserts are wrapped in a styled 2×1 table (blockquote look). */
@@ -54,8 +48,6 @@ function getSettings() {
       settings[key] = SETTINGS_DEFAULTS[key];
     }
   }
-
-  settings.aiQuotaTestSimulateLimit = getAiQuotaTestSimulateLimit_();
 
   return settings;
 }
@@ -161,21 +153,29 @@ function getAiSearchDailyLimit_() {
 }
 
 /**
+ * Whether the current user may start another AI search (does not increment quota).
+ * Mirrors logic in incrementAiSearchCount_ without persisting.
  * @return {boolean}
  */
-function getAiQuotaTestSimulateLimit_() {
-  return PropertiesService.getUserProperties().getProperty(AI_QUOTA_TEST_FORCE_LIMIT_USER_KEY) === 'true';
+function getAiSearchQuotaAllowsMore() {
+  if (isAiSearchSuperUserExempt_()) return true;
+  var current = getAiSearchCount_();
+  return current < getAiSearchDailyLimit_();
 }
 
 /**
- * Persist dev-only flag: simulate AI daily limit reached (super users included).
- * @param {boolean} enabled
+ * Sidebar startup + AI tab: quota allowance, super-user flag, and whether the Script Property
+ * daily cap is above the product default (for client UI / future messaging).
+ * @return {{ allowed: boolean, isSuperUser: boolean, dailyLimit: number, dailyLimitIncreased: boolean }}
  */
-function setAiQuotaTestSimulateLimit(enabled) {
-  PropertiesService.getUserProperties().setProperty(
-    AI_QUOTA_TEST_FORCE_LIMIT_USER_KEY,
-    enabled ? 'true' : 'false'
-  );
+function getAiSearchQuotaStateForClient() {
+  var dailyLimit = getAiSearchDailyLimit_();
+  return {
+    allowed: getAiSearchQuotaAllowsMore(),
+    isSuperUser: isAiSearchSuperUserExempt_(),
+    dailyLimit: dailyLimit,
+    dailyLimitIncreased: dailyLimit > AI_SEARCH_DAILY_LIMIT_DEFAULT
+  };
 }
 
 /**
@@ -183,21 +183,7 @@ function setAiQuotaTestSimulateLimit(enabled) {
  * Super users (Script Property super_users; legacy dev_emails fallback) do not consume quota.
  * @return {number} The new count, or -1 if the daily limit has been reached.
  */
-/**
- * Whether the current user may start another AI search (does not increment quota).
- * Mirrors logic in incrementAiSearchCount_ without persisting.
- * @return {boolean}
- */
-function getAiSearchQuotaAllowsMore() {
-  if (getAiQuotaTestSimulateLimit_()) return false;
-  if (isAiSearchSuperUserExempt_()) return true;
-  var current = getAiSearchCount_();
-  return current < getAiSearchDailyLimit_();
-}
-
 function incrementAiSearchCount_() {
-  if (getAiQuotaTestSimulateLimit_()) return -1;
-
   if (isAiSearchSuperUserExempt_()) return 0;
 
   var current = getAiSearchCount_();

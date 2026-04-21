@@ -91,6 +91,17 @@ function runSettingsServiceTests() {
     expect(ok === true || ok === false).toBeTruthy();
   });
 
+  results.push('\ngetAiSearchQuotaStateForClient()');
+
+  it('returns allowed, isSuperUser, dailyLimit, dailyLimitIncreased with expected types', function () {
+    var s = getAiSearchQuotaStateForClient();
+    expect(typeof s.allowed).toBe('boolean');
+    expect(typeof s.isSuperUser).toBe('boolean');
+    expect(typeof s.dailyLimit).toBe('number');
+    expect(typeof s.dailyLimitIncreased).toBe('boolean');
+    expect(s.dailyLimit >= 1).toBeTruthy();
+  });
+
   // ─── superUserEmailListIncludes_ ─────────────────────────────────────────
 
   results.push('\nsuperUserEmailListIncludes_()');
