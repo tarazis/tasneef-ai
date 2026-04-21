@@ -76,33 +76,35 @@ function runSettingsServiceTests() {
 
   // ─── AI search daily limit ────────────────────────────────────────────────
 
-  results.push('\nAI_SEARCH_DAILY_LIMIT');
+  results.push('\ngetAiSearchDailyLimit_()');
 
-  it('daily AI search limit is 10', function () {
-    expect(AI_SEARCH_DAILY_LIMIT).toBe(10);
+  it('returns a positive integer (from Script Properties or default)', function () {
+    var cap = getAiSearchDailyLimit_();
+    expect(typeof cap).toBe('number');
+    expect(cap >= 1).toBeTruthy();
   });
 
-  // ─── devEmailListIncludes_ ───────────────────────────────────────────────
+  // ─── superUserEmailListIncludes_ ─────────────────────────────────────────
 
-  results.push('\ndevEmailListIncludes_()');
+  results.push('\nsuperUserEmailListIncludes_()');
 
   it('returns false for null/empty email or csv', function () {
-    expect(devEmailListIncludes_('', 'a@b.com')).toBe(false);
-    expect(devEmailListIncludes_('a@b.com', '')).toBe(false);
-    expect(devEmailListIncludes_(null, 'a@b.com')).toBe(false);
+    expect(superUserEmailListIncludes_('', 'a@b.com')).toBe(false);
+    expect(superUserEmailListIncludes_('a@b.com', '')).toBe(false);
+    expect(superUserEmailListIncludes_(null, 'a@b.com')).toBe(false);
   });
 
   it('matches with spaces around emails and is case-insensitive', function () {
-    expect(devEmailListIncludes_('User@Example.com', ' other@test.com , user@example.com ')).toBe(true);
-    expect(devEmailListIncludes_('A@B.CO', 'x@y.z, a@b.co')).toBe(true);
+    expect(superUserEmailListIncludes_('User@Example.com', ' other@test.com , user@example.com ')).toBe(true);
+    expect(superUserEmailListIncludes_('A@B.CO', 'x@y.z, a@b.co')).toBe(true);
   });
 
   it('ignores empty comma segments', function () {
-    expect(devEmailListIncludes_('only@here.org', 'foo@bar.com,, , only@here.org')).toBe(true);
+    expect(superUserEmailListIncludes_('only@here.org', 'foo@bar.com,, , only@here.org')).toBe(true);
   });
 
   it('does not match partial addresses', function () {
-    expect(devEmailListIncludes_('a@b.com', 'aa@b.com, x@b.com')).toBe(false);
+    expect(superUserEmailListIncludes_('a@b.com', 'aa@b.com, x@b.com')).toBe(false);
   });
 
   results.push('\n─────────────────────────────────────────');

@@ -145,7 +145,7 @@ function performAISearch(messages) {
   if (count === -1) {
     return {
       type: 'error',
-      error: 'Daily query limit reached (' + AI_SEARCH_DAILY_LIMIT + '). Try again tomorrow.'
+      error: 'Daily query limit reached (' + getAiSearchDailyLimit_() + '). Try again tomorrow.'
     };
   }
 

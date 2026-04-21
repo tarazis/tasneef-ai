@@ -85,7 +85,8 @@ Tasneef uses AI-powered semantic search to find verses by meaning, topic, or the
    - `openai_api_key` — OpenAI API key
    - `pinecone_api_key` — Pinecone API key
    - `google_fonts_api_key` — Google Fonts Web API key for sidebar CSS requests (optional)
-   - `dev_emails` — comma-separated emails to exempt from daily quota (optional)
+   - `ai_search_daily_limit` — max AI searches per user per UTC day (optional; defaults to 20)
+   - `super_users` — comma-separated emails exempt from the daily AI quota (optional; legacy `dev_emails` is used if this is unset)
 
 6. Push and test (`.clasp.json` uses `"rootDir": "src"`):
    ```bash

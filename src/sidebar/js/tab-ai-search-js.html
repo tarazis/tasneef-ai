@@ -6,6 +6,60 @@
 
 var _conversationMessages = [];
 
+var AI_DAILY_LIMIT_ERROR_RE = /^Daily query limit reached \(\d+\)\. Try again tomorrow\.$/;
+var AI_LIMIT_TOOLTIP_TEXT =
+  'This temporary limit ensures service sustainability during our beta phase and will be increased in future updates';
+
+function isAiDailyLimitErrorMessage(msg) {
+  return msg != null && AI_DAILY_LIMIT_ERROR_RE.test(String(msg));
+}
+
+function showAiSearchEmptyError(emptyEl, message) {
+  if (!emptyEl) return;
+  emptyEl.classList.remove('ai-search-empty--limit');
+  emptyEl.textContent = '';
+  if (isAiDailyLimitErrorMessage(message)) {
+    emptyEl.classList.add('ai-search-empty--limit');
+    var row = document.createElement('span');
+    row.className = 'ai-search-empty-limit-row';
+    var textSpan = document.createElement('span');
+    textSpan.className = 'ai-search-empty-limit-text';
+    textSpan.textContent = message;
+    var infoWrap = document.createElement('span');
+    infoWrap.className = 'ai-limit-info-wrap';
+    infoWrap.setAttribute('tabindex', '0');
+    infoWrap.setAttribute('role', 'img');
+    infoWrap.setAttribute('aria-label', AI_LIMIT_TOOLTIP_TEXT);
+    var svgNs = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(svgNs, 'svg');
+    svg.setAttribute('xmlns', svgNs);
+    svg.setAttribute('height', '24');
+    svg.setAttribute('width', '24');
+    svg.setAttribute('viewBox', '0 -960 960 960');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    svg.setAttribute('class', 'ai-limit-info-svg');
+    var path = document.createElementNS(svgNs, 'path');
+    path.setAttribute(
+      'd',
+      'M440-280h80v-240h-80v240Zm68.5-331.5Q520-623 520-640t-11.5-28.5Q497-680 480-680t-28.5 11.5Q440-657 440-640t11.5 28.5Q463-600 480-600t28.5-11.5ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z'
+    );
+    path.setAttribute('fill', 'currentColor');
+    svg.appendChild(path);
+    var tip = document.createElement('span');
+    tip.className = 'ai-limit-info-tooltip';
+    tip.textContent = AI_LIMIT_TOOLTIP_TEXT;
+    infoWrap.appendChild(svg);
+    infoWrap.appendChild(tip);
+    row.appendChild(textSpan);
+    row.appendChild(infoWrap);
+    emptyEl.appendChild(row);
+  } else {
+    emptyEl.textContent = message;
+  }
+  emptyEl.classList.remove('hidden');
+}
+
 function aiSearchPanelIsDirty() {
   if (_conversationMessages.length > 0) return true;
   var resultsEl = document.getElementById('ai-search-results');
@@ -71,6 +125,7 @@ function initAISearchTab() {
     resultsEl.innerHTML = '';
     clarifyEl.classList.add('hidden');
     clarifyEl.textContent = '';
+    emptyEl.classList.remove('ai-search-empty--limit');
     emptyEl.classList.add('hidden');
     emptyEl.textContent = '';
   }
@@ -140,8 +195,7 @@ function initAISearchTab() {
     }
 
     if (response.type === 'error') {
-      emptyEl.textContent = response.error;
-      emptyEl.classList.remove('hidden');
+      showAiSearchEmptyError(emptyEl, response.error);
       updateNewChatVisibility();
       return;
     }
@@ -230,7 +284,11 @@ function clearAISearch() {
   if (queryEl) { queryEl.value = ''; queryEl.style.height = 'auto'; queryEl.focus(); }
   if (resultsEl) resultsEl.innerHTML = '';
   if (clarifyEl) { clarifyEl.classList.add('hidden'); clarifyEl.textContent = ''; }
-  if (emptyEl) { emptyEl.classList.add('hidden'); emptyEl.textContent = ''; }
+  if (emptyEl) {
+    emptyEl.classList.remove('ai-search-empty--limit');
+    emptyEl.classList.add('hidden');
+    emptyEl.textContent = '';
+  }
   hideAIQueryBar();
   showAIWelcome();
   updateNewChatVisibility();

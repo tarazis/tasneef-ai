@@ -183,6 +183,57 @@
   /* ─── Loading & Empty States ──────────────────────────────────────────────── */
   @keyframes spin { to { transform: rotate(360deg); } }
   .empty-state { color: var(--color-text-secondary); font-size: 13px; padding: 24px var(--sidebar-inline); text-align: center; }
+  .ai-search-empty-limit-row {
+    display: inline-flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 6px;
+    max-width: 100%;
+    text-align: left;
+  }
+  .ai-search-empty-limit-text { flex: 1; min-width: 0; }
+  .ai-limit-info-wrap {
+    position: relative;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    margin-top: -1px;
+    color: var(--color-text-muted);
+    cursor: default;
+    padding: 0;
+    border: none;
+    background: none;
+    border-radius: var(--radius-sm);
+  }
+  .ai-limit-info-wrap:hover,
+  .ai-limit-info-wrap:focus { color: var(--color-text-secondary); outline: none; }
+  .ai-limit-info-wrap:focus-visible {
+    box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-primary);
+  }
+  .ai-limit-info-wrap .ai-limit-info-svg { display: block; width: 22px; height: 22px; }
+  .ai-limit-info-tooltip {
+    display: none;
+    position: absolute;
+    z-index: 50;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 6px;
+    padding: 8px 10px;
+    min-width: 200px;
+    max-width: 260px;
+    background: #2b2b2b;
+    color: #fff;
+    font-size: 11px;
+    line-height: 1.4;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    text-align: center;
+    pointer-events: none;
+  }
+  .ai-limit-info-wrap:hover .ai-limit-info-tooltip,
+  .ai-limit-info-wrap:focus .ai-limit-info-tooltip,
+  .ai-limit-info-wrap:focus-within .ai-limit-info-tooltip { display: block; }
   .cache-status { display: flex; align-items: center; gap: var(--space-sm); padding: 6px var(--sidebar-inline); font-size: 12px; }
   .cache-status-text { color: var(--color-text-muted); }
   .cache-status-error { color: var(--color-error); }

@@ -12,7 +12,7 @@ Reference for current implementation in this repository.
 - Claude is used for intent classification and RAG reranking only; final Quran/translation content is always resolved from local client caches.
 - AI semantic search uses a RAG pipeline: OpenAI embeddings → Pinecone retrieval → Claude rerank → client-side validation.
 - Insert actions flow from browser (`google.script.run`) to server services that format and write into the active Google Doc.
-- Per-user daily AI search quota (10/day, UTC reset) enforced server-side. Dev emails exempted via Script Property.
+- Per-user daily AI search quota (cap from Script Property `ai_search_daily_limit`, UTC reset) enforced server-side. Super users exempted via `super_users` (legacy `dev_emails` fallback).
 
 ---
 
@@ -48,7 +48,7 @@ tasneef-ai/
 │   │   ├── sidebar.html
 │   │   ├── sidebar-css.html
 │   │   ├── assets/
-│   │   │   └── logo.png
+│   │   │   └── logo.svg
 │   │   ├── components/
 │   │   │   ├── bottom-bar.html
 │   │   │   ├── logo-img.html

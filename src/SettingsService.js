@@ -5,7 +5,8 @@
  * API keys (Claude) are in Script Properties (shared, developer-owned).
  */
 
-var AI_SEARCH_DAILY_LIMIT = 10;
+/** Fallback when Script Property ai_search_daily_limit is missing or invalid. */
+var AI_SEARCH_DAILY_LIMIT_DEFAULT = 20;
 
 var SETTINGS_DEFAULTS = {
   showTranslation: true,
@@ -19,8 +20,10 @@ var PROPERTY_KEYS = {
   SETTINGS_PREFIX: 'setting_',
   CLAUDE_API_KEY: 'claude_api_key',
   AI_SEARCH_COUNT: 'ai_search_count',
+  /** Positive integer cap on AI searches per user per UTC day (Script Properties). */
+  AI_SEARCH_DAILY_LIMIT: 'ai_search_daily_limit',
   /** Comma-separated emails exempt from AI search daily limit (Script Properties). */
-  DEV_EMAILS: 'dev_emails',
+  SUPER_USERS: 'super_users',
   OPENAI_API_KEY: 'openai_api_key',
   PINECONE_HOST: 'pinecone_host',
   PINECONE_API_KEY: 'pinecone_api_key',
@@ -137,16 +140,30 @@ function getAiSearchCount_() {
 }
 
 /**
+ * Max AI searches per user per UTC day from Script Properties, or default when unset/invalid.
+ * @return {number}
+ */
+function getAiSearchDailyLimit_() {
+  var raw = PropertiesService.getScriptProperties()
+    .getProperty(PROPERTY_KEYS.AI_SEARCH_DAILY_LIMIT);
+  if (!raw) return AI_SEARCH_DAILY_LIMIT_DEFAULT;
+  var n = parseInt(String(raw).trim(), 10);
+  if (!isFinite(n) || n < 1) return AI_SEARCH_DAILY_LIMIT_DEFAULT;
+  return n;
+}
+
+/**
  * Increments today's AI search count and persists it.
- * Dev emails (Script Property dev_emails) do not consume quota and never hit the limit.
+ * Super users (Script Property super_users; legacy dev_emails fallback) do not consume quota.
  * @return {number} The new count, or -1 if the daily limit has been reached.
  */
 function incrementAiSearchCount_() {
-  if (isAiSearchDevExempt_()) return 0;
+  if (isAiSearchSuperUserExempt_()) return 0;
 
   var current = getAiSearchCount_();
+  var cap = getAiSearchDailyLimit_();
 
-  if (current >= AI_SEARCH_DAILY_LIMIT) return -1;
+  if (current >= cap) return -1;
 
   var newCount = current + 1;
   PropertiesService.getUserProperties().setProperty(
@@ -158,13 +175,16 @@ function incrementAiSearchCount_() {
 }
 
 /**
- * True if the current user's email appears in dev_emails (comma-separated, trimmed).
+ * True if the current user's email appears in super_users (comma-separated, trimmed).
+ * Falls back to legacy Script Property dev_emails if super_users is unset.
  * Uses Session.getActiveUser().getEmail() first; if blank (e.g. Run from the script editor),
  * falls back to Session.getEffectiveUser().getEmail().
  * @return {boolean}
  */
-function isAiSearchDevExempt_() {
-  var raw = PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.DEV_EMAILS);
+function isAiSearchSuperUserExempt_() {
+  var props = PropertiesService.getScriptProperties();
+  var raw = props.getProperty(PROPERTY_KEYS.SUPER_USERS);
+  if (!raw) raw = props.getProperty('dev_emails');
   if (!raw) return false;
   try {
     var email = Session.getActiveUser().getEmail();
@@ -173,7 +193,7 @@ function isAiSearchDevExempt_() {
       email = Session.getEffectiveUser().getEmail();
       email = email ? String(email).trim() : '';
     }
-    return devEmailListIncludes_(email, raw);
+    return superUserEmailListIncludes_(email, raw);
   } catch (e) {
     return false;
   }
@@ -184,7 +204,7 @@ function isAiSearchDevExempt_() {
  * @param {string} rawCsv - Comma-separated list from Script Properties
  * @return {boolean}
  */
-function devEmailListIncludes_(userEmail, rawCsv) {
+function superUserEmailListIncludes_(userEmail, rawCsv) {
   if (userEmail == null || rawCsv == null) return false;
   var normalized = String(userEmail).trim().toLowerCase();
   if (!normalized) return false;
