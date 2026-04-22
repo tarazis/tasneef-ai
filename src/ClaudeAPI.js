@@ -124,6 +124,31 @@ var UNIFIED_SYSTEM_PROMPT =
   '</examples>';
 
 var RAG_RERANK_DEFAULT_N = 10;
+var AI_SEARCH_DEDUPE_TTL_SECONDS = 15;
+var AI_SEARCH_DEDUPE_KEY_PREFIX = 'ai_dedupe_v1_';
+
+function _aiSearchDedupeKey_(messages) {
+  var last = messages[messages.length - 1];
+  var prevAssistant = '';
+  for (var i = messages.length - 2; i >= 0; i--) {
+    if (messages[i] && messages[i].role === 'assistant') {
+      prevAssistant = String(messages[i].content || '');
+      break;
+    }
+  }
+  var raw = String(last.content || '').trim() + '\u0001' + prevAssistant;
+  var bytes = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_1,
+    raw,
+    Utilities.Charset.UTF_8
+  );
+  var hex = '';
+  for (var b = 0; b < bytes.length; b++) {
+    var v = (bytes[b] + 256) % 256;
+    hex += (v < 16 ? '0' : '') + v.toString(16);
+  }
+  return AI_SEARCH_DEDUPE_KEY_PREFIX + hex;
+}
 
 function _buildRagRerankSystemPrompt_(n) {
   var count = (Number.isInteger(n) && n > 0) ? n : RAG_RERANK_DEFAULT_N;
@@ -153,6 +178,18 @@ function performAISearch(messages) {
   }
 
   var originalUserMessageForRerank = lastMessage.content.trim();
+
+  var dedupeCache = CacheService.getUserCache();
+  var dedupeKey = _aiSearchDedupeKey_(messages);
+  try {
+    var cached = dedupeCache.get(dedupeKey);
+    if (cached) {
+      Logger.log('[AI SEARCH] Dedupe cache hit — returning prior response');
+      return JSON.parse(cached);
+    }
+  } catch (e) {
+    Logger.log('[AI SEARCH] Dedupe read error (ignored): ' + e.message);
+  }
 
   var apiKey = getClaudeApiKey_();
   if (!apiKey) {
@@ -203,6 +240,13 @@ function performAISearch(messages) {
   }
 
   response.rawResponse = rawResponse || '';
+
+  try {
+    dedupeCache.put(dedupeKey, JSON.stringify(response), AI_SEARCH_DEDUPE_TTL_SECONDS);
+  } catch (e) {
+    Logger.log('[AI SEARCH] Dedupe write error (ignored): ' + e.message);
+  }
+
   return response;
 }
 

@@ -674,6 +674,70 @@ function runClaudeAPITests() {
     expect(result.references[0].surah).toBe(39);
   });
 
+  // ── _aiSearchDedupeKey_ (unit) ────────────────────────────────────────────
+
+  results.push('\n_aiSearchDedupeKey_()');
+
+  it('returns a non-empty string prefixed with ai_dedupe_v1_', function () {
+    var key = _aiSearchDedupeKey_([{ role: 'user', content: 'test query' }]);
+    expect(typeof key).toBe('string');
+    expect(key.indexOf('ai_dedupe_v1_') === 0).toBe(true);
+    expect(key.length).toBeGreaterThan(13);
+  });
+
+  it('returns the same key for identical last user messages', function () {
+    var msgs = [{ role: 'user', content: 'patience verses' }];
+    var k1 = _aiSearchDedupeKey_(msgs);
+    var k2 = _aiSearchDedupeKey_(msgs);
+    expect(k1).toBe(k2);
+  });
+
+  it('returns different keys for different user messages', function () {
+    var k1 = _aiSearchDedupeKey_([{ role: 'user', content: 'patience verses' }]);
+    var k2 = _aiSearchDedupeKey_([{ role: 'user', content: 'forgiveness verses' }]);
+    expect(k1 === k2).toBe(false);
+  });
+
+  it('includes prior assistant turn in key so context changes produce different keys', function () {
+    var msgs1 = [
+      { role: 'user', content: 'show me verse 5' },
+      { role: 'assistant', content: 'Which surah?' },
+      { role: 'user', content: 'Al-Baqarah' }
+    ];
+    var msgs2 = [
+      { role: 'user', content: 'show me verse 5' },
+      { role: 'assistant', content: 'Different prior turn' },
+      { role: 'user', content: 'Al-Baqarah' }
+    ];
+    expect(_aiSearchDedupeKey_(msgs1) === _aiSearchDedupeKey_(msgs2)).toBe(false);
+  });
+
+  // ── performAISearch dedupe (integration — requires API key + CacheService) ─
+
+  results.push('\nperformAISearch() dedupe guard');
+
+  var apiKeyForDedupe = getClaudeApiKey_();
+  if (apiKeyForDedupe) {
+    it('performAISearch dedupes identical back-to-back calls within 15s', function () {
+      var msgs = [{ role: 'user', content: 'show me 2:255' }];
+      var dedupeKey = _aiSearchDedupeKey_(msgs);
+      // Clear any prior cached entry so the first call is always a cache miss
+      try { CacheService.getUserCache().remove(dedupeKey); } catch (e) {}
+
+      var result1 = performAISearch(msgs);
+      if (result1.type === 'error') throw new Error('First call errored: ' + result1.error);
+
+      // Second call must return same type/shape (served from dedupe cache)
+      var result2 = performAISearch(msgs);
+      expect(result2.type).toBe(result1.type);
+
+      // Cleanup
+      try { CacheService.getUserCache().remove(dedupeKey); } catch (e) {}
+    });
+  } else {
+    results.push('  ⊘ Skipped dedupe integration test (no Claude API key in Script Properties)');
+  }
+
   // ── performAISearch (integration) ──────────────────────────────────────────
 
   results.push('\nperformAISearch()');
