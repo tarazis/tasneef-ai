@@ -132,7 +132,6 @@ tasneef-ai/
 │   ├── FormatService.js     # Arabic typography enforcement
 │   ├── SettingsService.js   # User settings + daily quota
 │   ├── NormalizeArabic.js   # Arabic text normalization (server parity)
-│   ├── RagEnglishTranslationSource.js
 │   ├── client/              # Client-side shared modules
 │   ├── sidebar/             # Sidebar UI (HTML, CSS, JS components)
 │   └── tests/               # Apps Script tests (*.test.gs)

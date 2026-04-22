@@ -36,7 +36,6 @@ tasneef-ai/
 │   ├── DocumentService.js
 │   ├── FormatService.js
 │   ├── NormalizeArabic.js
-│   ├── RagEnglishTranslationSource.js
 │   ├── RagService.js
 │   ├── SettingsService.js
 │   │
@@ -94,8 +93,7 @@ All live under **`src/`** (the clasp project root).
 
 - `src/Code.js`: Entry points (`onOpen`, `showSidebar`, `include_`).
 - `src/ClaudeAPI.js`: AI search orchestration — classification via Claude, RAG routing, fallback logic, response shaping. Enforces daily quota via `SettingsService`.
-- `src/RagService.js`: RAG semantic retrieval — query expansion, OpenAI embedding, Pinecone vector search, score filtering/merging, Claude reranking, reference finalization.
-- `src/RagEnglishTranslationSource.js`: Server-side translation map source/cache for RAG rerank candidate text. Loaded in parallel with Pinecone queries.
+- `src/RagService.js`: RAG semantic retrieval — query expansion, OpenAI embedding, Pinecone vector search, score filtering/merging, Claude reranking using `composite_text` metadata, reference finalization.
 - `src/DocumentService.js`: Insertion orchestration for single/range ayat and post-insert behavior.
 - `src/FormatService.js`: Typography and formatting logic for inserted document content. Enforces Amiri font, regular weight.
 - `src/SettingsService.js`: User/script property persistence, settings helpers, daily AI quota management, dev exemption checks.
@@ -148,10 +146,10 @@ This order is required because modules share globals and call previously declare
    - Otherwise → try RAG pipeline, fall back to Claude references on error or empty results.
 
 3. **RAG retrieval** (`_handleRagSearch` in `src/RagService.js`):
-   - Build query strings from `classified.queries` (max 3), with legacy fallback to `classified.query`.
+   - Build query strings from `classified.queries` (max 2), with legacy fallback to `classified.query`.
    - Embed all queries in one OpenAI batch (`text-embedding-3-small`).
    - Query Pinecone in parallel (`topK=20`, optional surah metadata filter).
-   - Fetch translation JSON in same `fetchAll` for rerank context.
+   - Rerank uses `composite_text` metadata (translation + tafseer + themes + keywords) returned by Pinecone — no separate translation fetch.
 
 4. **Merge and score filtering:**
    - Merge Pinecone hits across query expansions by `surah:ayah`, keep highest score per ayah.
