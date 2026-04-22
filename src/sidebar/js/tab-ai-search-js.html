@@ -7,6 +7,8 @@
 var _conversationMessages = [];
 /** True only while an AI search RPC is in flight (not when blocked by daily quota). */
 var _aiSearchAwaitingResponse = false;
+/** True only while "Start new chat" quota refresh is pending. */
+var _aiResetAwaitingQuotaRefresh = false;
 
 var AI_DAILY_LIMIT_MESSAGE = 'Daily AI limit reached. Try again tomorrow.';
 var AI_DAILY_LIMIT_ERROR_RE = /^Daily AI limit reached\. Try again tomorrow\.$/;
@@ -99,7 +101,7 @@ function updateNewChatVisibility() {
     btn.disabled = true;
     return;
   }
-  var busy = _aiSearchAwaitingResponse;
+  var busy = _aiSearchAwaitingResponse || _aiResetAwaitingQuotaRefresh;
   btn.disabled = busy || !aiSearchPanelIsDirty();
 }
 
@@ -140,6 +142,8 @@ function applyAiSearchQuotaFromServer(allowed) {
 
   _aiSearchQuotaBlocked = !allowed;
   _aiSearchAwaitingResponse = false;
+  _aiResetAwaitingQuotaRefresh = false;
+  removeAiSearchLoader('ai-reset-loading');
 
   if (queryEl) queryEl.disabled = false;
   if (btnSend) btnSend.disabled = !allowed;
@@ -225,6 +229,22 @@ function hideAIWelcome() {
   if (el) el.classList.add('hidden');
 }
 
+function showAiSearchLoader(containerEl, loaderId) {
+  if (!containerEl || !loaderId) return;
+  if (document.getElementById(loaderId)) return;
+  var loadingWrap = document.createElement('div');
+  loadingWrap.id = loaderId;
+  loadingWrap.className = 'ai-search-loading';
+  loadingWrap.innerHTML = '<div class="startup-spinner" aria-hidden="true"></div>';
+  containerEl.appendChild(loadingWrap);
+}
+
+function removeAiSearchLoader(loaderId) {
+  if (!loaderId) return;
+  var pending = document.getElementById(loaderId);
+  if (pending) pending.remove();
+}
+
 function initAISearchTab() {
   var queryEl = document.getElementById('ai-search-query');
   var btnSend = document.getElementById('btn-ai-search');
@@ -270,11 +290,7 @@ function initAISearchTab() {
     showAIQueryBar(query);
     updateNewChatVisibility();
 
-    var loadingWrap = document.createElement('div');
-    loadingWrap.id = 'ai-loading';
-    loadingWrap.className = 'ai-search-loading';
-    loadingWrap.innerHTML = '<div class="startup-spinner" aria-hidden="true"></div>';
-    resultsEl.appendChild(loadingWrap);
+    showAiSearchLoader(resultsEl, 'ai-loading');
     updateNewChatVisibility();
 
     setEnabled(false);
@@ -283,8 +299,7 @@ function initAISearchTab() {
 
     google.script.run
       .withSuccessHandler(function(response) {
-        var pending = document.getElementById('ai-loading');
-        if (pending) pending.remove();
+        removeAiSearchLoader('ai-loading');
         setEnabled(true);
 
         if (response && response.rawResponse) {
@@ -294,8 +309,7 @@ function initAISearchTab() {
         handleAIResponse(response);
       })
       .withFailureHandler(function() {
-        var pending = document.getElementById('ai-loading');
-        if (pending) pending.remove();
+        removeAiSearchLoader('ai-loading');
         setEnabled(true);
         _conversationMessages.pop();
         updateNewChatVisibility();
@@ -406,6 +420,7 @@ function initAISearchTab() {
 function clearAISearch() {
   _conversationMessages = [];
   _aiSearchAwaitingResponse = false;
+  _aiResetAwaitingQuotaRefresh = true;
   pagClear('ai-search');
   var queryEl = document.getElementById('ai-search-query');
   var resultsEl = document.getElementById('ai-search-results');
@@ -420,6 +435,9 @@ function clearAISearch() {
     emptyEl.textContent = '';
   }
   hideAIQueryBar();
+  hideAIWelcome();
+  showAiSearchLoader(resultsEl, 'ai-reset-loading');
+  updateNewChatVisibility();
   refreshAiSearchComposerEnabled(true);
 }
 </script>

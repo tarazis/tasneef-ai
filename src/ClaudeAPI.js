@@ -72,6 +72,10 @@ var UNIFIED_SYSTEM_PROMPT =
   'Do not guess the closest match.\n' +
   '- Surah numbers must be between 1 and 114. If the user requests a surah number outside this range ' +
   '(e.g. surah 116, surah 0, surah 200), always use clarify to tell them it is not valid and ask which surah they meant.\n' +
+  '- CRITICAL INSTRUCTION FOR RANGES: You are prone to an off-by-one error when calculating the "last N ayahs" of a surah. ' +
+  'When a user asks for the last N ayahs, you MUST calculate the start ayah using this exact formula: (Total Ayahs - N) + 1. ' +
+  'For example, if a surah has 45 ayahs and the user asks for the last 5, the start ayah is 41 (45 - 5 + 1 = 41). ' +
+  'Return the range 41 to 45.\n' +
   '- Prefer clarify over guessing when input is ambiguous.\n' +
   '</guidelines>\n\n' +
   '<examples>\n' +
@@ -111,6 +115,10 @@ var UNIFIED_SYSTEM_PROMPT =
   '{"action":"fetch_ayah","references":[{"surah":2,"ayahStart":1,"ayahEnd":286}]}\n\n' +
   'User: "show me Surah Al-Fatiha"\n' +
   '{"action":"fetch_ayah","references":[{"surah":1,"ayahStart":1,"ayahEnd":7}]}\n\n' +
+  'User: "last 5 verses of Al-Hashr"\n' +
+  '{"action":"fetch_ayah","references":[{"surah":59,"ayahStart":20,"ayahEnd":24}]}\n\n' +
+  'User: "first 3 verses of Al-Baqarah"\n' +
+  '{"action":"fetch_ayah","references":[{"surah":2,"ayahStart":1,"ayahEnd":3}]}\n\n' +
   'User: "show me surah 116"\n' +
   '{"action":"clarify","message":"Surah 116 is not a valid surah number. The Quran has 114 surahs (1-114). Which surah did you mean?"}\n' +
   '</examples>';
