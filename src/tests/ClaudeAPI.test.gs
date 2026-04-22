@@ -414,6 +414,44 @@ function runClaudeAPITests() {
     expect(result.references[0].surah).toBe(1);
   });
 
+  it('applies classified.limit before merging (single result)', function () {
+    var classified = {
+      limit: 1,
+      references: [{ surah: 1, ayah: 1 }, { surah: 2, ayah: 255 }, { surah: 3, ayah: 190 }]
+    };
+    var result = _handleSemanticSearch(classified);
+    expect(result.type).toBe('references');
+    expect(result.references.length).toBe(1);
+    expect(result.references[0].surah).toBe(1);
+    expect(result.references[0].ayahStart).toBe(1);
+    expect(result.references[0].ayahEnd).toBe(1);
+  });
+
+  it('applies classified.limit=3 and truncates before consecutive merge', function () {
+    var classified = {
+      limit: 3,
+      references: [
+        { surah: 2, ayah: 1 }, { surah: 2, ayah: 2 }, { surah: 2, ayah: 3 }, { surah: 2, ayah: 4 }
+      ]
+    };
+    var result = _handleSemanticSearch(classified);
+    expect(result.type).toBe('references');
+    expect(result.references.length).toBe(1);
+    expect(result.references[0].surah).toBe(2);
+    expect(result.references[0].ayahStart).toBe(1);
+    expect(result.references[0].ayahEnd).toBe(3);
+  });
+
+  it('ignores invalid classified.limit values', function () {
+    var classified = {
+      limit: 0,
+      references: [{ surah: 1, ayah: 1 }, { surah: 2, ayah: 255 }]
+    };
+    var result = _handleSemanticSearch(classified);
+    expect(result.type).toBe('references');
+    expect(result.references.length).toBe(2);
+  });
+
   // ── _handleFetchAyahAsReferences (unit — returns merged groups) ────────────
 
   results.push('\n_handleFetchAyahAsReferences()');

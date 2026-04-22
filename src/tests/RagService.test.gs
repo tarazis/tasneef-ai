@@ -288,6 +288,25 @@ function runRagServiceTests() {
     expect(out).arrayLength(2);
   });
 
+  // ── Rerank prompt N parameterization (unit) ───────────────────────────────
+
+  results.push('\n_buildRagRerankSystemPrompt_()');
+
+  it('includes user-requested N in the rerank prompt', function () {
+    var prompt = _buildRagRerankSystemPrompt_(3);
+    expect(prompt.indexOf('return the 3 most relevant') >= 0).toBe(true);
+    expect(prompt.indexOf('EXACTLY 3 ayahs') >= 0).toBe(true);
+  });
+
+  it('falls back to default N=10 for invalid inputs', function () {
+    var prompt1 = _buildRagRerankSystemPrompt_(null);
+    var prompt2 = _buildRagRerankSystemPrompt_(0);
+    var prompt3 = _buildRagRerankSystemPrompt_(-5);
+    expect(prompt1.indexOf('return the 10 most relevant') >= 0).toBe(true);
+    expect(prompt2.indexOf('return the 10 most relevant') >= 0).toBe(true);
+    expect(prompt3.indexOf('return the 10 most relevant') >= 0).toBe(true);
+  });
+
   // ── Property key getters (unit) ───────────────────────────────────────────
 
   results.push('\nProperty key getters');

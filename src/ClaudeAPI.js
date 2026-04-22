@@ -97,6 +97,10 @@ var UNIFIED_SYSTEM_PROMPT =
   '{"action":"semantic_search","rag_supported":false,"queries":["Day of Judgment and resurrection in Meccan surahs","Yawm al-Qiyamah warnings to disbelievers","descriptions of the Hereafter in early revelations"],"references":[{"surah":82,"ayah":1},{"surah":81,"ayah":1},{"surah":56,"ayah":1},{"surah":78,"ayah":1},{"surah":99,"ayah":1}]}\n\n' +
   'User: "5 ayahs about forgiveness"\n' +
   '{"action":"semantic_search","rag_supported":true,"queries":["Allah\'s forgiveness and pardon for sins","seeking forgiveness and repentance tawbah istighfar","divine mercy toward those who repent"],"references":[{"surah":39,"ayah":53},{"surah":4,"ayah":110},{"surah":3,"ayah":135}],"limit":5}\n\n' +
+  'User: "the ayah about greed"\n' +
+  '{"action":"semantic_search","rag_supported":true,"queries":["greed and love of wealth","hoarding riches and miserliness","insatiable desire for worldly possessions"],"references":[{"surah":102,"ayah":1},{"surah":104,"ayah":2},{"surah":3,"ayah":180}],"limit":1}\n\n' +
+  'User: "a single verse on patience"\n' +
+  '{"action":"semantic_search","rag_supported":true,"queries":["patience sabr in hardship","steadfastness and perseverance through trials","enduring difficulty with faith"],"references":[{"surah":2,"ayah":153},{"surah":3,"ayah":200},{"surah":2,"ayah":155}],"limit":1}\n\n' +
   'User: "3 ayahs from baqara about patience and 2 from imran about love"\n' +
   '{"action":"clarify","message":"I can search one topic at a time. Which would you like first — ayahs about patience from Al-Baqarah, or ayahs about love from Ali \'Imran?"}\n\n' +
   'User: "show me Al-Imran 190 to 194"\n' +
@@ -111,10 +115,15 @@ var UNIFIED_SYSTEM_PROMPT =
   '{"action":"clarify","message":"Surah 116 is not a valid surah number. The Quran has 114 surahs (1-114). Which surah did you mean?"}\n' +
   '</examples>';
 
-var RAG_RERANK_SYSTEM_PROMPT =
-  'You are a Quran relevance ranker. Given a user\'s search query and a list of candidate ayahs, return the 10 most relevant ayahs ranked by how directly they address the user\'s intent.\n\n' +
-  'Return ONLY a JSON array of ayah keys in order of relevance, most relevant first.\n' +
-  'Example: ["30:21","4:19","2:231"]';
+var RAG_RERANK_DEFAULT_N = 10;
+
+function _buildRagRerankSystemPrompt_(n) {
+  var count = (Number.isInteger(n) && n > 0) ? n : RAG_RERANK_DEFAULT_N;
+  return 'You are a Quran relevance ranker. Given a user\'s search query and a list of candidate ayahs, return the ' + count + ' most relevant ayahs ranked by how directly they address the user\'s intent.\n\n' +
+    'Return EXACTLY ' + count + ' ayahs (fewer only if the candidate list is shorter).\n' +
+    'Return ONLY a JSON array of ayah keys in order of relevance, most relevant first.\n' +
+    'Example: ["30:21","4:19","2:231"]';
+}
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
@@ -245,6 +254,13 @@ function _handleSemanticSearch(classified) {
 
   if (!validRefs.length) {
     return { type: 'error', error: 'No valid results found. Try a different query.' };
+  }
+
+  var userLimit = (classified.limit && Number.isInteger(classified.limit) && classified.limit > 0)
+    ? classified.limit : null;
+  if (userLimit && validRefs.length > userLimit) {
+    Logger.log('[CLAUDE SEARCH] Applying user limit: ' + userLimit + ' (from ' + validRefs.length + ').');
+    validRefs = validRefs.slice(0, userLimit);
   }
 
   var merged = _mergeConsecutiveReferences(validRefs);
@@ -457,9 +473,10 @@ function _trimConversationContext(messages) {
  * @param {string} apiKey - Anthropic API key
  * @param {string} userQuery - User search query for reranking
  * @param {string} candidateBlock - Lines "surah:ayah — translation"
+ * @param {number} [targetN] - Target number of ayahs to return (defaults to RAG_RERANK_DEFAULT_N)
  * @return {string|null} Model text, or null on HTTP/body failure
  */
-function _callClaudeForRagRerank_(apiKey, userQuery, candidateBlock) {
+function _callClaudeForRagRerank_(apiKey, userQuery, candidateBlock, targetN) {
   if (!apiKey || !candidateBlock || !String(candidateBlock).trim()) {
     return null;
   }
@@ -473,7 +490,7 @@ function _callClaudeForRagRerank_(apiKey, userQuery, candidateBlock) {
     model: CLAUDE_MODEL,
     max_tokens: CLAUDE_RAG_RERANK_MAX_TOKENS,
     temperature: 0,
-    system: RAG_RERANK_SYSTEM_PROMPT,
+    system: _buildRagRerankSystemPrompt_(targetN),
     messages: [{ role: 'user', content: userContent }]
   };
 
