@@ -81,6 +81,27 @@ function _truncateForRagLog_(s) {
 }
 
 /**
+ * Returns the English translation segment from Pinecone composite_text for Haiku rerank only.
+ * Strips tafseer, themes, and keywords to reduce prompt size. If there is no "Translation:"
+ * marker, returns the full trimmed string (legacy / test payloads).
+ * @param {string} s - Raw composite_text from metadata
+ * @return {string} Text to show under each surah:ayah in the rerank prompt, or '' if empty
+ */
+function _translationFromRerankContext_(s) {
+  if (s == null || typeof s !== 'string') return '';
+  var t = s.replace(/\r\n/g, '\n').trim();
+  if (!t) return '';
+  var transTag = 'translation:';
+  var idx = t.toLowerCase().indexOf(transTag);
+  if (idx === -1) return t;
+  var after = t.substring(idx + transTag.length);
+  var next = after.search(/\n\s*(?:Tafseer|Themes|Keywords)\s*:/i);
+  var body = next === -1 ? after : after.substring(0, next);
+  var trimmed = body.trim();
+  return trimmed || t;
+}
+
+/**
  * Merges Pinecone match lists from multiple query vectors: one row per ayah (max score wins).
  * @param {Array<{queryIndex: number, queryText: string, matches: Array<{score: number, metadata: Object}>}>} runs
  * @return {Array<{surah: number, ayah: number, score: number, winningQueryIndex: number, winningQueryText: string, compositeText: string}>}
@@ -470,8 +491,9 @@ function _handleRagSearch(classified, originalUserQueryForRerank) {
       var pr = pool[li];
       var pkey = pr.surah + ':' + pr.ayah;
       var ctx = (pr.compositeText && String(pr.compositeText).trim())
-        ? String(pr.compositeText)
-        : '[context unavailable]';
+        ? _translationFromRerankContext_(String(pr.compositeText))
+        : '';
+      if (!ctx) ctx = '[context unavailable]';
       lines.push(pkey + '\n' + ctx);
     }
     var candidateBlock = lines.join('\n\n');

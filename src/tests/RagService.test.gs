@@ -316,6 +316,42 @@ function runRagServiceTests() {
     expect(out).arrayLength(2);
   });
 
+  // ── Translation extraction for Haiku rerank (unit) ───────────────────────
+
+  results.push('\n_translationFromRerankContext_()');
+
+  it('returns text after Translation: and before Tafseer', function () {
+    var sample = 'Surah Al-Baqarah (2), Ayah 261\n' +
+      'Translation: The likeness of those who spend.\n' +
+      'Tafseer: The example of the reward.\n' +
+      'Themes: Parable of charity\n' +
+      'Keywords: x';
+    expect(_translationFromRerankContext_(sample)).toBe('The likeness of those who spend.');
+  });
+
+  it('stops at Themes or Keywords when Tafseer is absent', function () {
+    var t = 'Translation: One line.\nThemes: t1';
+    expect(_translationFromRerankContext_(t)).toBe('One line.');
+  });
+
+  it('returns full trimmed string when there is no Translation: marker', function () {
+    expect(_translationFromRerankContext_('  AYAT AL-KURSI BLOCK  ')).toBe('AYAT AL-KURSI BLOCK');
+  });
+
+  it('returns translation to end of string when no Tafseer/Themes/Keywords', function () {
+    expect(_translationFromRerankContext_('Header\nTranslation: Only this part')).toBe('Only this part');
+  });
+
+  it('returns empty for blank or null composite', function () {
+    expect(_translationFromRerankContext_('   ')).toBe('');
+    expect(_translationFromRerankContext_(null)).toBe('');
+  });
+
+  it('falls back to full composite when Translation body is empty', function () {
+    var s = 'Surah 1:1\nTranslation:\nTafseer: y';
+    expect(_translationFromRerankContext_(s)).toBe(s);
+  });
+
   // ── Rerank prompt N parameterization (unit) ───────────────────────────────
 
   results.push('\n_buildRagRerankSystemPrompt_()');
@@ -333,6 +369,13 @@ function runRagServiceTests() {
     expect(prompt1.indexOf('return the 10 most relevant') >= 0).toBe(true);
     expect(prompt2.indexOf('return the 10 most relevant') >= 0).toBe(true);
     expect(prompt3.indexOf('return the 10 most relevant') >= 0).toBe(true);
+  });
+
+  it('describes English translation only, not tafseer or themes in the input', function () {
+    var p = _buildRagRerankSystemPrompt_(4);
+    expect(p.toLowerCase().indexOf('tafseer') === -1).toBe(true);
+    expect(p.indexOf('Each candidate is presented as its surah:ayah key') >= 0).toBe(true);
+    expect(p.indexOf('English translation for that ayah') >= 0).toBe(true);
   });
 
   // ── Property key getters (unit) ───────────────────────────────────────────
