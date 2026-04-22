@@ -500,7 +500,7 @@ function _handleRagSearch(classified, originalUserQueryForRerank) {
     if (!claudeKey) {
       Logger.log('[RAG SEARCH] WARN: Claude API key missing — skipping rerank, using Pinecone order.');
     } else {
-      var rawRerank = _callClaudeForRagRerank_(claudeKey, userQueryForRerank, candidateBlock);
+      var rawRerank = _callClaudeForRagRerank_(claudeKey, userQueryForRerank, candidateBlock, finalCap);
       if (!rawRerank) {
         Logger.log('[RAG SEARCH] WARN: Claude rerank returned empty or HTTP error — using Pinecone order.');
       } else {
@@ -513,6 +513,14 @@ function _handleRagSearch(classified, originalUserQueryForRerank) {
   }
 
   var finalFlat = _finalizeRagAyahRefs_(pool, rerankedKeys, finalCap);
+
+  // Defensive guard: enforce finalCap before merging consecutive ayahs so that
+  // a reranker returning extras cannot inflate a range group past the user's N.
+  if (finalFlat.length > finalCap) {
+    Logger.log('[RAG SEARCH] WARN: finalFlat exceeded cap (' + finalFlat.length + ' > ' + finalCap + '), truncating.');
+    finalFlat = finalFlat.slice(0, finalCap);
+  }
+
   var finalKeysForLog = [];
   for (var fi = 0; fi < finalFlat.length; fi++) {
     finalKeysForLog.push(finalFlat[fi].surah + ':' + finalFlat[fi].ayah);
