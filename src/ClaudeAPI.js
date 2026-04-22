@@ -128,6 +128,7 @@ var RAG_RERANK_DEFAULT_N = 10;
 function _buildRagRerankSystemPrompt_(n) {
   var count = (Number.isInteger(n) && n > 0) ? n : RAG_RERANK_DEFAULT_N;
   return 'You are a Quran relevance ranker. Given a user\'s search query and a list of candidate ayahs, return the ' + count + ' most relevant ayahs ranked by how directly they address the user\'s intent.\n\n' +
+    'Each candidate is presented as its surah:ayah key on its own line, followed by a block containing the English translation, tafseer, themes, and keywords. Base your ranking on the combined signal across all of these fields — not translation alone.\n\n' +
     'Return EXACTLY ' + count + ' ayahs (fewer only if the candidate list is shorter).\n' +
     'Return ONLY a JSON array of ayah keys in order of relevance, most relevant first.\n' +
     'Example: ["30:21","4:19","2:231"]';

@@ -83,7 +83,7 @@ function _truncateForRagLog_(s) {
 /**
  * Merges Pinecone match lists from multiple query vectors: one row per ayah (max score wins).
  * @param {Array<{queryIndex: number, queryText: string, matches: Array<{score: number, metadata: Object}>}>} runs
- * @return {Array<{surah: number, ayah: number, score: number, winningQueryIndex: number, winningQueryText: string}>}
+ * @return {Array<{surah: number, ayah: number, score: number, winningQueryIndex: number, winningQueryText: string, compositeText: string}>}
  */
 function _mergeRagMatchesByAyah_(runs) {
   var best = {};
@@ -108,7 +108,8 @@ function _mergeRagMatchesByAyah_(runs) {
           surah: s,
           ayah: a,
           winningQueryIndex: qi,
-          winningQueryText: qtext
+          winningQueryText: qtext,
+          compositeText: (meta.composite_text != null ? String(meta.composite_text) : '')
         };
       }
     }
@@ -376,20 +377,11 @@ function _handleRagSearch(classified, originalUserQueryForRerank) {
     });
   }
 
-  // Append translation JSON fetch as last request so it runs in parallel with Pinecone
-  pineconeRequests.push({
-    url: TRANSLATION_JSON_URL_FOR_RAG_,
-    method: 'get',
-    muteHttpExceptions: true
-  });
-
   var pineconeT0 = Date.now();
   var allResponses = UrlFetchApp.fetchAll(pineconeRequests);
-  Logger.log('[RAG SEARCH] Pinecone + translation parallel fetch: ' + (Date.now() - pineconeT0) + 'ms');
+  Logger.log('[RAG SEARCH] Pinecone parallel fetch: ' + (Date.now() - pineconeT0) + 'ms');
 
-  // Split: last response is translation; rest are Pinecone
-  var translationFetchResponse = allResponses[allResponses.length - 1];
-  var pineconeResponses = allResponses.slice(0, allResponses.length - 1);
+  var pineconeResponses = allResponses;
 
   var runs = [];
   var successCount = 0;
@@ -438,9 +430,13 @@ function _handleRagSearch(classified, originalUserQueryForRerank) {
   }
 
   var validRefs = [];
-  for (var ri = 0; ri < mergedRows.length; ri++) {
-    if (mergedRows[ri].score < RAG_SCORE_THRESHOLD) continue;
-    validRefs.push({ surah: mergedRows[ri].surah, ayah: mergedRows[ri].ayah });
+  for (var vri = 0; vri < mergedRows.length; vri++) {
+    if (mergedRows[vri].score < RAG_SCORE_THRESHOLD) continue;
+    validRefs.push({
+      surah: mergedRows[vri].surah,
+      ayah: mergedRows[vri].ayah,
+      compositeText: mergedRows[vri].compositeText || ''
+    });
   }
 
   Logger.log('[RAG SEARCH] After score filter (threshold=' + RAG_SCORE_THRESHOLD + '): ' + validRefs.length + ' valid ref(s) remain.');
@@ -464,37 +460,21 @@ function _handleRagSearch(classified, originalUserQueryForRerank) {
     userQueryForRerank = _rerankUserQueryFallback_(classified);
   }
 
-  var translationMap = null;
-  if (translationFetchResponse.getResponseCode() === 200) {
-    try {
-      translationMap = _parseRagTranslationFlat_(JSON.parse(translationFetchResponse.getContentText()));
-    } catch (e) {
-      Logger.log('[RAG SEARCH] WARN: Failed to parse translation response: ' + e.message + ' — falling back.');
-      translationMap = getRagEnglishTranslationMap_();
-    }
-  } else {
-    Logger.log('[RAG SEARCH] WARN: Translation fetch returned HTTP ' + translationFetchResponse.getResponseCode() + ' — falling back.');
-    translationMap = getRagEnglishTranslationMap_();
-  }
   var rerankedKeys = null;
 
-  // Skip rerank when too few candidates to meaningfully rank
   if (pool.length < MIN_CANDIDATES_FOR_RERANK) {
     Logger.log('[RAG SEARCH] Only ' + pool.length + ' candidates after filter, skipping rerank.');
-  } else if (!translationMap) {
-    Logger.log('[RAG SEARCH] WARN: English translation map unavailable — skipping rerank, using Pinecone order.');
   } else {
     var lines = [];
     for (var li = 0; li < pool.length; li++) {
       var pr = pool[li];
       var pkey = pr.surah + ':' + pr.ayah;
-      var ttext = translationMap[pkey];
-      if (!ttext || !String(ttext).trim()) {
-        ttext = '[translation unavailable]';
-      }
-      lines.push(pkey + ' — ' + ttext);
+      var ctx = (pr.compositeText && String(pr.compositeText).trim())
+        ? String(pr.compositeText)
+        : '[context unavailable]';
+      lines.push(pkey + '\n' + ctx);
     }
-    var candidateBlock = lines.join('\n');
+    var candidateBlock = lines.join('\n\n');
 
     var claudeKey = getClaudeApiKey_();
     if (!claudeKey) {

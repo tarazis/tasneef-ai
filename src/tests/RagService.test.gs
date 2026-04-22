@@ -140,6 +140,35 @@ function runRagServiceTests() {
     expect(merged[1].score).toBe(0.4);
   });
 
+  it('preserves composite_text from the winning match onto the merged row', function () {
+    var runs = [
+      {
+        queryIndex: 0,
+        queryText: 'q',
+        matches: [
+          { score: 0.9, metadata: { surah_number: 2, ayah_number: 255, composite_text: 'AYAT AL-KURSI BLOCK' } },
+          { score: 0.4, metadata: { surah_number: 1, ayah_number: 1, composite_text: 'FATIHA 1 BLOCK' } }
+        ]
+      }
+    ];
+    var merged = _mergeRagMatchesByAyah_(runs);
+    expect(merged).arrayLength(2);
+    expect(merged[0].compositeText).toBe('AYAT AL-KURSI BLOCK');
+    expect(merged[1].compositeText).toBe('FATIHA 1 BLOCK');
+  });
+
+  it('defaults compositeText to empty string when metadata.composite_text is absent', function () {
+    var runs = [
+      {
+        queryIndex: 0,
+        queryText: 'q',
+        matches: [{ score: 0.9, metadata: { surah_number: 2, ayah_number: 1 } }]
+      }
+    ];
+    var merged = _mergeRagMatchesByAyah_(runs);
+    expect(merged[0].compositeText).toBe('');
+  });
+
   results.push('\n_finalizeRagAyahRefs_()');
 
   it('uses Pinecone order only when rerankedKeys is null', function () {
@@ -377,6 +406,7 @@ function runRagServiceTests() {
       expect(first.metadata !== null && first.metadata !== undefined).toBe(true);
       expect(typeof first.metadata.surah_number).toBe('number');
       expect(typeof first.metadata.ayah_number).toBe('number');
+      expect(typeof first.metadata.composite_text === 'string' && first.metadata.composite_text.length > 0).toBe(true);
     });
 
     results.push('\n_handleRagSearch() — integration');
@@ -448,71 +478,6 @@ function runRagServiceTests() {
   } else {
     results.push('\n  ⊘ Skipped integration tests (missing OpenAI/Pinecone keys in Script Properties)');
   }
-
-  // ── RagEnglishTranslationSource — initRagTranslationCache (unit) ────────
-
-  results.push('\nRagEnglishTranslationSource — initRagTranslationCache()');
-
-  it('initRagTranslationCache is a function', function () {
-    expect(typeof initRagTranslationCache).toBe('function');
-  });
-
-  it('_parseRagTranslationFlat_ converts {t: "..."} values to strings', function () {
-    var raw = {
-      '2:255': { t: 'Ayat al-Kursi' },
-      '1:1': { t: 'In the name of Allah' }
-    };
-    var map = _parseRagTranslationFlat_(raw);
-    expect(map['2:255']).toBe('Ayat al-Kursi');
-    expect(map['1:1']).toBe('In the name of Allah');
-  });
-
-  it('_parseRagTranslationFlat_ skips entries without a t field', function () {
-    var raw = {
-      '2:255': { t: 'Throne Verse' },
-      '3:0': null,
-      '4:1': {}
-    };
-    var map = _parseRagTranslationFlat_(raw);
-    expect(map['2:255']).toBe('Throne Verse');
-    expect(map['3:0'] === undefined).toBe(true);
-    expect(map['4:1'] === undefined).toBe(true);
-  });
-
-  it('_parseRagTranslationFlat_ returns empty object for null input', function () {
-    var map = _parseRagTranslationFlat_(null);
-    expect(typeof map).toBe('object');
-    expect(Object.keys(map).length).toBe(0);
-  });
-
-  it('clearRagEnglishTranslationMapCacheForTests_ does not throw', function () {
-    try {
-      clearRagEnglishTranslationMapCacheForTests_();
-    } catch (e) {
-      throw new Error('clearRagEnglishTranslationMapCacheForTests_ threw: ' + e.message);
-    }
-  });
-
-  it('initRagTranslationCache is idempotent — calling twice does not throw', function () {
-    clearRagEnglishTranslationMapCacheForTests_();
-    try {
-      initRagTranslationCache();
-      initRagTranslationCache();
-    } catch (e) {
-      throw new Error('initRagTranslationCache threw on double-call: ' + e.message);
-    }
-  });
-
-  it('getRagEnglishTranslationMap_ returns object or null after initRagTranslationCache', function () {
-    clearRagEnglishTranslationMapCacheForTests_();
-    try {
-      initRagTranslationCache();
-      var map = getRagEnglishTranslationMap_();
-      expect(map === null || typeof map === 'object').toBe(true);
-    } catch (e) {
-      throw new Error('getRagEnglishTranslationMap_ threw after init: ' + e.message);
-    }
-  });
 
   // ── Summary ─────────────────────────────────────────────────────────────
 
