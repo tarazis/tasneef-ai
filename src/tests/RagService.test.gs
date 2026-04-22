@@ -63,8 +63,8 @@ function runRagServiceTests() {
     expect(OPENAI_EMBEDDING_MODEL).toBe('text-embedding-3-small');
   });
 
-  it('RAG_MAX_EXPAND_QUERIES is 3', function () {
-    expect(RAG_MAX_EXPAND_QUERIES).toBe(3);
+  it('RAG_MAX_EXPAND_QUERIES is 2', function () {
+    expect(RAG_MAX_EXPAND_QUERIES).toBe(2);
   });
 
   it('RAG_CANDIDATE_POOL is 20', function () {
@@ -79,13 +79,12 @@ function runRagServiceTests() {
 
   results.push('\n_normalizeRagQueryStrings_()');
 
-  it('collects trimmed queries from classified.queries capped at 3', function () {
+  it('collects trimmed queries from classified.queries capped at 2', function () {
     var q = ['a', ' b ', '', 'c', 'd', 'e', 'f', 'g'];
     var out = _normalizeRagQueryStrings_({ queries: q });
-    expect(out).arrayLength(3);
+    expect(out).arrayLength(2);
     expect(out[0]).toBe('a');
     expect(out[1]).toBe('b');
-    expect(out[2]).toBe('c');
   });
 
   it('falls back to legacy query when queries missing or empty', function () {
