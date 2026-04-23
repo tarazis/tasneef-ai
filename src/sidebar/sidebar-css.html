@@ -145,27 +145,40 @@
   .tab-btn--ai .tab-btn-ai-icon svg path:nth-child(9) {
     opacity: 0;
   }
-  /* Small sparkles: fade out / in on a loop while hovered, with a short wiggle while visible. */
-  @keyframes tab-ai-sparkle-blink-wiggle {
-    0% { opacity: 0; transform: scale(0.94) rotate(0deg); }
-    18% { opacity: 1; transform: scale(1.08) rotate(5deg); }
-    32% { opacity: 1; transform: scale(0.96) rotate(-4deg); }
-    44% { opacity: 1; transform: scale(1.03) rotate(2deg); }
-    52% { opacity: 0; transform: scale(0.94) rotate(0deg); }
-    100% { opacity: 0; transform: scale(0.94) rotate(0deg); }
+  /*
+   * Hover: wig-wag “siren” — left sparkles (4–7) vs right (2–3, 8–9), never one lateral side empty
+   * while the other is lit. Asymmetric double-flash, linear timing for staccato strobes.
+   */
+  @keyframes tab-ai-siren-left {
+    0%, 5% { opacity: 0; transform: scale(0.94) rotate(0deg); }
+    10% { opacity: 1; transform: scale(1.11) rotate(7deg); }
+    16% { opacity: 1; transform: scale(0.94) rotate(-6deg); }
+    22% { opacity: 0; transform: scale(0.94) rotate(0deg); }
+    27% { opacity: 1; transform: scale(1.07) rotate(5deg); }
+    35% { opacity: 0; transform: scale(0.94) rotate(0deg); }
+    36%, 100% { opacity: 0; transform: scale(0.94) rotate(0deg); }
   }
-  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(2),
-  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(3),
-  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(6),
-  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(7) {
-    animation: tab-ai-sparkle-blink-wiggle 2.4s ease-in-out infinite;
-    stroke-width: 2.02;
+  @keyframes tab-ai-siren-right {
+    0%, 43% { opacity: 0; transform: scale(0.94) rotate(0deg); }
+    48% { opacity: 1; transform: scale(1.11) rotate(-7deg); }
+    54% { opacity: 1; transform: scale(0.94) rotate(6deg); }
+    60% { opacity: 0; transform: scale(0.94) rotate(0deg); }
+    65% { opacity: 1; transform: scale(1.07) rotate(-5deg); }
+    73% { opacity: 0; transform: scale(0.94) rotate(0deg); }
+    74%, 100% { opacity: 0; transform: scale(0.94) rotate(0deg); }
   }
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(4),
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(5),
+  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(6),
+  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(7) {
+    animation: tab-ai-siren-left 1.22s linear infinite;
+    stroke-width: 2.02;
+  }
+  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(2),
+  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(3),
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(8),
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(9) {
-    animation: tab-ai-sparkle-blink-wiggle 2.4s ease-in-out 1.2s infinite;
+    animation: tab-ai-siren-right 1.22s linear infinite;
     stroke-width: 2.02;
   }
   .tab-btn--ai .tab-btn-ai-label {
