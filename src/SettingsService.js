@@ -28,7 +28,9 @@ var PROPERTY_KEYS = {
   PINECONE_HOST: 'pinecone_host',
   PINECONE_API_KEY: 'pinecone_api_key',
   /** Optional; enables Google Fonts CSS API key on preview and icon stylesheet URLs. */
-  GOOGLE_FONTS_API_KEY: 'google_fonts_api_key'
+  GOOGLE_FONTS_API_KEY: 'google_fonts_api_key',
+  /** Optional; Tasneef homepage URL for bottom-bar logo link. */
+  TASNEEF_URL: 'tasneef_url'
 };
 
 /**
@@ -117,6 +119,23 @@ function getFeedbackFormUrl() {
 function getSupportUrl() {
   var url = PropertiesService.getScriptProperties().getProperty('support_url');
   return url && String(url).trim() ? String(url).trim() : '';
+}
+
+/**
+ * Optional Tasneef homepage URL from Script Properties.
+ * If no protocol is provided, defaults to https://.
+ * @return {string} URL or empty string if unset/invalid
+ */
+function getTasneefUrl() {
+  var url = PropertiesService.getScriptProperties()
+    .getProperty(PROPERTY_KEYS.TASNEEF_URL);
+  if (!url) return '';
+  url = String(url).trim();
+  if (!url) return '';
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) {
+    url = 'https://' + url;
+  }
+  return url;
 }
 
 /**

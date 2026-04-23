@@ -81,11 +81,33 @@
   .tab-btn:active { background: transparent; }
   .tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); background: var(--color-primary-light); }
 
-  /* AI tab: sparkle icon; quick scale “twinkle” on hover (not rotate / Gemini-style flip) */
-  @keyframes tab-ai-sparkle-twinkle {
-    0% { transform: scale(1); }
-    45% { transform: scale(1.14); }
-    100% { transform: scale(1); }
+  /* AI tab: subtle sparkle/glitter hover effect */
+  @keyframes tab-ai-sparkle-glitter {
+    0% {
+      transform: scale(1);
+      opacity: 0.92;
+      filter: drop-shadow(0 0 0 rgba(52, 211, 153, 0));
+    }
+    28% {
+      transform: scale(1.04);
+      opacity: 1;
+      filter: drop-shadow(0 0 2px rgba(52, 211, 153, 0.32));
+    }
+    46% {
+      transform: scale(1);
+      opacity: 0.9;
+      filter: drop-shadow(0 0 0 rgba(52, 211, 153, 0));
+    }
+    72% {
+      transform: scale(1.05);
+      opacity: 1;
+      filter: drop-shadow(0 0 2.5px rgba(52, 211, 153, 0.34));
+    }
+    100% {
+      transform: scale(1);
+      opacity: 0.92;
+      filter: drop-shadow(0 0 0 rgba(52, 211, 153, 0));
+    }
   }
   .tab-btn--ai {
     display: flex;
@@ -105,7 +127,7 @@
     transform-origin: center center;
   }
   .tab-btn--ai:hover .tab-btn-ai-icon {
-    animation: tab-ai-sparkle-twinkle 1s ease-in-out infinite;
+    animation: tab-ai-sparkle-glitter 1.35s ease-in-out infinite;
   }
   .tab-btn--ai .tab-btn-ai-icon svg {
     width: 1em;
@@ -542,6 +564,20 @@
     display: flex;
     align-items: center;
     justify-content: flex-start;
+  }
+  .bottom-bar-wordmark-link {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+  }
+  .bottom-bar-wordmark-link:hover,
+  .bottom-bar-wordmark-link:focus {
+    opacity: 0.92;
+    outline: none;
+  }
+  .bottom-bar-wordmark-link:focus-visible {
+    box-shadow: 0 0 0 2px var(--color-bg-secondary), 0 0 0 4px var(--color-primary-light);
+    border-radius: var(--radius-sm);
   }
   .bottom-bar-center {
     flex: 0 0 auto;

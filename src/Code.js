@@ -5,7 +5,7 @@
 function onOpen(e) {
   DocumentApp.getUi()
     .createMenu('Tasneef AI')
-    .addItem('Open Sidebar', 'showSidebar')
+    .addItem('Start Tasneef', 'showSidebar')
     .addToUi();
 }
 
@@ -54,6 +54,7 @@ function include_(filename) {
 function includeBottomBar_() {
   var t = HtmlService.createTemplateFromFile('sidebar/components/bottom-bar');
   t.supportUrl = getSupportUrl();
+  t.tasneefUrl = getTasneefUrl();
   return t.evaluate().getContent();
 }
 
