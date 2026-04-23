@@ -3,6 +3,124 @@
 //   buildCardHtml, buildRangeData (card-builder.html),
 //   _buildAyahDataForInsert (search-utils.html)
 
+var _largeRangeModalPending = null;
+
+/**
+ * Closes the large-range modal and removes Escape listener. Clears pending state.
+ */
+function closeLargeRangeModal_() {
+  var el = document.getElementById('large-range-modal');
+  if (el) {
+    el.classList.add('hidden');
+    el.setAttribute('aria-hidden', 'true');
+  }
+  _largeRangeModalPending = null;
+  document.removeEventListener('keydown', _onLargeRangeModalKeydown_, true);
+}
+
+/**
+ * @param {KeyboardEvent} e
+ */
+function _onLargeRangeModalKeydown_(e) {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    largeRangeModalOnCancel_();
+  }
+}
+
+/**
+ * Opens the in-sidebar large-range insert confirmation (replaces window.confirm).
+ * Does not set the insert button to loading; that happens after Continue.
+ * @param {HTMLButtonElement} btn
+ * @param {Object} rangeData
+ * @param {Object} fs
+ */
+function openLargeRangeModal_(btn, rangeData, fs) {
+  _largeRangeModalPending = { btn: btn, rangeData: rangeData, fs: fs };
+  var el = document.getElementById('large-range-modal');
+  if (!el) {
+    _largeRangeModalPending = null;
+    return;
+  }
+  el.classList.remove('hidden');
+  el.setAttribute('aria-hidden', 'false');
+  document.addEventListener('keydown', _onLargeRangeModalKeydown_, true);
+  var c = document.getElementById('large-range-modal-continue');
+  if (c) c.focus();
+}
+
+function largeRangeModalOnCancel_() {
+  if (!_largeRangeModalPending) {
+    closeLargeRangeModal_();
+    return;
+  }
+  var btn = _largeRangeModalPending.btn;
+  closeLargeRangeModal_();
+  if (btn) {
+    btn.disabled = false;
+    btn.classList.remove('btn-loading');
+  }
+}
+
+function largeRangeModalOnContinue_() {
+  var p = _largeRangeModalPending;
+  if (!p) return;
+  var btn = p.btn;
+  var rangeData = p.rangeData;
+  var fs = p.fs;
+  closeLargeRangeModal_();
+  if (!btn || !rangeData) return;
+  btn.disabled = true;
+  btn.classList.add('btn-loading');
+  runRangeInsertWithHandlers_(btn, rangeData, fs);
+}
+
+/**
+ * @param {HTMLButtonElement} btn
+ * @param {Object} rangeData
+ * @param {Object} fs
+ */
+function runRangeInsertWithHandlers_(btn, rangeData, fs) {
+  google.script.run
+    .withSuccessHandler(function(result) {
+      if (result && !result.success) {
+        console.warn('Range insert warning:', result.message);
+      }
+      btn.disabled = false;
+      btn.classList.remove('btn-loading');
+    })
+    .withFailureHandler(function(err) {
+      btn.disabled = false;
+      btn.classList.remove('btn-loading');
+      console.error('Range insert failed:', err);
+    })
+    .insertAyahRange(rangeData, fs, _settings);
+}
+
+(function initLargeRangeInsertModal_() {
+  var root = document.getElementById('large-range-modal');
+  if (!root) return;
+  // Backdrop click = dismiss (common SaaS pattern)
+  var backdrop = document.getElementById('large-range-modal-backdrop');
+  if (backdrop) {
+    backdrop.addEventListener('click', function() {
+      largeRangeModalOnCancel_();
+    });
+  }
+  var cancelBtn = document.getElementById('large-range-modal-cancel');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', function() {
+      largeRangeModalOnCancel_();
+    });
+  }
+  var contBtn = document.getElementById('large-range-modal-continue');
+  if (contBtn) {
+    contBtn.addEventListener('click', function() {
+      largeRangeModalOnContinue_();
+    });
+  }
+})();
+
 function makeSkeleton(count) {
   var html = '';
   for (var i = 0; i < count; i++) {
@@ -54,9 +172,6 @@ function onInsertClick(e) {
   var btn = e.target;
   if (btn.tagName !== 'BUTTON' || !btn.classList.contains('btn-insert-result')) return;
 
-  btn.disabled = true;
-  btn.classList.add('btn-loading');
-
   var fs = window.getFormatState ? window.getFormatState() : {};
 
   if (btn.getAttribute('data-ayah-start')) {
@@ -64,8 +179,6 @@ function onInsertClick(e) {
     var ayahStart = parseInt(btn.getAttribute('data-ayah-start'), 10);
     var ayahEnd   = parseInt(btn.getAttribute('data-ayah-end'), 10);
     if (!surah || !ayahStart || !ayahEnd) {
-      btn.disabled = false;
-      btn.classList.remove('btn-loading');
       return;
     }
 
@@ -77,41 +190,24 @@ function onInsertClick(e) {
     }
 
     if (!rangeItems.length) {
-      btn.disabled = false;
-      btn.classList.remove('btn-loading');
       return;
     }
 
+    var rangeData = buildRangeData(rangeItems);
     var ayahCount = ayahEnd - ayahStart + 1;
     if (ayahCount > 30) {
-      var ok = window.confirm(
-        "You are inserting a large range of verses. This may cause the editor to freeze for a few seconds. Do you want to continue?"
-      );
-      if (!ok) {
-        btn.disabled = false;
-        btn.classList.remove('btn-loading');
-        return;
-      }
+      openLargeRangeModal_(btn, rangeData, fs);
+      return;
     }
 
-    var rangeData = buildRangeData(rangeItems);
-
-    google.script.run
-      .withSuccessHandler(function(result) {
-        if (result && !result.success) {
-          console.warn('Range insert warning:', result.message);
-        }
-        btn.disabled = false;
-        btn.classList.remove('btn-loading');
-      })
-      .withFailureHandler(function(err) {
-        btn.disabled = false;
-        btn.classList.remove('btn-loading');
-        console.error('Range insert failed:', err);
-      })
-      .insertAyahRange(rangeData, fs, _settings);
+    btn.disabled = true;
+    btn.classList.add('btn-loading');
+    runRangeInsertWithHandlers_(btn, rangeData, fs);
     return;
   }
+
+  btn.disabled = true;
+  btn.classList.add('btn-loading');
 
   var surahNum = parseInt(btn.getAttribute('data-surah'), 10);
   var ayahNum  = parseInt(btn.getAttribute('data-ayah'), 10);
