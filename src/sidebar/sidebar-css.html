@@ -145,30 +145,40 @@
   .tab-btn--ai .tab-btn-ai-icon svg path:nth-child(9) {
     opacity: 0;
   }
-  @keyframes tab-ai-inline-star-twinkle {
-    0%, 100% { opacity: 0.45; transform: scale(0.92) rotate(0deg); }
-    35% { opacity: 1; transform: scale(1.18) rotate(10deg); }
-    60% { opacity: 0.65; transform: scale(0.96) rotate(-6deg); }
+  /* Two twinkle cycles; end state matches non-hover (two small stars only, default stroke). */
+  @keyframes tab-ai-inline-star-twinkle-main {
+    0% { opacity: 0.45; transform: scale(0.92) rotate(0deg); stroke-width: 2; }
+    17.5% { opacity: 1; transform: scale(1.18) rotate(10deg); stroke-width: 2.1; }
+    30% { opacity: 0.65; transform: scale(0.96) rotate(-6deg); stroke-width: 2.1; }
+    50% { opacity: 0.45; transform: scale(0.92) rotate(0deg); stroke-width: 2; }
+    67.5% { opacity: 1; transform: scale(1.18) rotate(10deg); stroke-width: 2.1; }
+    80% { opacity: 0.65; transform: scale(0.96) rotate(-6deg); stroke-width: 2.1; }
+    100% { opacity: 1; transform: none; stroke-width: 2; }
+  }
+  @keyframes tab-ai-inline-star-twinkle-mini {
+    0% { opacity: 0; transform: scale(0.92) rotate(0deg); stroke-width: 2; }
+    17.5% { opacity: 1; transform: scale(1.18) rotate(10deg); stroke-width: 2.1; }
+    30% { opacity: 0.65; transform: scale(0.96) rotate(-6deg); stroke-width: 2.1; }
+    50% { opacity: 0.45; transform: scale(0.92) rotate(0deg); stroke-width: 2; }
+    67.5% { opacity: 1; transform: scale(1.18) rotate(10deg); stroke-width: 2.1; }
+    80% { opacity: 0.65; transform: scale(0.96) rotate(-6deg); stroke-width: 2.1; }
+    100% { opacity: 0; transform: none; stroke-width: 2; }
   }
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(2),
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(3) {
-    animation: tab-ai-inline-star-twinkle 1.2s ease-in-out infinite;
-    stroke-width: 2.1;
+    animation: tab-ai-inline-star-twinkle-main 2.4s ease-in-out 0s 1 forwards;
   }
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(4),
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(5) {
-    animation: tab-ai-inline-star-twinkle 1.2s ease-in-out 0.25s infinite;
-    stroke-width: 2.1;
+    animation: tab-ai-inline-star-twinkle-main 2.4s ease-in-out 0.25s 1 forwards;
   }
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(6),
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(7) {
-    animation: tab-ai-inline-star-twinkle 1.2s ease-in-out 0.42s infinite;
-    stroke-width: 2.1;
+    animation: tab-ai-inline-star-twinkle-mini 2.4s ease-in-out 0.42s 1 forwards;
   }
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(8),
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(9) {
-    animation: tab-ai-inline-star-twinkle 1.2s ease-in-out 0.6s infinite;
-    stroke-width: 2.1;
+    animation: tab-ai-inline-star-twinkle-mini 2.4s ease-in-out 0.6s 1 forwards;
   }
   .tab-btn--ai .tab-btn-ai-label {
     flex-shrink: 0;
