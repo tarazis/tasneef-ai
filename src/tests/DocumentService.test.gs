@@ -63,6 +63,7 @@ function runDocumentServiceTests() {
       _heading: null,
       _spacingBefore: null,
       _spacingAfter: null,
+      _lineSpacing: null,
       _fontSize: null,
       getText: function () { return this._text; },
       setText: function (t) { this._text = t; },
@@ -73,6 +74,8 @@ function runDocumentServiceTests() {
       setSpacingAfter: function (pt) { this._spacingAfter = pt; },
       getSpacingBefore: function () { return this._spacingBefore; },
       getSpacingAfter: function () { return this._spacingAfter; },
+      setLineSpacing: function (factor) { this._lineSpacing = factor; },
+      getLineSpacing: function () { return this._lineSpacing; },
       getType: function () { return DocumentApp.ElementType.PARAGRAPH; },
       asParagraph: function () { return this; },
       getParent: function () { return null; },
@@ -255,8 +258,7 @@ function runDocumentServiceTests() {
         text: '\uFD3F\u00A0arabic\u00A0\uFD3E',
         align: DocumentApp.HorizontalAlignment.CENTER,
         rtl: true,
-        insertTextRole: 'quran',
-        spacingAfter: INSERT_SPACING_INNER_PT
+        insertTextRole: 'quran'
       },
       {
         text: '"translation"',
@@ -408,17 +410,33 @@ function runDocumentServiceTests() {
     expect(body._children.length).toBe(1);
   });
 
-  it('Arabic + translation three-paragraph block applies inner spacing only', function () {
+  it('Arabic + translation three-paragraph block: no inner spacing after Arabic; gap after translation', function () {
     var body = createMockBody(['']);
     var doc = createMockDoc(body, body._children[0]);
     insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), {});
     expect(body._children[0]._spacingBefore).toBe(TARGET_SPACING_PT);
-    expect(body._children[0]._spacingAfter).toBe(INSERT_SPACING_INNER_PT);
+    expect(body._children[0]._spacingAfter).toBe(null);
     expect(body._children[1]._spacingBefore).toBe(null);
     expect(body._children[1]._spacingAfter).toBe(INSERT_SPACING_INNER_PT);
     expect(body._children[2]._spacingBefore).toBe(null);
     expect(body._children[2]._spacingAfter).toBe(TARGET_SPACING_PT);
     expect(body._children.length).toBe(3);
+  });
+
+  it('Quran paragraph uses 1.3 line spacing', function () {
+    var body = createMockBody(['']);
+    var doc = createMockDoc(body, body._children[0]);
+    insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
+    expect(body._children[0]._lineSpacing).toBe(INSERT_QURAN_LINE_SPACING);
+  });
+
+  it('translation and citation paragraphs are not set to Quran line spacing', function () {
+    var body = createMockBody(['']);
+    var doc = createMockDoc(body, body._children[0]);
+    insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), {});
+    expect(body._children[0]._lineSpacing).toBe(INSERT_QURAN_LINE_SPACING);
+    expect(body._children[1]._lineSpacing).toBe(null);
+    expect(body._children[2]._lineSpacing).toBe(null);
   });
 
   it('single insert subtracts previous paragraph spacingAfter from target', function () {
@@ -451,14 +469,14 @@ function runDocumentServiceTests() {
     expect(body._children[2]._spacingAfter).toBe(TARGET_SPACING_PT);
   });
 
-  it('multi-paragraph insert keeps inner spacing and adjusts outer boundaries', function () {
+  it('multi-paragraph insert keeps inner spacing after translation and adjusts outer boundaries', function () {
     var body = createMockBody(['before', 'after']);
     body._children[0].setSpacingAfter(2);
     body._children[1].setSpacingBefore(9);
     var doc = createMockDoc(body, body._children[0]);
     insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), {});
     expect(body._children[1]._spacingBefore).toBe(TARGET_SPACING_PT);
-    expect(body._children[1]._spacingAfter).toBe(INSERT_SPACING_INNER_PT);
+    expect(body._children[1]._spacingAfter).toBe(null);
     expect(body._children[2]._spacingAfter).toBe(INSERT_SPACING_INNER_PT);
     expect(body._children[3]._spacingAfter).toBe(TARGET_SPACING_PT);
   });
@@ -673,7 +691,7 @@ function runDocumentServiceTests() {
     var cell = body._children[0]._cell;
     expect(cell._inner.length).toBe(3);
     expect(cell._inner[0]._spacingBefore).toBe(null);
-    expect(cell._inner[0]._spacingAfter).toBe(INSERT_SPACING_INNER_PT);
+    expect(cell._inner[0]._spacingAfter).toBe(null);
     expect(cell._inner[1]._spacingAfter).toBe(INSERT_SPACING_INNER_PT);
     expect(cell._inner[2]._spacingAfter).toBe(null);
   });

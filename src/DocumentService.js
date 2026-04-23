@@ -7,6 +7,8 @@
 var INSERT_SPACING_INNER_PT = 6;
 /** Paragraph spacing (points) for outer gap around non-quote inserts. */
 var TARGET_SPACING_PT = 8;
+/** Line spacing factor for inserted Quran Arabic paragraphs (1.0 = single). */
+var INSERT_QURAN_LINE_SPACING = 1.3;
 
 /** Blockquote 2×1 table (DocumentApp; matches app primary and documents.currentonly). */
 var BLOCKQUOTE_ACCENT_WIDTH_PT = 3;
@@ -148,6 +150,9 @@ function resolveFallbackInsertAnchor_(body) {
 function applyBeautifiedInsertToParagraph_(p, item, formatState) {
   p.setAlignment(item.align);
   p.setLeftToRight(item.rtl ? false : true);
+  if (item && item.insertTextRole === 'quran') {
+    p.setLineSpacing(INSERT_QURAN_LINE_SPACING);
+  }
   var fs = formatStateForBeautifiedInsertParagraph(item, formatState);
   var fontWarning = applyFormat(p.editAsText(), fs);
   if (item.spacingBefore != null) {
@@ -350,8 +355,7 @@ function insertAyah(ayahData, formatState, settings) {
       text: '\uFD3F' + qNbsp + arabicText + qNbsp + '\uFD3E',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true,
-      insertTextRole: 'quran',
-      spacingAfter: INSERT_SPACING_INNER_PT
+      insertTextRole: 'quran'
     });
     paragraphsToInsert.push({
       text: '\u201C' + translationText + '\u201D',
@@ -408,8 +412,7 @@ function insertAyahRange(rangeData, formatState, settings) {
       text: '\uFD3F' + qNbsp + arabicText + qNbsp + '\uFD3E',
       align: DocumentApp.HorizontalAlignment.CENTER,
       rtl: true,
-      insertTextRole: 'quran',
-      spacingAfter: INSERT_SPACING_INNER_PT
+      insertTextRole: 'quran'
     });
     paragraphsToInsert.push({
       text: '\u201C' + translationText + '\u201D',
