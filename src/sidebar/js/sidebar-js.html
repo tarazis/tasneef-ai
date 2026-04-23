@@ -142,4 +142,100 @@
   }
 
 })();
+
+(function sidebarToast_() {
+  'use strict';
+
+  var TOAST_MAX_LEN = 380;
+  var TOAST_DEFAULT_MS = 4400;
+  var TOAST_ERROR_MS = 5600;
+
+  function userFacingRpcErrorMessage(err) {
+    if (err == null) return 'Something went wrong. Please try again.';
+    if (typeof err === 'string') {
+      var s = err.trim();
+      return s || 'Something went wrong. Please try again.';
+    }
+    if (typeof err.message === 'string' && err.message.trim()) {
+      return err.message.trim();
+    }
+    return 'Something went wrong. Please try again.';
+  }
+
+  /**
+   * @param {string} message
+   * @param {{ variant?: string, durationMs?: number }=} opts
+   */
+  function showSidebarToast(message, opts) {
+    opts = opts || {};
+    var variant = opts.variant === 'error' || opts.variant === 'info' || opts.variant === 'neutral'
+      ? opts.variant
+      : 'neutral';
+    var durationBase = variant === 'error' ? TOAST_ERROR_MS : TOAST_DEFAULT_MS;
+    var durationMs = typeof opts.durationMs === 'number' && opts.durationMs >= 0
+      ? opts.durationMs
+      : durationBase;
+
+    var text = String(message == null ? '' : message).replace(/\s+/g, ' ').trim();
+    if (!text) return;
+
+    if (text.length > TOAST_MAX_LEN) {
+      text = text.slice(0, TOAST_MAX_LEN - 1) + '\u2026';
+    }
+
+    var host = document.getElementById('sidebar-toast-host');
+    if (!host) return;
+
+    var el = document.createElement('div');
+    el.className = 'sidebar-toast sidebar-toast--' + variant;
+
+    if (variant === 'error') {
+      el.setAttribute('role', 'alert');
+    } else {
+      el.setAttribute('role', 'status');
+    }
+
+    var strip = document.createElement('span');
+    strip.className = 'sidebar-toast__strip';
+    strip.setAttribute('aria-hidden', 'true');
+
+    var p = document.createElement('p');
+    p.className = 'sidebar-toast__text';
+    p.textContent = text;
+
+    el.appendChild(strip);
+    el.appendChild(p);
+
+    host.appendChild(el);
+
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        el.classList.add('sidebar-toast--visible');
+      });
+    });
+
+    window.setTimeout(function() {
+      dismissToast_(el);
+    }, durationMs);
+  }
+
+  /**
+   * @param {HTMLElement} node
+   */
+  function dismissToast_(node) {
+    if (!node.parentNode) return;
+    node.classList.remove('sidebar-toast--visible');
+    node.classList.add('sidebar-toast--leaving');
+    var motionMs = 220;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      motionMs = 30;
+    }
+    window.setTimeout(function() {
+      if (node.parentNode) node.parentNode.removeChild(node);
+    }, motionMs);
+  }
+
+  window.userFacingRpcErrorMessage = userFacingRpcErrorMessage;
+  window.showSidebarToast = showSidebarToast;
+})();
 </script>

@@ -83,18 +83,57 @@ function largeRangeModalOnContinue_() {
 function runRangeInsertWithHandlers_(btn, rangeData, fs) {
   google.script.run
     .withSuccessHandler(function(result) {
-      if (result && !result.success) {
-        console.warn('Range insert warning:', result.message);
-      }
-      btn.disabled = false;
-      btn.classList.remove('btn-loading');
+      onInsertComplete_(btn, result, null);
     })
     .withFailureHandler(function(err) {
-      btn.disabled = false;
-      btn.classList.remove('btn-loading');
-      console.error('Range insert failed:', err);
+      onInsertComplete_(btn, null, err);
     })
     .insertAyahRange(rangeData, fs, _settings);
+}
+
+/**
+ * True when insert succeeded with extra user-facing copy (e.g. font fallback warning).
+ * @param {string} msg
+ * @return {boolean}
+ */
+function insertResultHasAuxiliaryMessage_(msg) {
+  if (!msg || typeof msg !== 'string') return false;
+  if (msg === 'Ayah inserted.' || msg === 'Range inserted.') return false;
+  return msg.indexOf('Ayah inserted. ') === 0 || msg.indexOf('Range inserted. ') === 0;
+}
+
+/**
+ * @param {HTMLButtonElement|null} btn
+ * @param {Object|null} result
+ * @param {*} err
+ */
+function onInsertComplete_(btn, result, err) {
+  if (btn) {
+    btn.disabled = false;
+    btn.classList.remove('btn-loading');
+  }
+  if (err) {
+    var em = typeof window.userFacingRpcErrorMessage === 'function'
+      ? window.userFacingRpcErrorMessage(err)
+      : 'Insert failed.';
+    if (typeof window.showSidebarToast === 'function') {
+      window.showSidebarToast(em, { variant: 'error' });
+    }
+    console.error('Insert failed:', err);
+    return;
+  }
+  if (result && !result.success) {
+    if (typeof window.showSidebarToast === 'function') {
+      window.showSidebarToast(result.message || 'Could not insert.', { variant: 'error' });
+    }
+    console.warn('Insert warning:', result.message);
+    return;
+  }
+  if (result && result.success && insertResultHasAuxiliaryMessage_(result.message)) {
+    if (typeof window.showSidebarToast === 'function') {
+      window.showSidebarToast(result.message, { variant: 'info', durationMs: 5200 });
+    }
+  }
 }
 
 (function initLargeRangeInsertModal_() {
@@ -227,16 +266,10 @@ function onInsertClick(e) {
 
   google.script.run
     .withSuccessHandler(function(result) {
-      if (result && !result.success) {
-        console.warn('Insert warning:', result.message);
-      }
-      btn.disabled = false;
-      btn.classList.remove('btn-loading');
+      onInsertComplete_(btn, result, null);
     })
     .withFailureHandler(function(err) {
-      btn.disabled = false;
-      btn.classList.remove('btn-loading');
-      console.error('Insert failed:', err);
+      onInsertComplete_(btn, null, err);
     })
     .insertAyah(ayahData, fs, _settings);
 }

@@ -627,24 +627,74 @@
     z-index: 400;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    align-items: center;
+    gap: var(--space-sm);
+    width: calc(100% - 2 * var(--sidebar-inline));
+    max-width: 312px;
     pointer-events: none;
+    box-sizing: border-box;
   }
   .sidebar-toast {
-    background: #2b2b2b;
-    color: #fff;
-    padding: 8px 12px;
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-md);
-    font-size: 12px;
-    line-height: 1.4;
-    max-width: 300px;
-    text-align: center;
-    opacity: 1;
-    transition: opacity 0.2s ease;
-  }
-  .sidebar-toast.sidebar-toast-hide {
+    --toast-strip: var(--color-primary);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    width: 100%;
+    margin: 0;
+    padding: var(--space-md) var(--space-md) var(--space-md) var(--space-sm);
+    background: var(--color-bg);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow:
+      0 1px 2px rgba(26, 26, 46, 0.04),
+      0 8px 24px rgba(26, 26, 46, 0.1);
+    font-size: 13px;
+    line-height: 1.45;
+    text-align: left;
     opacity: 0;
+    transform: translateY(8px);
+    transition:
+      opacity 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+    box-sizing: border-box;
+  }
+  .sidebar-toast.sidebar-toast--visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .sidebar-toast.sidebar-toast--leaving {
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  .sidebar-toast__strip {
+    flex: 0 0 3px;
+    width: 3px;
+    align-self: stretch;
+    min-height: 2.5em;
+    margin-top: 2px;
+    border-radius: var(--radius-full);
+    background: var(--toast-strip);
+  }
+  .sidebar-toast__text {
+    margin: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: inherit;
+    line-height: inherit;
+    color: var(--color-text-primary);
+  }
+  .sidebar-toast--info { --toast-strip: var(--color-primary); }
+  .sidebar-toast--neutral { --toast-strip: #64748b; }
+  .sidebar-toast--error { --toast-strip: var(--color-error); }
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar-toast {
+      transition-duration: 0.01ms;
+    }
+    .sidebar-toast.sidebar-toast--leaving {
+      transition-duration: 0.01ms;
+    }
   }
 
   /* Large-range insert confirmation (in-sidebar modal) */
