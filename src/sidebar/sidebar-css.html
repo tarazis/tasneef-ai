@@ -145,30 +145,78 @@
   .tab-btn--ai .tab-btn-ai-icon svg path:nth-child(9) {
     opacity: 0;
   }
+  /* Original subtle hover twinkle (first #171 version) — used after one-shot choreo ends. */
   @keyframes tab-ai-inline-star-twinkle {
-    0%, 100% { opacity: 0.45; transform: scale(0.92) rotate(0deg); }
-    35% { opacity: 1; transform: scale(1.18) rotate(10deg); }
-    60% { opacity: 0.65; transform: scale(0.96) rotate(-6deg); }
+    0%, 100% { opacity: 0.58; transform: scale(0.96) rotate(0deg); }
+    35% { opacity: 0.88; transform: scale(1.07) rotate(4deg); }
+    60% { opacity: 0.72; transform: scale(0.98) rotate(-3deg); }
+  }
+  /* Hover sparkle choreography: staged entrance, then alternating fade dance. */
+  @keyframes tab-ai-star-top-right {
+    0%, 34% { opacity: 0.9; transform: scale(1) rotate(0deg); }
+    40%, 52% { opacity: 0; transform: scale(0.9) rotate(0deg); } /* requested: top-right disappears */
+    58%, 70% { opacity: 0.86; transform: scale(1.05) rotate(4deg); }
+    76%, 86% { opacity: 0.22; transform: scale(0.95) rotate(-3deg); }
+    92%, 100% { opacity: 0.82; transform: scale(1) rotate(1deg); }
+  }
+  @keyframes tab-ai-star-bottom-left {
+    0%, 28% { opacity: 0.84; transform: scale(1) rotate(0deg); }
+    34%, 46% { opacity: 0.9; transform: scale(1.06) rotate(-4deg); }
+    52%, 62% { opacity: 0.18; transform: scale(0.95) rotate(0deg); }
+    68%, 82% { opacity: 0.92; transform: scale(1.04) rotate(3deg); }
+    88%, 100% { opacity: 0.48; transform: scale(0.97) rotate(-2deg); }
+  }
+  @keyframes tab-ai-mini-star-first {
+    0%, 12% { opacity: 0; transform: scale(0.9) rotate(0deg); } /* first new star appears */
+    20% { opacity: 0.92; transform: scale(1.08) rotate(6deg); }
+    32% { opacity: 0.96; transform: scale(0.97) rotate(-4deg); } /* both can be on in this window */
+    46% { opacity: 0.9; transform: scale(1.03) rotate(3deg); }
+    62% { opacity: 0.34; transform: scale(0.95) rotate(-2deg); }
+    74% { opacity: 0; transform: scale(0.9) rotate(0deg); } /* first goes away after second */
+    84% { opacity: 0.7; transform: scale(1.02) rotate(2deg); }
+    94%, 100% { opacity: 0.58; transform: scale(0.96) rotate(0deg); }
+  }
+  @keyframes tab-ai-mini-star-second {
+    0%, 22% { opacity: 0; transform: scale(0.9) rotate(0deg); } /* second new star appears after first */
+    30% { opacity: 0.9; transform: scale(1.07) rotate(-6deg); }
+    42% { opacity: 0.94; transform: scale(0.97) rotate(4deg); } /* overlap: both visible */
+    54% { opacity: 0.8; transform: scale(1.01) rotate(-2deg); }
+    60% { opacity: 0; transform: scale(0.9) rotate(0deg); } /* second goes away first */
+    72% { opacity: 0.65; transform: scale(1.02) rotate(3deg); }
+    82% { opacity: 0; transform: scale(0.9) rotate(0deg); }
+    100% { opacity: 0.58; transform: scale(0.96) rotate(0deg); }
   }
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(2),
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(3) {
-    animation: tab-ai-inline-star-twinkle 1.2s ease-in-out infinite;
-    stroke-width: 2.1;
+    animation:
+      tab-ai-star-top-right 3.05s ease-in-out 1 forwards,
+      tab-ai-inline-star-twinkle 1.75s ease-in-out infinite;
+    animation-delay: 0s, 3.05s;
+    stroke-width: 2.02;
   }
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(4),
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(5) {
-    animation: tab-ai-inline-star-twinkle 1.2s ease-in-out 0.25s infinite;
-    stroke-width: 2.1;
+    animation:
+      tab-ai-star-bottom-left 2.85s ease-in-out 1 forwards,
+      tab-ai-inline-star-twinkle 1.75s ease-in-out infinite;
+    animation-delay: 0s, calc(2.85s + 0.28s);
+    stroke-width: 2.02;
   }
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(6),
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(7) {
-    animation: tab-ai-inline-star-twinkle 1.2s ease-in-out 0.42s infinite;
-    stroke-width: 2.1;
+    animation:
+      tab-ai-mini-star-first 2.8s ease-in-out 1 forwards,
+      tab-ai-inline-star-twinkle 1.75s ease-in-out infinite;
+    animation-delay: 0s, calc(2.8s + 0.48s);
+    stroke-width: 2.02;
   }
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(8),
   .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(9) {
-    animation: tab-ai-inline-star-twinkle 1.2s ease-in-out 0.6s infinite;
-    stroke-width: 2.1;
+    animation:
+      tab-ai-mini-star-second 2.8s ease-in-out 1 forwards,
+      tab-ai-inline-star-twinkle 1.75s ease-in-out infinite;
+    animation-delay: 0s, calc(2.8s + 0.68s);
+    stroke-width: 2.02;
   }
   .tab-btn--ai .tab-btn-ai-label {
     flex-shrink: 0;
