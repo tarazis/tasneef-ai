@@ -81,9 +81,34 @@ function _truncateForRagLog_(s) {
 }
 
 /**
+ * English/context string from Pinecone metadata for merge + rerank prompts.
+ * Prefers composite_text; if missing or whitespace-only, uses theme_tags (string or string array).
+ * @param {Object} meta - Pinecone match metadata
+ * @return {string}
+ */
+function _ragMetadataCompositeText_(meta) {
+  if (!meta) return '';
+  var ct = meta.composite_text;
+  if (ct != null && String(ct).trim() !== '') {
+    return String(ct);
+  }
+  var tags = meta.theme_tags;
+  if (tags == null) return '';
+  if (Array.isArray(tags)) {
+    var parts = [];
+    for (var i = 0; i < tags.length; i++) {
+      var t = tags[i];
+      if (t != null && String(t).trim() !== '') parts.push(String(t).trim());
+    }
+    return parts.join(' ');
+  }
+  return String(tags).trim();
+}
+
+/**
  * Merges Pinecone match lists from multiple query vectors: one row per ayah (max score wins).
  * @param {Array<{queryIndex: number, queryText: string, matches: Array<{score: number, metadata: Object}>}>} runs
- * @return {Array<{surah: number, ayah: number, score: number, winningQueryIndex: number, winningQueryText: string, compositeText: string}>}
+ * @return {Array<{surah: number, ayah: number, score: number, winningQueryIndex: number, winningQueryText: string, compositeText: string}>} compositeText from metadata composite_text or theme_tags
  */
 function _mergeRagMatchesByAyah_(runs) {
   var best = {};
@@ -109,7 +134,7 @@ function _mergeRagMatchesByAyah_(runs) {
           ayah: a,
           winningQueryIndex: qi,
           winningQueryText: qtext,
-          compositeText: (meta.composite_text != null ? String(meta.composite_text) : '')
+          compositeText: _ragMetadataCompositeText_(meta)
         };
       }
     }

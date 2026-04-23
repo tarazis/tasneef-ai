@@ -99,6 +99,39 @@ function runRagServiceTests() {
     expect(out[0]).toBe('from array');
   });
 
+  results.push('\n_ragMetadataCompositeText_()');
+
+  it('returns composite_text when set and non-whitespace', function () {
+    expect(_ragMetadataCompositeText_({ composite_text: '  hello  ' })).toBe('  hello  ');
+  });
+
+  it('joins theme_tags array when composite_text absent', function () {
+    expect(
+      _ragMetadataCompositeText_({ theme_tags: [' first ', '', 'second'] })
+    ).toBe('first second');
+  });
+
+  it('uses theme_tags string when composite_text absent', function () {
+    expect(_ragMetadataCompositeText_({ theme_tags: ' single tag ' })).toBe('single tag');
+  });
+
+  it('prefers composite_text over theme_tags', function () {
+    expect(
+      _ragMetadataCompositeText_({ composite_text: 'A', theme_tags: ['B'] })
+    ).toBe('A');
+  });
+
+  it('falls back to theme_tags when composite_text is whitespace-only', function () {
+    expect(
+      _ragMetadataCompositeText_({ composite_text: '  \n', theme_tags: ['from tags'] })
+    ).toBe('from tags');
+  });
+
+  it('returns empty string when no usable fields', function () {
+    expect(_ragMetadataCompositeText_({})).toBe('');
+    expect(_ragMetadataCompositeText_(null)).toBe('');
+  });
+
   results.push('\n_mergeRagMatchesByAyah_()');
 
   it('keeps higher score when same ayah appears from two query runs', function () {
@@ -156,7 +189,7 @@ function runRagServiceTests() {
     expect(merged[1].compositeText).toBe('FATIHA 1 BLOCK');
   });
 
-  it('defaults compositeText to empty string when metadata.composite_text is absent', function () {
+  it('defaults compositeText to empty when no composite_text or theme_tags', function () {
     var runs = [
       {
         queryIndex: 0,
@@ -166,6 +199,23 @@ function runRagServiceTests() {
     ];
     var merged = _mergeRagMatchesByAyah_(runs);
     expect(merged[0].compositeText).toBe('');
+  });
+
+  it('maps theme_tags into compositeText when composite_text absent', function () {
+    var runs = [
+      {
+        queryIndex: 0,
+        queryText: 'q',
+        matches: [
+          {
+            score: 0.9,
+            metadata: { surah_number: 70, ayah_number: 5, theme_tags: ['tag one', 'tag two'] }
+          }
+        ]
+      }
+    ];
+    var merged = _mergeRagMatchesByAyah_(runs);
+    expect(merged[0].compositeText).toBe('tag one tag two');
   });
 
   results.push('\n_finalizeRagAyahRefs_()');
@@ -400,12 +450,95 @@ function runRagServiceTests() {
       var matches = _queryPinecone(pineconeHost, pineconeKey, embedding);
       expect(Array.isArray(matches)).toBe(true);
       expect(matches.length).toBeGreaterThan(0);
-      var first = matches[0];
-      expect(typeof first.score).toBe('number');
-      expect(first.metadata !== null && first.metadata !== undefined).toBe(true);
-      expect(typeof first.metadata.surah_number).toBe('number');
-      expect(typeof first.metadata.ayah_number).toBe('number');
-      expect(typeof first.metadata.composite_text === 'string' && first.metadata.composite_text.length > 0).toBe(true);
+
+      function metadataKeyList(meta) {
+        var keys = [];
+        if (meta == null) return keys;
+        for (var k in meta) {
+          if (Object.prototype.hasOwnProperty.call(meta, k)) keys.push(k);
+        }
+        keys.sort();
+        return keys;
+      }
+
+      function matchForErrorLog(m) {
+        var out = { id: m.id, score: m.score, scoreType: typeof m.score, metadata: {} };
+        var meta = m.metadata;
+        if (!meta) return out;
+        for (var k in meta) {
+          if (!Object.prototype.hasOwnProperty.call(meta, k)) continue;
+          var v = meta[k];
+          if (k === 'composite_text' && v != null && String(v).length > 160) {
+            out.metadata[k] = String(v).slice(0, 160) + '…';
+          } else {
+            out.metadata[k] = v;
+          }
+        }
+        return out;
+      }
+
+      // Pinecone often returns metadata scalars as strings; RagService uses parseInt like production.
+      var ok = false;
+      var diagnosticLines = [];
+      var maxSamples = Math.min(matches.length, 5);
+      for (var i = 0; i < matches.length; i++) {
+        var m = matches[i];
+        var issues = [];
+        if (typeof m.score !== 'number') {
+          issues.push('score is not a number (type=' + typeof m.score + ', value=' + JSON.stringify(m.score) + ')');
+        }
+        var meta = m.metadata;
+        if (meta == null) {
+          issues.push('metadata is null or undefined');
+        } else {
+          var s = parseInt(meta.surah_number, 10);
+          var a = parseInt(meta.ayah_number, 10);
+          if (!(s >= 1 && s <= 114 && a >= 1)) {
+            issues.push(
+              'surah_number/ayah_number out of range (parsed surah=' + s + ', ayah=' + a +
+                '; raw surah_number=' + JSON.stringify(meta.surah_number) +
+                ', ayah_number=' + JSON.stringify(meta.ayah_number) + ')'
+            );
+          }
+          var ctx = _ragMetadataCompositeText_(meta);
+          if (!ctx || String(ctx).trim() === '') {
+            issues.push(
+              'no non-empty composite_text or theme_tags (RagService._ragMetadataCompositeText_)'
+            );
+          }
+        }
+        if (i < maxSamples) {
+          diagnosticLines.push('  match[' + i + ' id=' + (m.id != null ? m.id : '?') + ']: ' + issues.join('; '));
+        }
+        if (issues.length === 0) {
+          ok = true;
+          break;
+        }
+      }
+
+      var firstKeys = metadataKeyList(matches[0] && matches[0].metadata);
+      Logger.log(
+        '[RagService integration] _queryPinecone: ' +
+          matches.length +
+          ' match(es); first match metadata keys: ' +
+          JSON.stringify(firstKeys)
+      );
+
+      if (!ok) {
+        throw new Error(
+          'Expected at least one Pinecone match with: numeric score, metadata.surah_number/ayah_number ' +
+            'parsable to surah 1–114 and ayah ≥ 1, and non-empty context from composite_text or theme_tags ' +
+            '(same contract as RagService._ragMetadataCompositeText_). ' +
+            'Got ' +
+            matches.length +
+            ' match(es). First match metadata keys: ' +
+            JSON.stringify(firstKeys) +
+            '. Sample row diagnostics:\n' +
+            diagnosticLines.join('\n') +
+            '\nFirst match (composite_text truncated in log): ' +
+            JSON.stringify(matchForErrorLog(matches[0]))
+        );
+      }
     });
 
     results.push('\n_handleRagSearch() — integration');
