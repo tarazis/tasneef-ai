@@ -145,30 +145,27 @@
   .tab-btn--ai .tab-btn-ai-icon svg path:nth-child(9) {
     opacity: 0;
   }
-  @keyframes tab-ai-inline-star-twinkle {
-    0%, 100% { opacity: 0.58; transform: scale(0.96) rotate(0deg); }
-    35% { opacity: 0.88; transform: scale(1.07) rotate(4deg); }
-    60% { opacity: 0.72; transform: scale(0.98) rotate(-3deg); }
+  /* Small sparkles: fade out / in on a loop while hovered, with a short wiggle while visible. */
+  @keyframes tab-ai-sparkle-blink-wiggle {
+    0% { opacity: 0; transform: scale(0.94) rotate(0deg); }
+    18% { opacity: 1; transform: scale(1.08) rotate(5deg); }
+    32% { opacity: 1; transform: scale(0.96) rotate(-4deg); }
+    44% { opacity: 1; transform: scale(1.03) rotate(2deg); }
+    52% { opacity: 0; transform: scale(0.94) rotate(0deg); }
+    100% { opacity: 0; transform: scale(0.94) rotate(0deg); }
   }
-  /* Twinkle while hovering or while this tab is selected (continuous loop). */
-  .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(2),
-  .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(3) {
-    animation: tab-ai-inline-star-twinkle 1.75s ease-in-out infinite;
+  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(2),
+  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(3),
+  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(6),
+  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(7) {
+    animation: tab-ai-sparkle-blink-wiggle 2.4s ease-in-out infinite;
     stroke-width: 2.02;
   }
-  .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(4),
-  .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(5) {
-    animation: tab-ai-inline-star-twinkle 1.75s ease-in-out 0.28s infinite;
-    stroke-width: 2.02;
-  }
-  .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(6),
-  .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(7) {
-    animation: tab-ai-inline-star-twinkle 1.75s ease-in-out 0.48s infinite;
-    stroke-width: 2.02;
-  }
-  .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(8),
-  .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(9) {
-    animation: tab-ai-inline-star-twinkle 1.75s ease-in-out 0.68s infinite;
+  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(4),
+  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(5),
+  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(8),
+  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(9) {
+    animation: tab-ai-sparkle-blink-wiggle 2.4s ease-in-out 1.2s infinite;
     stroke-width: 2.02;
   }
   .tab-btn--ai .tab-btn-ai-label {
@@ -179,14 +176,14 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(2),
-    .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(3),
-    .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(4),
-    .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(5),
-    .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(6),
-    .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(7),
-    .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(8),
-    .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(9) {
+    .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(2),
+    .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(3),
+    .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(4),
+    .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(5),
+    .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(6),
+    .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(7),
+    .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(8),
+    .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(9) {
       animation: none;
     }
   }
