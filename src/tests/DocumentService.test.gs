@@ -63,6 +63,7 @@ function runDocumentServiceTests() {
       _heading: null,
       _spacingBefore: null,
       _spacingAfter: null,
+      _lineSpacing: null,
       _fontSize: null,
       getText: function () { return this._text; },
       setText: function (t) { this._text = t; },
@@ -73,6 +74,8 @@ function runDocumentServiceTests() {
       setSpacingAfter: function (pt) { this._spacingAfter = pt; },
       getSpacingBefore: function () { return this._spacingBefore; },
       getSpacingAfter: function () { return this._spacingAfter; },
+      setLineSpacing: function (factor) { this._lineSpacing = factor; },
+      getLineSpacing: function () { return this._lineSpacing; },
       getType: function () { return DocumentApp.ElementType.PARAGRAPH; },
       asParagraph: function () { return this; },
       getParent: function () { return null; },
@@ -406,6 +409,22 @@ function runDocumentServiceTests() {
     expect(body._children[0]._spacingBefore).toBe(TARGET_SPACING_PT);
     expect(body._children[0]._spacingAfter).toBe(TARGET_SPACING_PT);
     expect(body._children.length).toBe(1);
+  });
+
+  it('Quran paragraph uses 1.5 line spacing', function () {
+    var body = createMockBody(['']);
+    var doc = createMockDoc(body, body._children[0]);
+    insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
+    expect(body._children[0]._lineSpacing).toBe(INSERT_QURAN_LINE_SPACING);
+  });
+
+  it('translation and citation paragraphs are not set to Quran line spacing', function () {
+    var body = createMockBody(['']);
+    var doc = createMockDoc(body, body._children[0]);
+    insertParagraphsAtPosition_(body, doc, arabicAndTranslation(), {});
+    expect(body._children[0]._lineSpacing).toBe(INSERT_QURAN_LINE_SPACING);
+    expect(body._children[1]._lineSpacing).toBe(null);
+    expect(body._children[2]._lineSpacing).toBe(null);
   });
 
   it('Arabic + translation three-paragraph block applies inner spacing only', function () {

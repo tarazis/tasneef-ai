@@ -82,6 +82,18 @@ function onInsertClick(e) {
       return;
     }
 
+    var ayahCount = ayahEnd - ayahStart + 1;
+    if (ayahCount > 30) {
+      var ok = window.confirm(
+        "You are inserting a large range of verses. This may cause the editor to freeze for a few seconds. Do you want to continue?"
+      );
+      if (!ok) {
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+        return;
+      }
+    }
+
     var rangeData = buildRangeData(rangeItems);
 
     google.script.run
