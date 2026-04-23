@@ -150,24 +150,25 @@
     35% { opacity: 0.88; transform: scale(1.07) rotate(4deg); }
     60% { opacity: 0.72; transform: scale(0.98) rotate(-3deg); }
   }
-  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(2),
-  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(3) {
-    animation: tab-ai-inline-star-twinkle 2.65s ease-in-out infinite;
+  /* Twinkle while hovering or while this tab is selected (continuous loop). */
+  .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(2),
+  .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(3) {
+    animation: tab-ai-inline-star-twinkle 1.75s ease-in-out infinite;
     stroke-width: 2.02;
   }
-  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(4),
-  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(5) {
-    animation: tab-ai-inline-star-twinkle 2.65s ease-in-out 0.42s infinite;
+  .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(4),
+  .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(5) {
+    animation: tab-ai-inline-star-twinkle 1.75s ease-in-out 0.28s infinite;
     stroke-width: 2.02;
   }
-  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(6),
-  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(7) {
-    animation: tab-ai-inline-star-twinkle 2.65s ease-in-out 0.72s infinite;
+  .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(6),
+  .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(7) {
+    animation: tab-ai-inline-star-twinkle 1.75s ease-in-out 0.48s infinite;
     stroke-width: 2.02;
   }
-  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(8),
-  .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(9) {
-    animation: tab-ai-inline-star-twinkle 2.65s ease-in-out 1.02s infinite;
+  .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(8),
+  .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(9) {
+    animation: tab-ai-inline-star-twinkle 1.75s ease-in-out 0.68s infinite;
     stroke-width: 2.02;
   }
   .tab-btn--ai .tab-btn-ai-label {
@@ -178,14 +179,14 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(2),
-    .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(3),
-    .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(4),
-    .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(5),
-    .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(6),
-    .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(7),
-    .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(8),
-    .tab-btn--ai:hover .tab-btn-ai-icon svg path:nth-child(9) {
+    .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(2),
+    .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(3),
+    .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(4),
+    .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(5),
+    .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(6),
+    .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(7),
+    .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(8),
+    .tab-btn--ai:is(:hover, .active) .tab-btn-ai-icon svg path:nth-child(9) {
       animation: none;
     }
   }
