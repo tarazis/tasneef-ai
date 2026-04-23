@@ -150,16 +150,11 @@
   var TOAST_DEFAULT_MS = 4400;
   var TOAST_ERROR_MS = 5600;
 
+  /** Shown for insert RPC failures; raw errors stay in the console only. */
+  var INSERT_RPC_USER_MESSAGE = 'Couldn\'t insert. Click in the document and try again.';
+
   function userFacingRpcErrorMessage(err) {
-    if (err == null) return 'Something went wrong. Please try again.';
-    if (typeof err === 'string') {
-      var s = err.trim();
-      return s || 'Something went wrong. Please try again.';
-    }
-    if (typeof err.message === 'string' && err.message.trim()) {
-      return err.message.trim();
-    }
-    return 'Something went wrong. Please try again.';
+    return INSERT_RPC_USER_MESSAGE;
   }
 
   /**

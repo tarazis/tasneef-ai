@@ -332,7 +332,7 @@ function insertParagraphsAtPosition_(body, doc, paragraphsToInsert, formatState)
  */
 function insertAyah(ayahData, formatState, settings) {
   if (!ayahData || !ayahData.surah || !ayahData.ayah) {
-    return { success: false, message: 'Invalid ayah data' };
+    return { success: false, message: 'Missing verse details. Choose a surah and ayah, then try again.' };
   }
 
   var doc = DocumentApp.getActiveDocument();
@@ -394,7 +394,7 @@ function insertAyah(ayahData, formatState, settings) {
  */
 function insertAyahRange(rangeData, formatState, settings) {
   if (!rangeData || !rangeData.surah || !rangeData.ayahStart) {
-    return { success: false, message: 'Invalid range data.' };
+    return { success: false, message: 'Missing range details. Check From and To, then try again.' };
   }
 
   var doc    = DocumentApp.getActiveDocument();

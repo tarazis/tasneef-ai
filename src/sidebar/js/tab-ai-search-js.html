@@ -60,7 +60,7 @@ function showAiSearchEmptyError(emptyEl, message) {
     row.appendChild(tip);
     emptyEl.appendChild(row);
   } else {
-    emptyEl.textContent = message;
+    emptyEl.textContent = 'Something went wrong. Please try again.';
   }
   emptyEl.classList.remove('hidden');
 }
@@ -329,6 +329,9 @@ function initAISearchTab() {
     }
 
     if (response.type === 'error') {
+      if (!isAiDailyLimitErrorMessage(response.error)) {
+        console.warn('AI search error:', response.error);
+      }
       showAiSearchEmptyError(emptyEl, response.error);
       if (isAiDailyLimitErrorMessage(response.error)) {
         _aiSearchAwaitingResponse = false;
