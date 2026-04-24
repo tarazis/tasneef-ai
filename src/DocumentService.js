@@ -8,7 +8,7 @@ var INSERT_SPACING_INNER_PT = 6;
 /** Paragraph spacing (points) for outer gap around non-quote inserts. */
 var TARGET_SPACING_PT = 8;
 /** Line spacing factor for inserted Quran Arabic paragraphs (1.0 = single). */
-var INSERT_QURAN_LINE_SPACING = 1.3;
+var INSERT_QURAN_LINE_SPACING = 1.5;
 
 /** Blockquote 2×1 table (DocumentApp; matches app primary and documents.currentonly). */
 var BLOCKQUOTE_ACCENT_WIDTH_PT = 3;

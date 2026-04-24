@@ -423,7 +423,7 @@ function runDocumentServiceTests() {
     expect(body._children.length).toBe(3);
   });
 
-  it('Quran paragraph uses 1.3 line spacing', function () {
+  it('Quran paragraph uses 1.5 line spacing', function () {
     var body = createMockBody(['']);
     var doc = createMockDoc(body, body._children[0]);
     insertParagraphsAtPosition_(body, doc, singleArabicParagraph(), {});
