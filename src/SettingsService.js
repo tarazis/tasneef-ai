@@ -5,8 +5,8 @@
  * API keys (Claude) are in Script Properties (shared, developer-owned).
  */
 
-/** Fallback when Script Property ai_search_daily_limit is missing or invalid. */
-var AI_SEARCH_DAILY_LIMIT_DEFAULT = 20;
+/** Fallback when Script Property ai_limit is missing or invalid. */
+var AI_LIMIT_DEFAULT = 20;
 
 var SETTINGS_DEFAULTS = {
   showTranslation: true,
@@ -20,10 +20,14 @@ var PROPERTY_KEYS = {
   SETTINGS_PREFIX: 'setting_',
   CLAUDE_API_KEY: 'claude_api_key',
   AI_SEARCH_COUNT: 'ai_search_count',
-  /** Positive integer cap on AI searches per user per UTC day (Script Properties). */
-  AI_SEARCH_DAILY_LIMIT: 'ai_search_daily_limit',
-  /** Comma-separated emails exempt from AI search daily limit (Script Properties). */
-  SUPER_USERS: 'super_users',
+  /** Positive integer cap on AI searches per user per UTC day for default tier (Script Properties). */
+  AI_LIMIT: 'ai_limit',
+  /** Positive integer cap on AI searches per user per UTC day for pro tier (Script Properties). */
+  AI_LIMIT_PRO_USERS: 'ai_limit_pro_users',
+  /** Comma-separated emails with unlimited AI usage (Script Properties). */
+  USERS_DEV: 'users_dev',
+  /** Comma-separated emails on the pro tier — capped by ai_limit_pro_users (Script Properties). */
+  USERS_PRO: 'users_pro',
   OPENAI_API_KEY: 'openai_api_key',
   PINECONE_HOST: 'pinecone_host',
   PINECONE_API_KEY: 'pinecone_api_key',
@@ -159,16 +163,31 @@ function getAiSearchCount_() {
 }
 
 /**
- * Max AI searches per user per UTC day from Script Properties, or default when unset/invalid.
+ * Max AI searches per user per UTC day from Script Properties.
+ * Pro users (Script Property users_pro) use ai_limit_pro_users.
+ * Everyone else uses ai_limit. Returns AI_LIMIT_DEFAULT if the relevant
+ * property is unset or invalid.
  * @return {number}
  */
 function getAiSearchDailyLimit_() {
-  var raw = PropertiesService.getScriptProperties()
-    .getProperty(PROPERTY_KEYS.AI_SEARCH_DAILY_LIMIT);
-  if (!raw) return AI_SEARCH_DAILY_LIMIT_DEFAULT;
+  if (isAiSearchProUser_()) {
+    var pro = _readPositiveIntScriptProp_(PROPERTY_KEYS.AI_LIMIT_PRO_USERS);
+    if (pro !== null) return pro;
+  }
+  var n = _readPositiveIntScriptProp_(PROPERTY_KEYS.AI_LIMIT);
+  return n !== null ? n : AI_LIMIT_DEFAULT;
+}
+
+/**
+ * Reads a Script Property and parses it as a positive integer.
+ * @param {string} propKey
+ * @return {number|null} Parsed int ≥ 1, or null when missing/invalid.
+ */
+function _readPositiveIntScriptProp_(propKey) {
+  var raw = PropertiesService.getScriptProperties().getProperty(propKey);
+  if (!raw) return null;
   var n = parseInt(String(raw).trim(), 10);
-  if (!isFinite(n) || n < 1) return AI_SEARCH_DAILY_LIMIT_DEFAULT;
-  return n;
+  return (isFinite(n) && n >= 1) ? n : null;
 }
 
 /**
@@ -177,33 +196,36 @@ function getAiSearchDailyLimit_() {
  * @return {boolean}
  */
 function getAiSearchQuotaAllowsMore() {
-  if (isAiSearchSuperUserExempt_()) return true;
+  if (isAiSearchDevUser_()) return true;
   var current = getAiSearchCount_();
   return current < getAiSearchDailyLimit_();
 }
 
 /**
- * Sidebar startup + AI tab: quota allowance, super-user flag, and whether the Script Property
- * daily cap is above the product default (for client UI / future messaging).
+ * Sidebar startup + AI tab: quota allowance, dev-tier flag (wire field still named
+ * `isSuperUser` for compatibility with the sidebar), and whether the resolved daily
+ * cap exceeds the product default.
  * @return {{ allowed: boolean, isSuperUser: boolean, dailyLimit: number, dailyLimitIncreased: boolean }}
  */
 function getAiSearchQuotaStateForClient() {
   var dailyLimit = getAiSearchDailyLimit_();
   return {
     allowed: getAiSearchQuotaAllowsMore(),
-    isSuperUser: isAiSearchSuperUserExempt_(),
+    isSuperUser: isAiSearchDevUser_(),
     dailyLimit: dailyLimit,
-    dailyLimitIncreased: dailyLimit > AI_SEARCH_DAILY_LIMIT_DEFAULT
+    dailyLimitIncreased: dailyLimit > AI_LIMIT_DEFAULT
   };
 }
 
 /**
  * Increments today's AI search count and persists it.
- * Super users (Script Property super_users; legacy dev_emails fallback) do not consume quota.
+ * Dev users (Script Property users_dev) do not consume quota.
+ * Pro users (Script Property users_pro) consume quota against ai_limit_pro_users;
+ * everyone else against ai_limit.
  * @return {number} The new count, or -1 if the daily limit has been reached.
  */
 function incrementAiSearchCount_() {
-  if (isAiSearchSuperUserExempt_()) return 0;
+  if (isAiSearchDevUser_()) return 0;
 
   var current = getAiSearchCount_();
   var cap = getAiSearchDailyLimit_();
@@ -220,16 +242,33 @@ function incrementAiSearchCount_() {
 }
 
 /**
- * True if the current user's email appears in super_users (comma-separated, trimmed).
- * Falls back to legacy Script Property dev_emails if super_users is unset.
- * Uses Session.getActiveUser().getEmail() first; if blank (e.g. Run from the script editor),
- * falls back to Session.getEffectiveUser().getEmail().
+ * True if the current user's email appears in users_dev (comma-separated, trimmed).
+ * Dev users have unlimited AI quota.
  * @return {boolean}
  */
-function isAiSearchSuperUserExempt_() {
-  var props = PropertiesService.getScriptProperties();
-  var raw = props.getProperty(PROPERTY_KEYS.SUPER_USERS);
-  if (!raw) raw = props.getProperty('dev_emails');
+function isAiSearchDevUser_() {
+  return _aiSearchCurrentUserInList_(PROPERTY_KEYS.USERS_DEV);
+}
+
+/**
+ * True if the current user's email appears in users_pro (comma-separated, trimmed).
+ * Pro users consume quota against ai_limit_pro_users.
+ * @return {boolean}
+ */
+function isAiSearchProUser_() {
+  return _aiSearchCurrentUserInList_(PROPERTY_KEYS.USERS_PRO);
+}
+
+/**
+ * Membership check for the current user's email against a Script Property
+ * containing a comma-separated list. Uses Session.getActiveUser().getEmail()
+ * first; if blank (e.g. Run from the script editor) falls back to
+ * Session.getEffectiveUser().getEmail().
+ * @param {string} propKey - Script Property key holding the CSV list.
+ * @return {boolean}
+ */
+function _aiSearchCurrentUserInList_(propKey) {
+  var raw = PropertiesService.getScriptProperties().getProperty(propKey);
   if (!raw) return false;
   try {
     var email = Session.getActiveUser().getEmail();
@@ -238,18 +277,20 @@ function isAiSearchSuperUserExempt_() {
       email = Session.getEffectiveUser().getEmail();
       email = email ? String(email).trim() : '';
     }
-    return superUserEmailListIncludes_(email, raw);
+    return userEmailListIncludes_(email, raw);
   } catch (e) {
     return false;
   }
 }
 
 /**
+ * Pure CSV membership check (case-insensitive, whitespace-trimmed).
+ * Empty email or empty CSV → false.
  * @param {string} userEmail
  * @param {string} rawCsv - Comma-separated list from Script Properties
  * @return {boolean}
  */
-function superUserEmailListIncludes_(userEmail, rawCsv) {
+function userEmailListIncludes_(userEmail, rawCsv) {
   if (userEmail == null || rawCsv == null) return false;
   var normalized = String(userEmail).trim().toLowerCase();
   if (!normalized) return false;
