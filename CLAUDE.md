@@ -64,9 +64,10 @@ Arabic ayah text in Google Docs is always **Amiri**, regular weight, not bold â€
 
 ### Daily AI quota
 
-- Per-user cap is read from Script Property `ai_search_daily_limit` (positive integer; defaults to 20 if unset or invalid), enforced in `src/SettingsService.js` / `src/ClaudeAPI.js`.
+- Default-tier per-user cap is read from Script Property `ai_limit` (positive integer; defaults to 20 if unset or invalid), enforced in `src/SettingsService.js` / `src/ClaudeAPI.js`.
 - Counter stored in User Properties as JSON (`{count, date}`). Resets on first query of new UTC day.
-- Super users listed in Script Property `super_users` (comma-separated emails) bypass the quota. Legacy `dev_emails` is still read if `super_users` is empty.
+- Dev users listed in Script Property `users_dev` (comma-separated emails) have unlimited quota.
+- Pro users listed in Script Property `users_pro` (comma-separated emails) use `ai_limit_pro_users` instead of `ai_limit`. Dev membership wins if a user appears in both lists.
 
 ### API keys
 

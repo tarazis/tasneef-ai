@@ -102,27 +102,27 @@ function runSettingsServiceTests() {
     expect(s.dailyLimit >= 1).toBeTruthy();
   });
 
-  // ─── superUserEmailListIncludes_ ─────────────────────────────────────────
+  // ─── userEmailListIncludes_ ──────────────────────────────────────────────
 
-  results.push('\nsuperUserEmailListIncludes_()');
+  results.push('\nuserEmailListIncludes_()');
 
   it('returns false for null/empty email or csv', function () {
-    expect(superUserEmailListIncludes_('', 'a@b.com')).toBe(false);
-    expect(superUserEmailListIncludes_('a@b.com', '')).toBe(false);
-    expect(superUserEmailListIncludes_(null, 'a@b.com')).toBe(false);
+    expect(userEmailListIncludes_('', 'a@b.com')).toBe(false);
+    expect(userEmailListIncludes_('a@b.com', '')).toBe(false);
+    expect(userEmailListIncludes_(null, 'a@b.com')).toBe(false);
   });
 
   it('matches with spaces around emails and is case-insensitive', function () {
-    expect(superUserEmailListIncludes_('User@Example.com', ' other@test.com , user@example.com ')).toBe(true);
-    expect(superUserEmailListIncludes_('A@B.CO', 'x@y.z, a@b.co')).toBe(true);
+    expect(userEmailListIncludes_('User@Example.com', ' other@test.com , user@example.com ')).toBe(true);
+    expect(userEmailListIncludes_('A@B.CO', 'x@y.z, a@b.co')).toBe(true);
   });
 
   it('ignores empty comma segments', function () {
-    expect(superUserEmailListIncludes_('only@here.org', 'foo@bar.com,, , only@here.org')).toBe(true);
+    expect(userEmailListIncludes_('only@here.org', 'foo@bar.com,, , only@here.org')).toBe(true);
   });
 
   it('does not match partial addresses', function () {
-    expect(superUserEmailListIncludes_('a@b.com', 'aa@b.com, x@b.com')).toBe(false);
+    expect(userEmailListIncludes_('a@b.com', 'aa@b.com, x@b.com')).toBe(false);
   });
 
   results.push('\n─────────────────────────────────────────');
